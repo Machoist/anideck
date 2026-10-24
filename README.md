@@ -60,6 +60,5 @@ If you’d like to support development, you can [support AniDeck on Ko-fi](https
 <p align="center">
   <a href="docs/DEVELOPMENT.md">Build from source</a> &nbsp;·&nbsp;
   <a href="server/README.md">Self-hosting</a> &nbsp;·&nbsp;
-  <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a> &nbsp;·&nbsp;
-  <a href="LICENSE">License</a>
+  <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a>
 </p>

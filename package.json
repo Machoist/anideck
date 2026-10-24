@@ -5,7 +5,7 @@
   "description": "Your anime, on deck. Browse, stream, and track with AniList or Kitsu; connect a Jellyfin library optionally.",
   "main": "main.js",
   "author": "Giovanni Cruz",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win --x64 --publish never",
