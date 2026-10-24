@@ -1,0 +1,32 @@
+/* Episode browser: independent title and tools rows, with a content-sized body. */
+.p-drawer{top:70px;right:18px;bottom:auto;width:min(450px,calc(100% - 36px));height:auto;max-height:calc(100% - 96px);border-radius:18px;background:rgba(20,18,28,.97)!important;backdrop-filter:blur(18px);box-shadow:0 18px 60px #0007;overflow:hidden}
+.p-drawer-head{display:flex;align-items:flex-start;gap:16px;padding:20px 18px 16px;border-bottom:1px solid var(--line)}
+.p-drawer-head #p-drawer-title{display:grid;gap:8px;min-width:0;flex:1;margin:0;white-space:normal}
+.p-drawer-head #p-drawer-close{flex:0 0 32px;width:32px;height:32px;padding:7px;border-radius:9px}
+.p-drawer .d-show{font:500 12px/1.45 var(--font);letter-spacing:0;text-transform:none;max-width:none;color:var(--muted);white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.p-drawer .d-heading{display:flex;align-items:center;gap:10px;font:600 22px/1.15 var(--display);color:var(--text)}
+.p-drawer-head #p-drawer-title em{display:inline-flex;align-items:center;margin:0;padding:3px 8px;font:600 11px/1.3 var(--font);border-radius:6px;background:rgba(var(--accent-rgb),.09);color:var(--accent)}
+.p-drawer-tools{display:flex;align-items:center;gap:10px;padding:12px 16px 6px;flex:none}
+.p-drawer-tools .d-go{flex:1;min-width:0;width:auto;max-width:none;height:38px;text-align:left;font-size:12px;padding:0 12px;border-radius:9px;margin:0}
+.p-drawer-tools .icon-btn{width:36px;height:36px;flex:none;border:1px solid var(--line);border-radius:9px}
+.p-drawer-tools .icon-btn svg.ic{width:18px;height:18px}
+#p-drawer-list{flex:0 1 auto;overflow:auto;overscroll-behavior:contain;padding:12px;gap:8px;min-height:0;align-content:start;scroll-padding-block:12px}
+.p-drawer .d-ep{width:100%;padding:10px;gap:13px;border-radius:12px;grid-template-columns:112px minmax(0,1fr);align-items:center;min-width:0;animation:none!important}
+.p-drawer .d-thumb{width:112px;height:66px;aspect-ratio:auto;border-radius:8px;overflow:hidden}
+.p-drawer .d-text{min-width:0;gap:5px}.p-drawer .d-text b{font-size:13px;line-height:1.4}.p-drawer .d-text small{font-size:11px}.p-drawer .d-about{font-size:11px;line-height:1.5}.p-drawer .d-now{font-size:9px;letter-spacing:.12em}
+.p-drawer .d-ep.on{background:rgba(var(--accent-rgb),.1);border-color:rgba(var(--accent-rgb),.4);box-shadow:none}
+.p-drawer.is-movie .d-num{display:none}.p-drawer.is-movie .d-ep{cursor:default}.p-drawer.is-short{max-height:min(580px,calc(100% - 96px))}
+.p-drawer.is-movie .d-thumb{height:84px}.p-drawer.is-movie #p-drawer-list{padding:14px}
+.d-search-status{padding:4px 18px 0;margin:0;flex:none;font-size:11px;line-height:1.5;color:var(--muted)}
+.p-drawer .d-ep.hit{outline:1px solid var(--accent);outline-offset:-1px}
+.p-drawer .d-progress{padding:0 4px 8px;font-size:11px}.p-drawer .d-ranges{padding:0 0 6px;gap:6px}
+@media(max-height:520px){.p-drawer{top:12px;max-height:calc(100% - 24px)}.p-drawer.is-short{max-height:calc(100% - 24px)}.p-drawer-head{padding-block:12px}}
+@media(max-width:520px){.p-drawer{right:10px;width:calc(100% - 20px);top:54px;max-height:calc(100% - 70px)}.p-drawer.is-short{max-height:calc(100% - 70px)}.p-drawer .d-ep{grid-template-columns:92px minmax(0,1fr);gap:10px}.p-drawer .d-thumb{width:92px;height:56px}}
+.reduce-motion .p-drawer,.reduce-motion .p-drawer *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){.p-drawer,.p-drawer *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Page shortcuts remain available without opening the navigation dock. */
+.page-back{position:absolute;top:14px;left:66px;z-index:44;width:42px;height:42px;padding:0;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(255,255,255,.13);background:rgba(22,21,30,.86);color:var(--text);box-shadow:0 3px 12px #0003;transition:background .2s,border-color .2s,transform .2s}
+.page-back svg.ic{width:18px;height:18px}.page-back:is(:hover,:focus-visible):not(:disabled){background:rgba(35,31,46,.97);border-color:rgba(var(--accent-rgb),.55);color:var(--accent)}.page-back:is(:hover,:focus-visible):not(:disabled) svg{animation:navBackStep .42s ease}.page-back:active:not(:disabled){transform:scale(.94)}.page-back:disabled{opacity:.35;cursor:default}.page-back:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+body:has(.player:not([hidden])) .page-back{display:none}
+.reduce-motion .page-back,.reduce-motion .page-back svg{transition:none!important;animation:none!important}
+@media(prefers-reduced-motion:reduce){.page-back,.page-back svg{transition:none!important;animation:none!important}}

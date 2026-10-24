@@ -1,0 +1,8 @@
+name = "anideck-cloud"
+main = "src/worker.js"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "anideck-cloud"
+database_id = "YOUR_D1_DATABASE_ID"

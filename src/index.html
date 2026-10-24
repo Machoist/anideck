@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data: blob:; media-src * blob: data:; connect-src *; worker-src 'self' blob:;">
+  <title>AniDeck</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="widgets.css">
+  <link rel="stylesheet" href="splash.css">
+  <link rel="stylesheet" href="nav-motion.css">
+  <link rel="stylesheet" href="player-drawer.css">
+  <link rel="stylesheet" href="home-queue.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="friends.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="wmg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e4ddff"/><stop offset="1" stop-color="#9883ff"/></linearGradient></defs></svg>
+  <!-- Loading screen -->
+  <div id="splash" class="splash" aria-busy="true" aria-label="AniDeck is starting">
+    <div class="splash-ambient" aria-hidden="true"></div>
+    <div class="splash-center">
+      <div class="splash-signature"><span class="splash-deal" aria-hidden="true"><i></i><i></i><i></i></span><svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 32.89046875000001 402.93052083333333 89.01953125" class="splash-wordmark" role="img" aria-label="AniDeck"><defs><mask id="splash-rear-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="401.93052083333333" height="150"><rect width="401.93052083333333" height="150" fill="white"/><path d="M178.36 39.94046875000001H200.340703125C247.7859375 39.94046875000001 247.7859375 105.86000000000001 200.340703125 105.86000000000001H178.36Z" fill="black" stroke="black" stroke-width="5"/></mask></defs><g class="brand-letters" fill="#eeecf5"><path d="M108.497,56.689C119.565,56.689,125.098,63.558,125.098,77.295L125.098,107.91 109.718,107.91 109.718,80.127C109.718,72.379 106.951,68.506 101.417,68.506 98.748,68.506 96.55,69.531 94.825,71.582 93.1,73.633 92.237,76.237 92.237,79.394L92.237,107.91 76.807,107.91 76.807,57.91 92.237,57.91 92.237,65.82 92.432,65.82C96.111,59.733,101.466,56.689,108.497,56.689z M34.717,50.39C34.554,52.441,34.147,54.476,33.496,56.494L25.879,80.224 43.799,80.224 36.279,56.689C35.726,54.931,35.335,52.832,35.107,50.39L34.717,50.39z M25.977,37.89L44.678,37.89 69.58,107.91 52.393,107.91 47.412,92.334 22.51,92.334 17.578,107.91 0.488,107.91 25.977,37.89z"/><path d="M135.81 57.91000000000001h13.5v50h-13.5z"/><rect x="135.41" y="37.89046875000001" width="14.3" height="13.5" rx="3"/><path transform="translate(239.9271875 0)" d="M28.418,67.09C25.944,67.09 23.804,68.115 21.997,70.166 20.19,72.217 19.092,74.772 18.701,77.832L37.109,77.832C37.109,70.67,34.212,67.09,28.418,67.09z M85.692,56.689C91.584,56.689,95.848,57.471,98.485,59.033L98.485,72.119C95.262,69.71 91.665,68.506 87.694,68.506 83.267,68.506 79.759,69.8 77.171,72.388 74.583,74.975 73.289,78.548 73.289,83.105 73.289,87.532 74.526,91.007 77,93.53 79.474,96.053 82.876,97.314 87.205,97.314 91.047,97.314 94.806,96.11 98.485,93.701L98.485,106.103C95.002,108.122 89.972,109.131 83.397,109.131 75.715,109.131 69.497,106.803 64.745,102.148 59.992,97.493 57.616,91.487 57.616,84.131 57.616,75.635 60.163,68.937 65.257,64.038 70.352,59.139 77.163,56.689 85.692,56.689z M28.516,56.689C35.807,56.689 41.447,58.854 45.435,63.183 49.422,67.513 51.416,73.389 51.416,80.81L51.416,87.305 18.799,87.305C19.32,94.564 23.893,98.193 32.52,98.193 38.021,98.193 42.855,96.891 47.021,94.287L47.021,105.42C42.399,107.894 36.393,109.131 29.004,109.131 20.931,109.131 14.665,106.893 10.205,102.417 5.745,97.941 3.516,91.699 3.516,83.691 3.516,75.39 5.924,68.815 10.742,63.965 15.56,59.114 21.484,56.689 28.516,56.689z M108.591,33.887L124.02,33.887 124.02,81.006 124.216,81.006 139.108,57.91 157.419,57.91 139.499,81.396 158.688,107.91 140.183,107.91 124.216,83.105 124.02,83.105 124.02,107.91 108.591,107.91 108.591,33.887z"/></g><g class="brand-card-back" mask="url(#splash-rear-mask)"><path d="M168.31 54.89046875000001L159.31 56.89046875000001Q156.31 57.89046875000001 157.31 61.89046875000001L168.31 111.91000000000001Q169.31 115.91000000000001 173.31 114.91000000000001L198.31 108.91000000000001" fill="none" stroke="#eeecf5" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></g><path class="brand-d" d="M178.36 39.94046875000001H200.340703125C247.7859375 39.94046875000001 247.7859375 105.86000000000001 200.340703125 105.86000000000001H178.36Z" fill="none" stroke="#b7a8ff" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg></div>
+      <p class="splash-tag">Your anime. Your deck.</p>
+      <div class="splash-status"><span class="splash-pulse" aria-hidden="true"><i></i><i></i><i></i></span><p class="splash-msg" id="splash-msg" role="status" aria-live="polite">Getting your deck ready…</p></div>
+      <button id="splash-retry" class="btn ghost sm" hidden>Try again</button>
+    </div>
+    <div class="splash-foot" aria-hidden="true"><span class="splash-foot-line"></span><span>A space for your next favorite.</span><span class="splash-foot-line"></span></div>
+  </div>
+  <!-- Sign-in -->
+  <section id="login" class="login" hidden>
+    <div class="login-art" aria-hidden="true"></div>
+    <div class="login-card">
+      <div class="brand big"><img class="brand-wordmark" src="brand/wordmark.svg" alt="AniDeck" width="168" height="40"></div>
+      <h1>Your anime. Your deck.</h1>
+      <p class="muted">Sign in to sync your list and track what you watch.</p>
+      <div class="login-providers"><button type="button" class="btn primary wide" id="login-anilist">Continue with AniList</button><button type="button" class="btn ghost wide" id="login-kitsu">Continue with Kitsu</button></div>
+      <p class="login-note muted">Browse and stream anime without a Jellyfin server.</p>
+      <details class="login-jellyfin"><summary>Connect a Jellyfin library instead <span>Optional</span></summary><form id="login-form" autocomplete="on"><p class="small muted">Use your Jellyfin server account to access your own media library.</p>
+      <label>Server address
+        <input id="login-server" type="text" placeholder="https://jellyfin.example.com" required>
+      </label>
+      <label>Username
+        <input id="login-user" type="text" autocomplete="username" required>
+      </label>
+      <label>Password
+        <input id="login-pass" type="password" autocomplete="current-password">
+      </label>
+      <p id="login-error" class="error" hidden></p>
+      <button class="btn primary wide" type="submit" id="login-btn">Sign in</button>
+    </form></details></div>
+  </section>
+
+  <!-- App -->
+  <div id="shell" class="shell" hidden>
+    <div class="content">
+      <header class="topbar">
+        <div class="topbar-inner">
+        <div class="topbar-start">
+        <div class="brand top-brand"><img class="brand-wordmark" src="brand/wordmark.svg" alt="AniDeck" width="168" height="40"></div>
+        <div class="nav-drop">
+          <button class="nav-current" id="nav-current" aria-haspopup="true" aria-expanded="false" aria-controls="nav"></button>
+          <nav id="nav" class="nav-menu" aria-label="Main" hidden></nav>
+        </div>
+        <button class="icon-btn" id="tb-back" title="Back (Alt+←)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+        </div>
+        <form id="tb-search" class="tb-search">
+          <span class="tb-ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></span>
+          <input type="search" id="tb-q" placeholder="Search anime" autocomplete="off">
+          <button type="button" class="tb-clear" id="tb-clear" title="Clear" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button><kbd>Ctrl F</kbd>
+          <div class="suggest" id="tb-suggest" hidden></div>
+        </form>
+        <div class="topbar-actions">
+        <button class="icon-btn" id="tb-refresh" title="Refresh"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8.5"/><path d="M20 3.5v5h-5"/></svg></button>
+        <button class="icon-btn" id="tb-shuffle" title="Pick something random"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3.5h4.5V8M3.5 20 20.5 3.5M20.5 16v4.5H16M14.5 14.5l6 6M3.5 4l5 5"/></svg></button>
+        <div class="bell-wrap">
+          <button class="icon-btn" id="tb-bell" title="Notifications"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8.5a6 6 0 0 1 12 0c0 6.5 2.5 8.5 2.5 8.5h-17S6 15 6 8.5"/><path d="M10.2 20.5a2 2 0 0 0 3.6 0"/></svg><span id="bell-count" class="bell-count" hidden></span></button>
+          <div id="notif-panel" class="notif-panel" hidden></div>
+        </div>
+        <button id="update-banner" class="update-banner" hidden></button>
+        <button data-view="settings" class="nav-item" id="nav-settings" title="Settings"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+        <button id="conn-btn" class="conn-btn"></button>
+        </div>
+        </div>
+      </header>
+      <div id="home-brand" class="home-brand" hidden><img src="brand/wordmark.svg" alt="AniDeck" width="152" height="36"></div>
+      <button id="home-fab" class="home-fab" title="Home" aria-label="Go to Home" hidden><span class="home-fab-glyph" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11.5h13V9"/><path d="M10 20.5v-6h4v6"/></svg></span><span class="home-fab-label">Home</span></button>
+      <button id="page-back" class="page-back" title="Back (Alt+←)" aria-label="Go back" hidden disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+      <main id="main" class="main" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <!-- Player -->
+  <section id="player" class="player" hidden>
+    <video id="video" crossorigin="anonymous" playsinline></video>
+    <div id="p-subs-top" class="p-subs top" aria-hidden="true"></div>
+    <div id="p-subs" class="p-subs" aria-live="polite"></div>
+    <div class="p-top">
+      <button class="icon-btn svg" id="p-back" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg></button>
+      <div class="p-title"><div id="p-show" class="small muted"></div><div id="p-ep"></div></div>
+      <span id="p-mode" class="p-mode" hidden></span>
+      <div id="p-track" class="p-track"></div>
+      <button class="icon-btn svg" id="p-eps-btn" title="Episodes" aria-label="Open episode panel" aria-controls="p-drawer" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6zm16-4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg></button>
+    </div>
+    <aside class="p-drawer" id="p-drawer" aria-labelledby="p-drawer-title" aria-hidden="true" inert>
+      <div class="p-drawer-head"><div id="p-drawer-title">Episodes</div><button class="icon-btn" id="p-drawer-close" title="Close" aria-label="Close episode panel"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="p-drawer-tools" id="p-drawer-tools"><input id="p-drawer-go" class="d-go" type="search" placeholder="Find an episode or title…" aria-label="Find an episode by number or title" autocomplete="off"><button class="icon-btn" id="p-drawer-sort" title="Newest first" aria-label="Show newest episodes first"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16m-4-4 4 4 4-4M16 20V4m-4 4 4-4 4 4"/></svg></button></div>
+      <p class="d-search-status" id="p-drawer-status" role="status" hidden></p><div id="p-drawer-list"></div></aside>
+    <section id="p-tv-remote" class="p-tv-remote" hidden aria-label="TV playback"><div class="p-tv-card"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8m-4-4v4"/></svg><small>ANIDECK ON TV</small><h2 id="p-tv-status" role="status">Playing on your TV</h2><p>This player is your remote. Play, pause, seek, and choose the next episode here.</p><div><button id="p-tv-controls" class="btn primary">TV controls</button><button id="p-tv-return" class="btn ghost">Continue on this PC</button></div></div></section>
+    <div id="p-spinner" class="spinner" hidden></div>
+    <div id="p-osd" class="p-osd" hidden></div>
+    <button id="p-skip" class="skip-btn" hidden><svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg><span id="p-skip-label">Skip intro</span></button>
+    <div id="p-next" class="next-card" hidden>
+      <div class="next-thumb"><img id="p-next-img" alt=""></div>
+      <div class="next-body">
+        <div class="next-label" id="p-next-label">Up next</div>
+        <div id="p-next-title" class="next-title"></div>
+        <div class="next-actions"><button class="link-act" id="p-next-cancel">Cancel</button><button class="link-act strong" id="p-next-go">Play now</button></div>
+      </div>
+      <div class="next-progress"><i id="p-next-bar"></i></div>
+    </div>
+    <div class="p-bottom">
+      <div class="seek-row"><span id="p-cur" class="p-t">0:00</span>
+        <div class="seek" id="p-seek">
+          <div class="seek-track"><div class="seek-buf" id="p-buf"></div><div class="seek-fill" id="p-fill"></div><div id="p-marks"></div></div>
+          <div class="seek-thumb" id="p-thumb"></div>
+          <div class="seek-tip" id="p-tip" hidden></div>
+        </div><span id="p-dur" class="p-t">0:00</span></div>
+      <div class="p-controls">
+        <button class="icon-btn svg" id="p-prevbtn" title="Previous episode (P)"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+        <button class="icon-btn svg big" id="p-play" title="Play/Pause (Space)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="icon-btn svg" id="p-nextbtn" title="Next episode (N)"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+        <div class="vol"><button class="icon-btn svg" id="p-mute" title="Mute (M)"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></button><input type="range" id="p-vol" min="0" max="1" step="0.05" value="1"></div>
+        <button class="p-skipfwd" id="p-skipfwd" title="Skip ahead"><svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg><span id="p-skiplen">+85s</span></button>
+        <div class="spacer"></div>
+        <div class="menu-wrap"><button class="icon-btn svg" id="p-server-btn" title="Server"><svg viewBox="0 0 24 24"><path d="M20 13H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1zM7 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4zM20 3H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1zM7 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg></button><div class="menu" id="p-server-menu" hidden></div></div>
+        <div class="menu-wrap"><button class="icon-btn svg" id="p-sub-btn" title="Subtitles &amp; audio"><svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM5 12h4v2H5v-2zm10 6H5v-2h10v2zm4 0h-2v-2h2v2zm0-4h-8v-2h8v2z"/></svg></button><div class="menu" id="p-sub-menu" hidden></div></div>
+        <div class="menu-wrap"><button class="icon-btn svg" id="p-quality-btn" title="Quality"><svg viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v4H3V6a1 1 0 0 1 1-1zm-1 7h18v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6zm3-4h2V7H6v1zm0 8h2v-1H6v1z"/></svg></button><div class="menu" id="p-quality-menu" hidden></div></div>
+        <div class="menu-wrap"><button class="icon-btn svg" id="p-speed-btn" title="Speed"><svg viewBox="0 0 24 24"><path d="M20.4 8.6l-1.2 1.8a8 8 0 0 1-.2 7.6H5A8 8 0 0 1 15.6 6.8l1.8-1.2A10 10 0 0 0 3.3 19a2 2 0 0 0 1.7 1h14a2 2 0 0 0 1.7-1 10 10 0 0 0-.3-10.4zm-10 6.8a2 2 0 0 0 2.8 0l5.7-8.5-8.5 5.7a2 2 0 0 0 0 2.8z"/></svg></button><div class="menu" id="p-speed-menu" hidden></div></div>
+        <button class="icon-btn svg" id="p-fit-btn" title="Picture: Fit (click to change)"><svg viewBox="0 0 24 24"><path d="M3 5v4h2V5h4V3H5a2 2 0 0 0-2 2zm2 10H3v4a2 2 0 0 0 2 2h4v-2H5v-4zm14 4h-4v2h4a2 2 0 0 0 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5a2 2 0 0 0-2-2zM7 8h10v8H7z"/></svg></button>
+        <button class="icon-btn svg" id="p-cast" title="Cast to TV" aria-label="Cast to TV"><svg viewBox="0 0 24 24"><path d="M3 8V5h18v14h-7M3 12a7 7 0 0 1 7 7M3 16a3 3 0 0 1 3 3M3 19h.1" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></button>
+        <button class="icon-btn svg" id="p-pip" title="Picture-in-picture"><svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4 8V5a2 2 0 0 0-2-2H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2zm-2 0H3V5h18v14z"/></svg></button>
+        <button class="icon-btn svg" id="p-full" title="Fullscreen (F)"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <div id="modal" class="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+  <div id="toasts" class="toasts"></div>
+
+  <script src="vendor/hls.min.js"></script>
+  <script src="api.js"></script>
+  <script src="player.js"></script>
+  <script src="cast.js"></script>
+  <script src="app.js"></script>
+  <script src="deck-core.js"></script>
+  <script src="deck-features.js"></script>
+  <script src="watcher.js"></script>
+  <script src="friends.js"></script>
+  <script src="friends-plus.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+const projectRoot = require('node:path').resolve(__dirname, '..');
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const src=fs.readFileSync(require('node:path').join(projectRoot, 'src/player.js'),'utf8');
+const nodes=new Map(), winEvents={}, intervals=[];let now=50000;
+function node(id){if(!nodes.has(id))nodes.set(id,{textTracks:{addEventListener(){}},hidden:false,style:{},classList:{add(){},remove(){}},addEventListener(name,fn){(this.events||={})[name]=fn},getBoundingClientRect:()=>({left:0,width:100}),querySelectorAll:()=>[],play:()=>Promise.resolve(),paused:false,ended:false,seeking:false,currentTime:10,buffered:{length:1,start:()=>0,end:()=>30}});return nodes.get(id)}
+const ctx={document:{getElementById:node,addEventListener(){}},window:{native:{get:async()=>false,set(){}},addEventListener:(name,fn)=>winEvents[name]=fn},App:{settings:{speed:1}},console,Date:{now:()=>now},setInterval:(fn,ms)=>{intervals.push({fn,ms});return intervals.length},clearInterval(){},setTimeout(){},clearTimeout(){}};
+const p=vm.runInNewContext(src+'\nPlayer',ctx);p.bind();p.dur=()=>1000;let seeks=[];p.seekTo=t=>seeks.push(t);
+node('p-seek').events.mousedown({clientX:20});winEvents.mousemove({clientX:40});winEvents.mousemove({clientX:60});assert.equal(seeks.length,0);winEvents.mouseup();assert.deepStrictEqual(seeks,[600]);
+(async()=>{let media=0,network=0;p.remote=true;p.hls={recoverMediaError(){media++},startLoad(){network++}};p.report=()=>{};p.subMode='off';await p.afterStart();const watch=intervals.find(i=>i.ms===2000).fn;now+=11000;watch();assert.equal(media,1);now+=5000;watch();assert.equal(media,1);node('video').paused=true;now+=31000;watch();assert.equal(media,1);node('video').paused=false;node('video').buffered={length:0};now+=11000;watch();assert.equal(network,1);console.log('PASS: drag seeks once on release; stalled playback recovery, cooldown and paused-state guards');})().catch(e=>{console.error(e);process.exitCode=1});

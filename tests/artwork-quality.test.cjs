@@ -1,0 +1,14 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+function api(dpr=1){return vm.runInNewContext(fs.readFileSync(path.join(root,'src/api.js'),'utf8')+'\n({Jellyfin,Kitsu,AniList})',{window:{devicePixelRatio:dpr},URLSearchParams,console,Map,Set})}
+test('artwork uses original Kitsu and extra-large AniList images with fallback sizes',()=>{const {Kitsu,AniList}=api();const k=Kitsu.toAnime({id:'1',attributes:{posterImage:{original:'original',large:'large',medium:'medium'},coverImage:{original:'cover-original',large:'cover-large'}}});assert.equal(k.poster,'original');assert.equal(k.cover,'cover-original');assert.equal(Kitsu.toAnime({id:'2',attributes:{posterImage:{medium:'medium'}}}).poster,'medium');const a=AniList.toAnime({id:1,title:{english:'Title'},seasonYear:2026,coverImage:{extraLarge:'xl',large:'large'}});assert.equal(a.poster,'xl');assert.equal(a.year,'2026')});
+test('Jellyfin requests crisp source pixels through aspect-preserving bounds',()=>{const {Jellyfin}=api(2);Jellyfin.server='https://jellyfin.test';const u=new URL(Jellyfin.img('show','Primary',{fillHeight:420}));assert.equal(u.searchParams.get('maxHeight'),'840');assert.equal(u.searchParams.get('quality'),'95');assert(!u.searchParams.has('fillHeight'));const w=new URL(Jellyfin.img('show','Backdrop',{fillWidth:2560}));assert.equal(w.searchParams.get('maxWidth'),'3840');assert.equal(Jellyfin.img(null),'')});
+test('high-DPI poster requests are bounded',()=>{const {Jellyfin}=api(4);Jellyfin.server='https://jellyfin.test';const u=new URL(Jellyfin.img('show','Primary',{fillHeight:2000}));assert.equal(u.searchParams.get('maxHeight'),'4096')});
+test('backdrop selection rejects portraits and upgrades undersized landscapes',async()=>{
+ const source=fs.readFileSync(path.join(root,'src/app.js'),'utf8');const start=source.indexOf('const bgChoice = new Map()'),end=source.indexOf('// Sets your list',start);
+ const cfg={first:['portrait','small'],mid:['large']},added=[];
+ const bg={dataset:{bgs:JSON.stringify(cfg)},style:{backgroundImage:''},getBoundingClientRect:()=>({width:1000,height:500}),appendChild:img=>added.push(img.src)};
+ class Image {set src(value){const dims={portrait:[4000,6000],small:[500,300],large:[2400,1200]}[value];this.naturalWidth=dims[0];this.naturalHeight=dims[1];queueMicrotask(()=>this.onload())}}
+ const ctx={Map,Set,Image,App:{stale:()=>false},window:{devicePixelRatio:2,requestIdleCallback:true},requestIdleCallback:fn=>fn(),requestAnimationFrame:fn=>fn(),document:{querySelector:()=>bg,createElement:()=>({classList:{add(){}}})},AniZip:{get:async()=>null},Trakt:{fanartFor:async()=>[]},setTimeout:(fn,ms)=>{const t=setTimeout(fn,ms);t.unref();return t},clearTimeout};
+ const upgrade=vm.runInNewContext(source.slice(start,end)+'\nupgradeBackdrop',ctx);await upgrade(1);assert.deepEqual(added,['large']);
+});

@@ -1,0 +1,36 @@
+/* Small gestures reflect each navigation action; only actual work loops. */
+.topbar :is(#tb-back,#tb-refresh,#tb-shuffle,#tb-clear,#nav-settings,#nav-current) svg.ic{transform-box:fill-box;transform-origin:center}
+.topbar #tb-refresh:is(:hover,:focus-visible):not(:disabled) svg.ic{animation:navRefreshTurn .65s cubic-bezier(.2,.7,.2,1)}
+.topbar #tb-refresh[aria-busy=true] svg.ic{animation:navRefreshTurn .85s linear infinite}
+.topbar #tb-refresh[aria-busy=true]{opacity:.85;cursor:wait;color:var(--accent)}
+.topbar #tb-back:is(:hover,:focus-visible):not(:disabled) svg.ic{animation:navBackStep .42s ease}
+.topbar #tb-back.nav-click svg.ic{animation:navBackClick .35s ease}
+.topbar #tb-shuffle:is(:hover,:focus-visible):not(:disabled) svg.ic{animation:navShuffleMix .5s cubic-bezier(.2,.8,.2,1)}
+.topbar #tb-shuffle.nav-click svg.ic{animation:navShuffleClick .48s cubic-bezier(.2,.8,.2,1)}
+.topbar #tb-shuffle[aria-busy=true] svg.ic{animation:navPickWait 1.1s ease-in-out infinite}
+.topbar #nav-settings:is(:hover,:focus-visible) svg.ic{animation:navGearTurn .6s cubic-bezier(.2,.8,.2,1)}
+.topbar #nav-settings.nav-click svg.ic{animation:navGearClick .5s cubic-bezier(.2,.8,.2,1)}
+.topbar #tb-clear:is(:hover,:focus-visible) svg.ic{animation:navClearTurn .32s ease}
+.topbar #tb-clear.nav-click svg.ic{animation:navClearClick .28s ease}
+.topbar #conn-btn:is(:hover,:focus-visible) .avatar{animation:navProfileLift .4s cubic-bezier(.2,.8,.2,1)}
+.topbar #conn-btn.nav-click .avatar{animation:navProfileClick .35s cubic-bezier(.2,.8,.2,1)}
+.topbar #nav-current:is(:hover,:focus-visible)>svg.ic:first-child,.topbar .nav-menu .nav-item:is(:hover,:focus-visible)>svg.ic{animation:navIconLift .35s ease}
+.topbar #nav-current.nav-click>svg.ic:first-child{animation:navIconClick .35s ease}
+.topbar .tb-search:focus-within .tb-ico svg.ic{animation:navSearchFocus .4s ease}
+@keyframes navRefreshTurn{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes navBackStep{40%{transform:translateX(-3px)}70%{transform:translateX(1px)}}
+@keyframes navBackClick{45%{transform:translateX(-5px);opacity:.5}100%{transform:none;opacity:1}}
+@keyframes navShuffleMix{35%{transform:rotate(-14deg) scale(.92)}70%{transform:rotate(10deg) scale(1.06)}100%{transform:none}}
+@keyframes navShuffleClick{35%{transform:rotate(20deg) scale(.85)}75%{transform:rotate(-10deg) scale(1.1)}100%{transform:none}}
+@keyframes navPickWait{0%,100%{transform:rotate(-7deg) scale(.95)}50%{transform:rotate(7deg) scale(1.05)}}
+@keyframes navGearTurn{from{transform:rotate(-25deg)}to{transform:rotate(90deg)}}
+@keyframes navGearClick{from{transform:rotate(0)}to{transform:rotate(180deg)}}
+@keyframes navClearTurn{50%{transform:rotate(90deg) scale(.9)}}
+@keyframes navClearClick{50%{transform:rotate(90deg) scale(.6);opacity:.4}}
+@keyframes navProfileLift{50%{transform:translateY(-2px) scale(1.06)}}
+@keyframes navProfileClick{45%{transform:scale(.88)}80%{transform:scale(1.05)}}
+@keyframes navIconLift{50%{transform:translateY(-2px)}}
+@keyframes navIconClick{50%{transform:translateY(2px) scale(.88)}}
+@keyframes navSearchFocus{50%{transform:scale(1.12) rotate(-8deg)}}
+.reduce-motion .topbar :is(svg.ic,.avatar){animation:none!important}
+@media(prefers-reduced-motion:reduce){.topbar :is(svg.ic,.avatar){animation:none!important}}

@@ -1,0 +1,32 @@
+/* AniDeck loading: three outlined cards settle into the wordmark's D. */
+.splash{background:#100f16;transition:opacity .28s ease}
+.splash-ambient{background:radial-gradient(ellipse 520px 350px at 50% 47%,rgba(183,168,255,.105),transparent 75%),radial-gradient(ellipse 350px 260px at 15% 95%,rgba(90,77,136,.04),transparent 80%)}
+.splash-ambient::before,.splash-ambient::after{width:330px;height:440px;left:calc(50% - 165px);top:calc(50% - 220px);border:1px solid rgba(183,168,255,.045);border-radius:40px;transform:translate(-135px,-5px) rotate(-16deg);animation:deckAmbientIn 1.4s ease both}
+.splash-ambient::after{transform:translate(135px,5px) rotate(16deg);animation-delay:.1s}
+.splash-center{width:min(480px,calc(100vw - 56px));transform:translateY(-12px)}
+.splash-signature{position:relative;width:min(420px,100%);isolation:isolate}
+.splash-deal{position:absolute;inset:0;pointer-events:none;z-index:2}
+.splash-deal i{position:absolute;left:43%;top:6%;width:14%;height:78%;border:1.5px solid #b7a8ff;border-radius:7px;background:#17141f;transform-origin:50% 80%;animation:deckCardGather .8s cubic-bezier(.22,.75,.2,1) both;--deal-x:-100px;--deal-y:-65px;--deal-r:-30deg;--deal-delay:0s;animation-delay:var(--deal-delay)}
+.splash-deal i:nth-child(2){--deal-x:0px;--deal-y:-110px;--deal-r:8deg;--deal-delay:.06s;border-color:#eeecf5}
+.splash-deal i:nth-child(3){--deal-x:100px;--deal-y:-55px;--deal-r:32deg;--deal-delay:.12s}
+.splash .brand-letters{transform-box:fill-box;transform-origin:center;animation:deckWordReveal .6s .28s cubic-bezier(.2,.8,.2,1) both}
+.splash .brand-card-back path{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .6s .3s cubic-bezier(.3,.1,.2,1) forwards}
+.splash .brand-d{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .65s .36s cubic-bezier(.3,.1,.2,1) forwards;filter:drop-shadow(0 0 6px rgba(183,168,255,.25))}
+.splash .splash-tag{font-size:12px;color:#a59cb7;letter-spacing:.1em;margin-top:24px;animation:deckCaptionIn .5s .48s ease both}
+.splash-status{margin-top:32px;gap:14px;min-height:36px}
+.splash .splash-msg{font-size:12px;color:#bdb5cb;text-align:left;line-height:1.6}
+.splash-pulse{position:relative;display:block;width:22px;height:25px;flex:none}
+.splash-pulse i{position:absolute;left:5px;top:4px;width:12px;height:16px;border:1px solid #b7a8ff;border-radius:3px;background:#17141f;transform-origin:50% 90%;animation:deckLoadingRelay 2.4s ease-in-out infinite;--card-r:-18deg;--card-x:-4px;animation-delay:0s}
+.splash-pulse i:nth-child(2){--card-r:0deg;--card-x:0px;animation-delay:.18s}.splash-pulse i:nth-child(3){--card-r:18deg;--card-x:4px;animation-delay:.36s}
+.splash-foot{color:#7f748f;letter-spacing:.08em}.splash-foot-line{width:32px;background:rgba(183,168,255,.2)}
+.splash.out .splash-center{transform:translateY(-19px)}.splash.out .splash-deal,.splash.failed .splash-deal{display:none}.splash.failed .splash-ambient::before,.splash.failed .splash-ambient::after{animation:none}
+@keyframes deckCardGather{0%{opacity:0;transform:translate(var(--deal-x),var(--deal-y)) rotate(var(--deal-r)) scale(.85)}20%{opacity:.9}67%{opacity:.85;transform:translate(0,0) rotate(0) scale(1)}100%{opacity:0;transform:translate(0,0) rotate(0) scale(.94)}}
+@keyframes deckWordReveal{from{opacity:0;transform:translateY(8px);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes deckCaptionIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes deckAmbientIn{from{opacity:0}to{opacity:1}}
+@keyframes deckLoadingRelay{0%,65%,100%{opacity:.45;transform:translateX(var(--card-x)) rotate(var(--card-r))}25%,40%{opacity:1;transform:translate(var(--card-x),-4px) rotate(var(--card-r))}}
+@media(max-width:700px){.splash-signature{width:min(330px,100%)}.splash-center{transform:translateY(-10px)}.splash-ambient::before,.splash-ambient::after{width:240px;height:330px;left:calc(50% - 120px);top:calc(50% - 165px)}.splash-deal i{--deal-x:-60px}.splash-deal i:nth-child(3){--deal-x:60px}.splash-status{margin-top:24px}.splash .splash-msg{font-size:11px}}
+.reduce-motion .splash-deal{display:none}.reduce-motion .splash-pulse i{opacity:.7;transform:translateX(var(--card-x)) rotate(var(--card-r))}.reduce-motion .splash .brand-letters{filter:none;opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.splash-deal{display:none}.splash-pulse i{opacity:.7;transform:translateX(var(--card-x)) rotate(var(--card-r))}.splash .brand-letters{filter:none;opacity:1;transform:none}}
+.reduce-motion .splash .brand-d,.reduce-motion .splash .brand-card-back path{stroke-dashoffset:0}
+@media(prefers-reduced-motion:reduce){.splash .brand-d,.splash .brand-card-back path{stroke-dashoffset:0}}

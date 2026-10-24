@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),path=require('node:path');
+const src=fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8');
+const begin=src.indexOf('const inspect = ')+16,end=src.indexOf('\n    // Observe the headers',begin);
+let calls=0; const box=()=>({x:10,y:20,width:100,height:40});
+const play={dataset:{},setAttribute(){},getBoundingClientRect:box,click(){throw Error('DOM click should not run')}};
+const server={setAttribute(){},classList:{contains:()=>true},getBoundingClientRect:box,scrollIntoView(){calls++},click(){throw Error('DOM click should not run')}};
+const document={querySelector:s=>s==='#player .play'?play:null,querySelectorAll:()=>[server]};
+const inspect=vm.runInNewContext('('+src.slice(begin,end).trim().replace(/;$/,'')+')',{document});
+const first=inspect({audio:'sub'},'audio');assert.equal(first.stage,'player');assert.equal(first.selected,true);assert.equal(first.click.x,60);assert.equal(play.dataset.anishelfStarted,'1');
+assert.equal(calls,0,'active requested server must arm capture before the initial Play click');
+server.classList.contains=()=>false;play.dataset={};const other=inspect({audio:'dub'},'audio');assert.equal(other.selected,true);assert.equal(other.stage,'player');assert.equal(calls,1);
+console.log('PASS: arm capture before initial Play and use native coordinates for requested audio');

@@ -1,0 +1,47 @@
+-- AniDeck profiles: who has opted in, their watcher card, and who is friends with whom.
+CREATE TABLE IF NOT EXISTS users (
+  id          TEXT PRIMARY KEY,               -- 'anilist:123' or 'kitsu:456' (the account they joined with)
+  handle      TEXT UNIQUE COLLATE NOCASE,     -- @handle, chosen when joining
+  name        TEXT,
+  avatar      TEXT,
+  friend_code TEXT UNIQUE,                    -- 8 characters, for adding without a handle
+  visibility  TEXT NOT NULL DEFAULT 'friends',-- 'friends' | 'public' (anyone signed in to AniDeck with the handle)
+  card        TEXT,                           -- the watcher card snapshot (JSON)
+  card_at     INTEGER,
+  created_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS friends (
+  a          TEXT NOT NULL,                   -- who asked
+  b          TEXT NOT NULL,                   -- who was asked
+  status     TEXT NOT NULL,                   -- 'pending' | 'accepted'
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (a, b)
+);
+CREATE INDEX IF NOT EXISTS friends_b ON friends (b);
+
+-- Social v2: private messages and blocking. Safe to apply more than once.
+CREATE TABLE IF NOT EXISTS blocks (
+ owner TEXT NOT NULL, target TEXT NOT NULL, created_at INTEGER NOT NULL,
+ PRIMARY KEY(owner,target)
+);
+CREATE INDEX IF NOT EXISTS blocks_target ON blocks(target);
+CREATE TABLE IF NOT EXISTS messages (
+ seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, sender TEXT NOT NULL, recipient TEXT NOT NULL,
+ body TEXT NOT NULL, created_at INTEGER NOT NULL, client_id TEXT NOT NULL,
+ UNIQUE(sender,client_id)
+);
+CREATE INDEX IF NOT EXISTS messages_pair ON messages(sender,recipient,created_at,id);
+CREATE INDEX IF NOT EXISTS messages_recipient ON messages(recipient,created_at);
+CREATE TABLE IF NOT EXISTS message_reads (
+ owner TEXT NOT NULL, peer TEXT NOT NULL, read_seq INTEGER NOT NULL DEFAULT 0,
+ PRIMARY KEY(owner,peer)
+);
+
+-- Social v3: structured messages and invitation responses. Re-runnable; existing messages stay intact.
+CREATE TABLE IF NOT EXISTS message_extras (
+ message_id TEXT PRIMARY KEY, payload TEXT, edited_at INTEGER, deleted_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS watch_invites (
+ message_id TEXT PRIMARY KEY, state TEXT NOT NULL DEFAULT 'pending', proposed_at INTEGER NOT NULL,
+ responded_by TEXT NOT NULL, updated_at INTEGER NOT NULL, response_id TEXT
+);

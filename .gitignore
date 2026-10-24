@@ -1,0 +1,25 @@
+node_modules/
+dist/
+# Holds your server address and Discord webhook - keep it out of the public repo.
+config.json
+OWNER-NOTES.md
+.aider*
+
+# Local cloud state and credentials
+server/.wrangler/
+server/.dev.vars
+server/.env*
+*.log
+
+work/
+.wrangler/
+.env
+.env.*
+!.env.example
+store.json
+secrets.json
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+Thumbs.db

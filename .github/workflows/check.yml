@@ -1,0 +1,45 @@
+# Runs on every push to main: checks the code and builds a TEST installer
+# (not published, friends don't get it). Download it from the run's
+# "Artifacts" section, try it, and only tag a release if it works.
+name: Test build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check code for errors
+        shell: bash
+        run: |
+          node --check main.js
+          node --check preload.js
+          for f in src/api.js src/player.js src/app.js; do
+            node -e "new Function(require('fs').readFileSync('$f','utf8'))" && echo "ok $f"
+          done
+
+      - name: Test behavior and release privacy
+        run: npm test
+
+      - name: Build test installer (not published)
+        run: npx electron-builder --win --x64 --publish never --config.extraMetadata.testBuild="${{ github.run_number }}-${{ github.sha }}"
+
+      - name: Upload test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AniDeck-test-installer
+          path: dist/*.exe
+          retention-days: 7

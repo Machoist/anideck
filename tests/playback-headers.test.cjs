@@ -1,0 +1,5 @@
+const projectRoot = require('node:path').resolve(__dirname, '..');
+const fs=require('fs'),vm=require('vm'),assert=require('assert');let handler;
+const ctx={require:()=>({app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders:fn=>handler=fn}}}}),module:{exports:{}},process,console,URL,Map,AbortController,AbortSignal};
+vm.runInNewContext(fs.readFileSync(require('node:path').join(projectRoot, 'src/streamResolver.js'),'utf8'),ctx);
+(async()=>{const resolver=new ctx.module.exports();resolver.resolveAnikoto=async()=>({streamUrl:'https://megap.shiora.top/test.m3u8',headers:{Referer:'https://megaplay.buzz/player/',Origin:'https://megaplay.buzz'}});await resolver.resolve({provider:'anikoto',title:'Test',episodeNum:1,audio:'sub'});let outgoing;handler({url:'https://megap.shiora.top/segment.ts',requestHeaders:{Accept:'*/*'}},r=>outgoing=r.requestHeaders);assert.equal(outgoing.Referer,'https://megaplay.buzz/player/');assert.equal(outgoing.Origin,'https://megaplay.buzz');assert.equal(outgoing.Accept,'*/*');console.log('PASS: captured headers reach playback segments');})().catch(e=>{console.error(e);process.exitCode=1});

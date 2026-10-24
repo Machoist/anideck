@@ -1,0 +1,79 @@
+{
+  "name": "anideck",
+  "productName": "AniDeck",
+  "version": "1.0.0",
+  "description": "Your anime, on deck. Browse, stream, and track with AniList or Kitsu; connect a Jellyfin library optionally.",
+  "main": "main.js",
+  "author": "Giovanni Cruz",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "release": "electron-builder --win --x64 --publish always",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "hls.js": "^1.7.3"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "cheerio": "^1.2.0",
+    "electron-updater": "^6.8.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Machoist/anideck.git"
+  },
+  "build": {
+    "appId": "com.machoist.anishelf",
+    "productName": "AniDeck",
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "src/**/*",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AniDeck",
+      "artifactName": "AniDeck-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Machoist",
+        "repo": "anideck",
+        "releaseType": "release"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "config.release.json",
+        "to": "config.json"
+      }
+    ],
+    "beforePack": "./scripts/release-guard.cjs",
+    "afterPack": "./scripts/audit-package.cjs"
+  }
+}

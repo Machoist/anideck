@@ -1,0 +1,51 @@
+/* Home modules: quiet surfaces, clear actions, and room for the titles. */
+.ad-widgets{gap:20px;align-items:stretch;grid-auto-flow:row}
+.ad-widget{padding:22px;border-radius:18px;min-height:270px;background:linear-gradient(145deg,rgba(var(--accent-rgb),.045),transparent 60%),var(--panel);border:1px solid var(--line);box-shadow:none;animation:none}
+.ad-widget:hover{transform:none;box-shadow:none;border-color:rgba(var(--accent-rgb),.24)}
+.ad-widget-head{gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ad-widget-head h3{font-size:14px;letter-spacing:-.015em;min-width:100px}
+.ad-w-ic{width:30px;height:30px;border-radius:9px;background:rgba(var(--accent-rgb),.09);color:var(--accent)}
+.ad-w-link{margin-left:auto;font-size:11px;white-space:nowrap}
+.ad-widget-caption{font-size:11px!important;line-height:1.6!important;color:var(--muted);margin:0 0 3px!important}
+.ad-widget-body{gap:14px}
+.ad-widget--quicklog .ad-widget-body{gap:0}
+.ad-widget--quicklog .ad-widget-caption{margin-bottom:12px!important}
+.ad-log-row{grid-template-columns:42px minmax(0,1fr) auto;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);border-radius:0;align-items:center}
+.ad-log-row:last-child{padding-bottom:0}.ad-log-row:hover{background:transparent}
+.ad-log-art{width:42px;height:61px;border-radius:7px}
+.ad-log-name{display:block;width:100%;padding:0;border:0;background:none;color:var(--text);font:600 12px/1.45 var(--font);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.ad-log-name:hover{color:var(--accent)}.ad-log-name:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.ad-log-content{gap:7px}.ad-log-sub{font-size:10px;gap:7px;flex-wrap:wrap}
+.ad-log-ctl{gap:3px;align-items:center}
+.ad-log-row .btn.ad-log-btn{height:32px;padding:0 10px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap}
+.ad-step{width:28px;height:32px;border-radius:8px}.ad-log-row[aria-busy=true]{opacity:.65}.ad-log-row[aria-busy=true] button{cursor:wait}
+.ad-picks{display:grid;gap:0}.ad-pick-row{display:grid;grid-template-columns:43px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.ad-pick-row:first-child{padding-top:0}.ad-pick-row:last-child{border-bottom:0;padding-bottom:0}
+.ad-pick-art{width:43px;height:62px;border-radius:7px;overflow:hidden;background:var(--panel-2)}.ad-pick-art img{width:100%;height:100%;object-fit:cover;display:block}.ad-pick-art .ad-cover-ph{height:100%;font-size:18px}
+.ad-pick-row>div{min-width:0;display:grid;gap:6px}.ad-pick-row b{font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ad-pick-row small{font-size:10px;color:var(--muted)}.ad-pick-row .btn{padding:6px 9px;font-size:10px}
+.ad-widget--decks .ad-pinned{gap:12px}.ad-pinned button{padding:14px}.ad-module-empty{max-width:360px}.ad-module-empty p{font-size:12px}
+@container deck-home (max-width:1100px){.ad-widgets>.ad-widget{grid-column:span 6}.ad-widgets>.ad-widget[style*="12"]{grid-column:span 12}}
+@container deck-home (max-width:650px){.ad-widgets>.ad-widget{grid-column:1/-1}.ad-widgets{gap:14px}}
+@container deck-module (max-width:480px){.ad-log-row{grid-template-columns:38px minmax(0,1fr);gap:9px 12px}.ad-log-art{width:38px;height:55px}.ad-log-ctl{grid-column:2;justify-self:start;margin-top:0}.ad-pinned{grid-template-columns:1fr}.ad-airing-feature{gap:14px}.ad-airing-cover{flex-basis:70px;height:104px}.ad-pick-row{grid-template-columns:38px minmax(0,1fr)}.ad-pick-art{width:38px;height:55px;grid-row:span 2}.ad-pick-row>.btn{grid-column:2;justify-self:start}}
+@media(max-width:700px){.ad-widgets{display:grid;gap:14px}.ad-widgets>.ad-widget{grid-column:1/-1;margin:0;padding:18px;min-height:230px}}
+@media(prefers-reduced-motion:reduce){.ad-widget,.ad-log-row,.ad-log-btn{transition:none!important;animation:none!important}}
+.ad-log-meter{height:3px;background:rgba(255,255,255,.075);border-radius:5px;overflow:hidden;margin-top:2px}.ad-log-meter i{height:100%;display:block;background:var(--accent);opacity:.7;border-radius:inherit}
+/* Keep the queue anchored on Home even when a source is temporarily unavailable. */
+.yn.yn-empty{display:flex;align-items:center;min-height:clamp(330px,46vh,480px);padding:100px clamp(24px,4vw,64px) 48px;background:radial-gradient(ellipse at 80% 40%,rgba(var(--accent-rgb),.09),transparent 60%),var(--bg)}
+.yn-empty-copy{max-width:620px}.yn-empty h1{font:600 clamp(26px,3.5vw,44px)/1.2 var(--display);margin:15px 0}.yn-empty p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+/* Tonight and Almost finished: compact lineups that grow with their contents. */
+.ad-widgets>.ad-widget--tonight,.ad-widgets>.ad-widget--finishline{min-height:0;align-self:start}
+.ad-widget--tonight .ad-widget-body,.ad-widget--finishline .ad-widget-body{flex:0;gap:12px}
+.ad-lineup-caption{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.ad-lineup-caption>.link-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;white-space:nowrap}.ad-lineup-caption svg.ic{width:13px;height:13px}
+.ad-lineup{display:grid;grid-template-columns:1fr;gap:12px;min-width:0}
+.ad-lineup-card{display:flex;align-items:center;gap:15px;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.018);min-width:0}
+.ad-lineup-art{display:block;flex:0 0 72px;width:72px;height:108px;overflow:hidden;border-radius:8px;background:var(--panel-2)}.ad-lineup-art img{display:block;width:100%;height:100%;object-fit:cover}.ad-lineup-art .ad-cover-ph{height:100%;font-size:26px}
+.ad-lineup-copy{display:flex;flex:1;min-width:0;align-items:flex-start;flex-direction:column;gap:7px}.ad-lineup-label{color:var(--accent);font-size:10px;font-weight:650;letter-spacing:.09em;text-transform:uppercase}.ad-lineup-copy>b{font-size:14px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ad-lineup-copy>small{font-size:11px;color:var(--muted)}.ad-lineup-copy .ad-log-meter{width:100%;max-width:240px;margin:1px 0 0}.ad-lineup-actions{margin-top:3px}.ad-lineup-actions .btn{font-size:11px;padding:6px 11px;border-radius:7px}
+.ad-lineup-add{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:7px;padding:18px;border:1px dashed rgba(var(--accent-rgb),.22);border-radius:12px;background:rgba(var(--accent-rgb),.025);text-align:left;color:var(--text);transition:background .2s,border-color .2s}.ad-lineup-add>span{color:var(--accent);line-height:0}.ad-lineup-add svg.ic{width:20px;height:20px}.ad-lineup-add b{font-size:12px;font-weight:600}.ad-lineup-add small{font-size:11px;color:var(--muted);line-height:1.5}.ad-lineup-add:hover{background:rgba(var(--accent-rgb),.065);border-color:rgba(var(--accent-rgb),.5)}.ad-lineup-add:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@container deck-module (min-width:700px){.ad-lineup{grid-template-columns:repeat(3,minmax(0,1fr))}.ad-lineup.single{grid-template-columns:minmax(0,1.3fr) minmax(200px,.7fr)}.ad-lineup.pair{grid-template-columns:repeat(2,minmax(0,1fr))}.ad-lineup.solo{grid-template-columns:minmax(0,1fr)}.ad-lineup.solo .ad-lineup-copy{flex-direction:row;align-items:center;gap:18px;flex-wrap:wrap}.ad-lineup.solo .ad-lineup-copy>b{order:-1;flex-basis:100%;font-size:17px}.ad-lineup.solo .ad-lineup-copy .ad-log-meter{flex-basis:160px}.ad-lineup.solo .ad-lineup-actions{margin:0}}
+@container deck-module (max-width:400px){.ad-lineup-card{padding:11px;gap:12px}.ad-lineup-art{flex-basis:58px;width:58px;height:87px}.ad-lineup-copy>b{font-size:12px}.ad-lineup-add{padding:13px}.ad-lineup-add>span{display:none}}
+/* A saved wide size is an upper bound: one title never needs a full dashboard row. */
+@container deck-home (min-width:651px){
+.ad-widgets:not(.editing)>.ad-widget:is(.ad-widget--tonight,.ad-widget--finishline):has(.ad-lineup.single,.ad-lineup.solo):is([style*="8"],[style*="12"]){grid-column:span 6}
+}
+@container deck-module (max-width:699px){.ad-lineup.single>.ad-lineup-add{display:none}}

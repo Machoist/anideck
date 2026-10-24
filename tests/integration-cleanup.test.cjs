@@ -1,0 +1,11 @@
+const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '..');
+const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+const preload = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8');
+assert.equal((main.match(/ipcMain\.handle\('resolveStream'/g) || []).length, 1);
+assert(!/removeHandler\('resolveStream'/.test(main));
+assert(!/streamingIntegration|stream:getLocal|stream:getRemote|'stream:get'/.test(main + preload));
+assert(!/bottom:\s*60px\s*!important/.test(css));
+assert(!fs.existsSync(path.join(root, 'src/streamingIntegration.js')));
+console.log('PASS: one streaming handler, no stub bindings, menu positioning controlled by player');

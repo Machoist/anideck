@@ -1,0 +1,12 @@
+const projectRoot = require('node:path').resolve(__dirname, '..');
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync(require('node:path').join(projectRoot, 'src/player.js'),'utf8');
+const ctx={document:{getElementById(){}},App:{settings:{audioLang:'jpn'}},console};
+const player=vm.runInNewContext(source+'\nPlayer',ctx);let calls=0;
+player.ctx={series:{Id:'show'},episode:{Id:'one'},episodes:[{Id:'one'},{Id:'two'}]};player.el={hidden:false};player.server='anikoto';
+player.resolveRemote=async(server,ep,prefetch)=>{assert.equal(server,'anikoto');assert.equal(ep.Id,'two');assert(prefetch);calls++};
+player.preloadNextEpisode();player.preloadNextEpisode();assert.equal(calls,1);player.el.hidden=true;player.preloadKey=null;player.preloadNextEpisode();assert.equal(calls,1);
+const s=fs.readFileSync(require('node:path').join(projectRoot, 'src/streamResolver.js'),'utf8');
+const start=s.indexOf('const anikotoSessions'),end=s.indexOf('async function loadAnikotoPage',start);
+const acquire=vm.runInNewContext(s.slice(start,end)+'\nacquireAnikotoSession');const a=acquire(),b=acquire();assert.notEqual(a.partition,b.partition);a.busy=false;assert.strictEqual(acquire(),a);
+console.log('PASS: preload deduplication, hidden-player guard, isolated concurrent sessions and idle-session reuse');

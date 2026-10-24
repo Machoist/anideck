@@ -1,0 +1,7 @@
+const projectRoot = require('node:path').resolve(__dirname, '..');
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const src=fs.readFileSync(require('node:path').join(projectRoot, 'src/app.js'),'utf8');
+const helper=src.match(/function remotePlaybackProvider[^\n]+/)[0];
+const begin=src.indexOf(' async playRemoteEpisode('),end=src.indexOf('  async requestAnime(',begin);
+const method=src.slice(begin,end).trim().replace(/^async playRemoteEpisode/,'async function').replace(/,\s*$/,'');
+(async()=>{for(const selected of ['jellyfin','anikoto','animepahe','aniwatch','anipm']){let opened;const ctx={activeStreamingServer:selected,lastServerError:null,document:{getElementById:()=>null},Player:{open:async c=>{opened=c}},renderServerErrorBanner:()=>''};vm.createContext(ctx);vm.runInContext(helper,ctx);const play=vm.runInContext('('+method+')',ctx);await play.call({settings:{audioLang:'jpn'}},{title:'The Apothecary Diaries Season 3',episodeNum:1,kitsuId:'test'});assert.equal(opened.provider,selected==='jellyfin'?'anikoto':selected);assert.equal(opened.audio,'sub');assert.equal(opened.episode.IndexNumber,1);assert.equal(opened.remoteOnly,true);}console.log('PASS: remote entry point uses Anikoto default and preserves every explicit provider');})().catch(e=>{console.error(e);process.exitCode=1});
