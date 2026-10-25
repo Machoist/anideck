@@ -1,6 +1,6 @@
 'use strict';
 const video=document.getElementById('video'),welcome=document.getElementById('welcome'),message=document.getElementById('message'),activate=document.getElementById('activate'),nowPlaying=document.getElementById('now');
-let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null;
+let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0;
 async function api(path,data){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
@@ -9,10 +9,17 @@ async function api(path,data){
  }finally{clearTimeout(timer);}
 }
 function notice(text){nowPlaying.textContent=text;nowPlaying.hidden=!text;}
-function stop(){media=null;needsInteraction=false;if(hls){hls.destroy();hls=null;}video.pause();video.removeAttribute('src');video.load();video.hidden=true;welcome.hidden=false;activate.hidden=true;notice('');}
+function stop(){
+ media=null;needsInteraction=false;video.onloadedmetadata=null;
+ // Stop native playback first; a failed streaming-library cleanup must not leave buffered video playing.
+ video.pause();video.removeAttribute('src');video.load();video.hidden=true;welcome.hidden=false;activate.hidden=true;notice('');
+ const previous=hls;hls=null;try{previous?.destroy();}catch{}
+}
+function connectionLost(){stop();message.textContent='Connection lost. Keep AniDeck open on your PC. Retrying…';}
+function checkConnection(){if(media&&Date.now()-lastContact>=8000)connectionLost();}
 async function play(){const selected=media;if(!selected)return;try{await video.play();if(media!==selected)return;needsInteraction=false;activate.hidden=true;notice('');}catch{if(media!==selected)return;needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}}
 activate.onclick=()=>{video.requestFullscreen?.().catch(()=>{});return play();};
-function load(next){stop();lastSeek=0;pendingSeek=null;media=next;playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
+function load(next){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
  for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);}
  if(next.isHLS&&window.Hls&&Hls.isSupported()){
@@ -29,6 +36,7 @@ async function tick(){
  try{
   if(!token)await hello();
   const s=await api('/state');
+  lastContact=Date.now();
   if(!s.connected&&media)stop();
   if(!s.connected&&Date.now()>expires){await hello();return;}
   document.getElementById('code').hidden=s.connected;
@@ -36,15 +44,15 @@ async function tick(){
   message.textContent=s.connected?'Connected · waiting for your episode':'The code expires in two minutes.';
   const heading=document.getElementById('receiver-heading');if(heading)heading.textContent=s.connected?'Your next episode goes here.':'Make yourself comfortable.';
   if(s.revision!==revision){revision=s.revision;
-   if(s.media&&s.media.id!==media?.id)load(s.media);
+   if(s.connected&&s.media&&s.media.id!==media?.id)load(s.media);
    else if(s.action==='stop')stop();
    if(media&&s.seekRevision&&s.seekRevision!==lastSeek){lastSeek=s.seekRevision;pendingSeek=Math.min(s.seekTime,Number.isFinite(video.duration)?Math.max(0,video.duration-.25):s.seekTime);try{video.currentTime=pendingSeek;}catch{}}
    if(media&&s.paused===true)video.pause();
    else if(media&&s.action==='play')play();
   }
   if(media&&s.connected)await api('/playback',{mediaId:media.id,time:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
- }catch(error){message.textContent='Connection lost. Keep AniDeck open on your PC. Retrying…';if(media)stop();if(error.status===401)token=null;}
+ }catch(error){connectionLost();if(error.status===401)token=null;}
  finally{starting=false;}
 }
-let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
-tick();setInterval(tick,1000);
+let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
+tick();setInterval(tick,1000);setInterval(checkConnection,1000);
