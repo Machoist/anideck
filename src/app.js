@@ -867,7 +867,7 @@ const App = {
       case 'playMovie': return this.playMovie(d.id);
       case 'anilistLogin': return this.anilistLogin();
       case 'anilistLogout': await AniList.logout(); this.updateWho(); toast('Signed out of AniList', 'good'); return this.refresh();
-      case 'goAccount': return this.nav('settings');
+      case 'goAccount': return this.nav('settings',{section:'Account'});
       case 'anime': {
         const titles = JSON.parse(d.titles || '[]');
         const isAl = String(d.id).startsWith('al:');
@@ -2979,56 +2979,64 @@ function airingTodayRow(today) {
   return rail('Airing today', items, { cls: 'today-strip', more: ['schedule', {}] });
 }
 
-// Hover previews (Settings → Home screen): pause on a poster and it opens into a card with the backdrop,
-// score, genres and summary, plus a button into the page. Tinted with the show's colour.
+// Hover previews add context and a list action without duplicating poster badges.
 const HoverPreview = {
-  card: null, timer: null, hideTimer: null, pop: null,
-  bind() {
-    document.addEventListener('pointerover', (e) => {
-      if (!App.settings.hoverPreview) return;
-      if (e.target.closest?.('.hover-pop')) { clearTimeout(this.hideTimer); return; }
-      const card = e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id]');
-      if (card === this.card) { clearTimeout(this.hideTimer); return; }
-      clearTimeout(this.timer);
-      this.hideSoon();
-      if (!card) return;
-      this.card = card;
-      this.timer = setTimeout(() => this.show(card), 650);
+  card:null,timer:null,hideTimer:null,pop:null,
+  bind(){
+    document.addEventListener('pointerover',e=>{
+      if(!App.settings.hoverPreview||e.pointerType==='touch')return;
+      if(e.target.closest?.('.hover-pop')){clearTimeout(this.hideTimer);return;}
+      const card=e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id]');
+      if(card===this.card){clearTimeout(this.hideTimer);return;}
+      clearTimeout(this.timer);if(!card){this.hideSoon();return;}this.hide();
+      this.card=card;this.timer=setTimeout(()=>this.show(card),650);
     });
-    document.addEventListener('scroll', () => this.hide(), true);
-    document.addEventListener('mousedown', (e) => { if (!e.target.closest?.('.hover-pop')) this.hide(); });
+    document.addEventListener('scroll',()=>this.hide(),true);
+    document.addEventListener('mousedown',e=>{if(!e.target.closest?.('.hover-pop'))this.hide();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')this.hide();});
   },
-  hideSoon() { clearTimeout(this.hideTimer); this.hideTimer = setTimeout(() => this.hide(), 200); },
-  hide() { clearTimeout(this.timer); clearTimeout(this.hideTimer); this.card = null; this.pop?.remove(); this.pop = null; },
-  async show(card) {
-    const d = { ...card.dataset };
-    let kid = null;
-    const lib = d.act === 'series' || d.act === 'movie' ? App.itemById(d.id) : null;
-    if (d.act === 'anime') kid = String(d.id).startsWith('al:') ? null : d.id;
-    else if (lib) { const m = App.matches?.[Matcher.key(d.id, d.act === 'movie' ? 1 : d.season ?? 1)]; if (m && !m.none) kid = String(m.id); }
-    const [al, k] = await Promise.all([kid ? AniList.details(kid).catch(() => null) : null, kid ? Kitsu.animeFull(kid).catch(() => null) : null]);
-    if (this.card !== card || !card.isConnected) return;
-    const title = al?.title || k?.title || lib?.Name || card.querySelector('.card-title')?.textContent || '';
-    const art = al?.banner || (lib?.BackdropImageTags?.length ? Jellyfin.img(lib.Id, 'Backdrop', { fillWidth: 720 }) : '') || k?.coverHd || card.querySelector('img')?.src || '';
-    const rating = al?.score || k?.rating, eps = al?.episodes || k?.episodes;
-    const meta = [rating ? `★ ${rating}%` : '', al?.format || k?.subtype || '', al?.year || k?.year || lib?.ProductionYear || '', eps ? `${eps} eps` : ''].filter(Boolean).join(' · ');
-    const genres = (al?.genres?.length ? al.genres : k?.genres?.length ? k.genres : lib?.Genres || []).slice(0, 3);
-    const about = (k?.synopsis || lib?.Overview || '').replace(SOURCE_NOTE, '');
-    this.pop?.remove();
-    const pop = document.createElement('div');
-    pop.className = 'hover-pop';
-    pop.innerHTML = `<div class="hp-art">${art ? `<img src="${esc(art)}" alt="">` : ''}</div>
-      <div class="hp-body"><b class="hp-title">${esc(title)}</b>${meta ? `<div class="hp-meta">${esc(meta)}</div>` : ''}
-        ${genres.length ? `<div class="hp-genres">${genres.map((g) => `<span>${esc(g)}</span>`).join('')}</div>` : ''}
-        ${about ? `<p class="hp-about">${esc(about)}</p>` : ''}
-        <button class="btn primary hp-open">${icon(lib ? 'play' : 'info', lib ? 'fill' : '')}${lib ? 'Open' : 'View details'}</button></div>`;
-    showTint(pop, al?.color);
-    document.body.appendChild(pop);
-    const r = card.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-    pop.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2))}px`;
-    pop.style.top = `${Math.max(12, Math.min(innerHeight - h - 12, r.top - 24))}px`;
-    pop.querySelector('.hp-open').onclick = () => { this.hide(); App.act(d.act, d, card); };
-    this.pop = pop;
+  hideSoon(){clearTimeout(this.hideTimer);this.hideTimer=setTimeout(()=>this.hide(),200);},
+  hide(){clearTimeout(this.timer);clearTimeout(this.hideTimer);this.card=null;this.pop?.remove();this.pop=null;},
+  async load(card){
+    const d={...card.dataset},service=Tracker.svc,userId=service?.userId;
+    const lib=['series','movie'].includes(d.act)?App.itemById(d.id):null;
+    let id=d.act==='anime'?String(d.id):null;
+    if(lib){const match=App.matches?.[Matcher.key(d.id,d.act==='movie'?1:d.season??1)];if(match&&!match.none)id=String(match.id);}
+    const [al,k]=await Promise.all([id?AniList.details(id).catch(()=>null):null,id&&!id.startsWith('al:')?Kitsu.animeFull(id).catch(()=>null):null]);
+    let trackerId=id,entry=null,entryKnown=!Tracker.loggedIn();
+    if(Tracker.loggedIn()&&id){try{
+      if(service===AniList)trackerId=al?.id?'al:'+al.id:(id.startsWith('al:')?id:'al:'+await AniList.mediaId(id));
+      else if(id.startsWith('al:'))trackerId=await AniList.kitsuIdFor(id.slice(3),null);
+      if(trackerId&&Tracker.svc===service&&service?.userId===userId){entry=await Tracker.entry(trackerId);entryKnown=true;}
+    }catch{entryKnown=false;}}
+    return {d,lib,id,al,k,trackerId,entry,entryKnown,service,userId};
+  },
+  text(value){return String(value||'').replace(/<br\s*\/?\s*>/gi,' ').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(SOURCE_NOTE,'').replace(/\s+/g,' ').trim();},
+  async show(card){
+    const rid=App.renderId,data=await this.load(card),{d,lib,al,k,entry}=data;
+    if(!App.settings.hoverPreview||this.card!==card||!card.isConnected||App.stale(rid)||Tracker.svc!==data.service||data.service?.userId!==data.userId)return;
+    const title=al?.title||k?.title||lib?.Name||card.querySelector('.card-title')?.textContent||'';
+    const genres=(al?.genres?.length?al.genres:k?.genres?.length?k.genres:lib?.Genres||[]).slice(0,3);
+    const about=this.text(al?.synopsis||k?.synopsis||lib?.Overview);
+    const meta=[al?.format||k?.subtype,al?.year||k?.year||lib?.ProductionYear,al?.status||k?.status,al?.duration?al.duration+' min per '+(String(al.format).toLowerCase()==='movie'?'movie':'episode'):''].filter(Boolean).join(' · ');
+    const status=entry?({current:'Watching',planned:'Planning',completed:'Completed',on_hold:'On hold',dropped:'Dropped'})[entry.status]||'On your list':'';
+    const next=al?.next?.at>Date.now()?`Episode ${al.next.episode} airs ${new Date(al.next.at).toLocaleDateString([],{month:'short',day:'numeric'})}`:'';
+    const canPlan=Tracker.loggedIn()&&data.trackerId&&data.entryKnown&&!entry;
+    this.pop?.remove();const pop=document.createElement('section');pop.className='hover-pop';pop.setAttribute('aria-label','Quick look: '+title);
+    pop.innerHTML=`<div class="hp-body"><span class="hp-eyebrow">QUICK LOOK</span><b class="hp-title">${esc(title)}</b>${meta?`<div class="hp-meta">${esc(meta)}</div>`:''}${genres.length?`<div class="hp-genres">${genres.map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}<p class="hp-about">${esc(about||'A synopsis isn’t available for this title yet.')}</p>${al?.studios?.length?`<small class="hp-studio">${esc(al.studios.slice(0,2).join(' · '))}</small>`:''}${entry||next?`<div class="hp-context">${entry?`<span>${icon('check')}<b>${esc(status)}</b>${Number(entry.progress)>0?' · '+Number(entry.progress)+' watched':''}</span>`:''}${next?`<span>${icon('clock')}${esc(next)}</span>`:''}</div>`:''}${canPlan?`<button class="btn ghost hp-plan">${icon('plus')}Add to Planning</button><p class="hp-feedback" role="status" hidden></p>`:''}</div>`;
+    showTint(pop,al?.color);document.body.appendChild(pop);this.pop=pop;
+    const r=card.getBoundingClientRect(),w=pop.offsetWidth,h=pop.offsetHeight;
+    pop.style.left=`${Math.max(12,Math.min(innerWidth-w-12,r.left+r.width/2-w/2))}px`;
+    pop.style.top=`${Math.max(12,Math.min(innerHeight-h-12,r.top-24))}px`;
+    const button=pop.querySelector('.hp-plan');if(button)button.onclick=async()=>{
+      if(button.disabled)return;button.disabled=true;button.textContent='Adding…';
+      const feedback=pop.querySelector('.hp-feedback');
+      try{if(Tracker.svc!==data.service||data.service?.userId!==data.userId)throw Error('Account changed. Open this preview again.');
+        const existing=await Tracker.entry(data.trackerId);if(Tracker.svc!==data.service||data.service?.userId!==data.userId)throw Error('Account changed. Open this preview again.');
+        if(!existing)await Tracker.setStatus(data.trackerId,'planned');
+        if(button.isConnected)button.textContent=existing?'Already on your list':'Added to Planning';
+      }catch(error){if(button.isConnected){feedback.hidden=false;feedback.textContent=error.message||'Couldn’t save. Try again.';button.disabled=false;button.textContent='Retry adding';}}
+    };
   },
 };
 
@@ -4832,7 +4840,7 @@ const Views = {
           <select data-set="spotlightMs">${opt([[3000, 'Quick (3 s)'], [4800, 'Normal (4.8 s)'], [7200, 'Relaxed (7.2 s)']], spotlightDuration(s.spotlightMs))}</select></div>
         <div class="set-row"><div><div>Trending chart</div><div class="desc">How many shows the Trending chart ranks.</div></div>
           <select data-set="trendingCount">${opt([[5, 'Top 5'], [9, 'Top 9']], s.trendingCount === 5 ? 5 : 9)}</select></div>
-        <div class="set-row"><div><div>Hover previews</div><div class="desc">Pause on a poster to see its backdrop, score and summary.</div></div>${sw('hoverPreview')}</div>
+        <div class="set-row"><div><div>Hover previews</div><div class="desc">Pause on a poster for a synopsis, genres, airing info and your list progress.</div></div>${sw('hoverPreview')}</div>
         <div class="set-row"><div><div>Hide NSFW shows</div><div class="desc">Keeps ecchi and adult titles out of home, browse and search.</div></div>${sw('hideNsfw')}</div>
       </div>
 
@@ -4897,7 +4905,9 @@ const Views = {
     ];
     $('#set-menu').innerHTML = groups.map(([label, titles]) => `<div class="set-group"><span class="set-group-label">${esc(label)}</span>${titles.map((title) => { const i = cards.findIndex((c) => c.querySelector('h3').textContent === title); return i < 0 ? '' : `<button class="set-tab" data-i="${i}">${esc(title)}</button>`; }).join('')}</div>`).join('');
     $('#set-menu').querySelectorAll('button').forEach((b) => { b.onclick = () => show(+b.dataset.i); });
-    show(Math.min(App.params.section || 0, cards.length - 1));
+    const appearance=cards.findIndex(card=>card.querySelector('h3')?.textContent==='Appearance');
+    const requested=App.params.section;const selected=typeof requested==='string'?cards.findIndex(card=>card.querySelector('h3')?.textContent===requested):requested;
+    show(Number.isInteger(selected)&&selected>=0&&selected<cards.length?selected:Math.max(0,appearance));
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
     $('#shuffle-pick').onclick = () => pickShuffleSource();

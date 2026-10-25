@@ -3972,3 +3972,12 @@ body:has(#modal:not([hidden])) #shell .topbar, body:has(#entry-pop) #shell .topb
 /* Home button holds still: no press, pop-in, hop or glyph movement */
 #home-fab.home-fab, #home-fab.home-fab:active, #home-fab.home-fab:is(:hover, :focus-visible) { transform: none !important; animation: none !important; }
 #home-fab.home-fab *, #home-fab.home-fab *::before, #home-fab.home-fab *::after { animation: none !important; transform: none !important; }
+
+/* Quick look: useful context instead of repeated poster artwork and badges. */
+.hover-pop{width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;background:var(--panel,#1d1b24);border-color:rgba(var(--accent-rgb),.22);scrollbar-width:thin}
+.hover-pop .hp-body{padding:20px;gap:11px}.hp-eyebrow{font-size:8px;font-weight:650;letter-spacing:.16em;color:var(--accent)}
+.hover-pop .hp-title{font-size:18px;line-height:1.35}.hover-pop .hp-meta{font-size:10px;line-height:1.65;text-transform:capitalize}
+.hover-pop .hp-about{-webkit-line-clamp:4;line-clamp:4;font-size:12px;line-height:1.75;color:var(--text)}
+.hp-context{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:12px;font-size:11px;color:var(--muted)}.hp-context>span{display:flex;align-items:center;gap:6px}.hp-context svg{width:13px;height:13px;color:var(--accent)}.hp-context b{font-weight:500;color:var(--text)}
+.hp-studio{font-size:10px;color:var(--muted)}.hp-plan{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;min-height:36px}.hp-plan svg{width:13px;height:13px}.hp-feedback{margin:0;font-size:11px;line-height:1.6;color:var(--bad)}
+@media(prefers-reduced-motion:reduce){.hover-pop{animation:none!important;transition:none!important}}body.reduce-motion .hover-pop{animation:none!important;transition:none!important}

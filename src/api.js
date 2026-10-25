@@ -728,7 +728,7 @@ const AniList = {
     if (hit && Date.now() - hit.at < 30 * 60_000) return hit.value;
     const mediaId = await this.mediaId(id);
     const d = await this.gql(`query($id:Int){ Media(id:$id){ id title{ romaji english } bannerImage coverImage{ extraLarge large color }
-      genres averageScore status season seasonYear episodes duration format studios(isMain:true){ nodes{ name } } nextAiringEpisode{ episode airingAt }
+      description(asHtml:false) genres averageScore status season seasonYear episodes duration format studios(isMain:true){ nodes{ name } } nextAiringEpisode{ episode airingAt }
       streamingEpisodes{ title thumbnail } } }`, { id: mediaId }, false);
     const m = d?.Media;
     if (!m) return null;
@@ -736,7 +736,7 @@ const AniList = {
     const value = {
       id: m.id,
       title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji),
-      banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
+      synopsis: m.description || '', banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
       genres: m.genres || [], score: m.averageScore || null, status: (m.status || '').toLowerCase().replace(/_/g, ' '),
       season: m.season && m.seasonYear ? `${m.season[0]}${m.season.slice(1).toLowerCase()} ${m.seasonYear}` : '', year: m.seasonYear ? String(m.seasonYear) : '',
       episodes: m.episodes || null, duration: m.duration || null, format: AL_FORMAT[m.format] || m.format || '',
