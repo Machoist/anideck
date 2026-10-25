@@ -1688,32 +1688,32 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v: '1.2.0', items: [
-    'Sign in with AniList as well as Kitsu. Switch between them in Settings → Account',
-    'New profile page: time spent, episode count, list breakdown and a 20-week activity chart',
-    'Settings sections for Appearance (accent color, size, posters, title language), Keyboard (change any shortcut) and TV (big-screen mode with controller support)',
-    'Only anime from your Jellyfin library: anything not on Kitsu or MyAnimeList is hidden',
-    'Ratings on every poster, filled in from MyAnimeList when Kitsu has none',
-    'Fixed shows opening the wrong page (e.g. One Piece opening Shangri-La Frontier)',
-  ] },
-  { v: '1.1.0', items: [
-    'New look: logo, wordmark, loading screen with a welcome back',
-    'Player: skip intro, Up next, speed, Fit / Fill / Stretch, episode list, picture-in-picture',
-    'Anime-only edition',
-  ] },
+  { v:'1.0.0', revision:'2026-10-24.2', items:[
+    'A refreshed Home with custom decks, widgets, a release-aware watch queue and useful title previews.',
+    'AniDeck Friends: profiles, requests, messages, anime recommendations, watch plans and taste comparisons.',
+    'TV playback with PC remote controls, automatic reconnection codes and faster command delivery.',
+    'Provider subtitles on the PC and TV, plus intro/recap skipping and episode tracking from TV progress.',
+    'Updated player menus, episode navigation and a watchlist editor with direct episode entry.',
+    'Cleaner Settings, current AniDeck branding and library options that appear only when Jellyfin is connected.',
+    'Fewer Home queue requests, clearer tracker errors and safeguards for account changes.',
+  ]},
 ];
 const GITHUB_URL = 'https://github.com/Machoist/anideck';
-
+function releaseNotesKey(){const notes=CHANGELOG.find(c=>c.v===APP_VERSION);return notes?APP_VERSION+':'+notes.revision:null;}
 function showWhatsNew() {
-  const list = CHANGELOG.map((c) => `<div class="wn-ver"><b>Version ${esc(c.v)}</b><ul>${c.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('');
-  App.modal(`<h2>What’s new</h2><div class="wn">${list}</div>
-    <div class="row gap"><button class="btn ghost" data-act="link" data-url="${GITHUB_URL}/releases">All releases on GitHub</button><span class="spacer"></span><button class="btn primary" id="wn-close">Got it</button></div>`);
-  $('#wn-close').onclick = () => App.closeModal();
+  const notes=CHANGELOG.find(c=>c.v===APP_VERSION),test=!!App.config?.testBuild;
+  const list=notes?`<ul class="wn-changes">${notes.items.map(item=>`<li><span aria-hidden="true">${icon('checkCircle')}</span><p>${esc(item)}</p></li>`).join('')}</ul>`:'<p class="muted">Release notes aren’t available for this version yet.</p>';
+  App.modal(`<section class="wn-panel"><header class="wn-heading"><div><span class="ad-eyebrow">YOUR DECK, UPDATED</span><h2>What’s new</h2><p>Version ${esc(APP_VERSION)}${test?' · Test build':''}</p></div><button class="icon-btn" id="wn-close" aria-label="Close What’s new">${icon('close')}</button></header>${test?'<p class="wn-test-note">You’re viewing the changes included in this test build.</p>':''}<div class="wn">${list}</div><footer><button class="btn ghost" id="wn-project">Project on GitHub ${icon('external')}</button><button class="btn primary" id="wn-done">Got it</button></footer></section>`,'wn-modal');
+  $('#wn-close').onclick=$('#wn-done').onclick=()=>App.closeModal();
+  $('#wn-project').onclick=()=>window.native.openExternal(GITHUB_URL);
+  const key=releaseNotesKey();if(key)window.native.set('seenReleaseNotes',key).catch(()=>{});
 }
 async function maybeShowWhatsNew() {
-  const seen = await window.native.get('seenVersion');
-  await window.native.set('seenVersion', APP_VERSION);
-  if (seen && seen !== APP_VERSION && CHANGELOG.some((c) => c.v === APP_VERSION)) setTimeout(showWhatsNew, 1800);
+  const key=releaseNotesKey();if(!key)return;
+  const seen=await window.native.get('seenReleaseNotes'),legacy=await window.native.get('seenVersion');
+  if(!seen&&!legacy){await window.native.set('seenReleaseNotes',key);return;}
+  if(seen===key)return;
+  setTimeout(()=>{if($('#modal')?.hidden===false||$('#player')?.hidden===false)return;showWhatsNew();},1800);
 }
 
 /* ---------- TV / big-screen: arrow-key + controller navigation ---------- */
@@ -3097,14 +3097,15 @@ function homeShelf(html, id) {
 }
 
 function updateText(s) {
-  const tb = App.config?.testBuild;
-  if (tb) { const [n, sha] = String(tb).split('-'); return `Test build #${n} (${(sha || '').slice(0, 7)}) · auto-updates are off in test builds`; }
+  const tb = s?.testBuild||App.config?.testBuild;
+  if(tb||s?.state==='test')return 'Install newer test builds manually. Automatic updates are off.';
   switch (s?.state) {
     case 'checking': return 'Checking for updates…';
     case 'downloading': return `Downloading v${s.version || ''} (${s.percent || 0}%)`;
     case 'ready': return `v${s.version} is ready. Restart to install.`;
     case 'latest': return 'You’re on the latest version.';
     case 'error': return `Update check failed: ${s.message || 'unknown error'}`;
+    case 'unavailable': return s?.packaged===false?'Development build · install a release to use automatic updates.':'Automatic updates aren’t available in this build.';
     default: return s?.packaged === false ? 'Updates only work in the installed app.' : 'Checks for updates automatically.';
   }
 }
@@ -4905,9 +4906,10 @@ const Views = {
         <div class="row gap"><input type="url" id="hook" placeholder="https://discord.com/api/webhooks/…" value="${esc(hook)}"><button class="btn" id="hook-save">Save</button><button class="btn ghost" id="hook-test">Test</button></div></div>` : ''}
 
       <div class="set-card"><h3>About</h3>
-        <button class="about-row" id="upd-check">${icon('info')}<div class="grow"><b>AniDeck</b><div class="desc"><span>Version ${esc(version)}</span> · <span id="upd-status">${esc(updateText(App.update))}</span></div></div>${icon('refresh')}</button>
+        <div class="about-build"><img src="brand/mark.svg" alt="" aria-hidden="true"><div><b>AniDeck</b><p>Version ${esc(version)} <span class="about-channel">${cfg.testBuild?'Test build':App.update?.packaged===false?'Development':'Release build'}</span></p>${cfg.testBuild?`<small>Build ${esc(cfg.testBuild)}</small>`:''}</div></div>
+        ${cfg.testBuild?`<div class="about-row about-update-info">${icon('info')}<div class="grow"><b>Test-build updates</b><div class="desc" id="upd-status">${esc(updateText({...App.update,testBuild:cfg.testBuild}))}</div></div></div>`:`<button class="about-row" id="upd-check">${icon('refresh')}<div class="grow"><b>Check for updates</b><div class="desc" id="upd-status">${esc(updateText(App.update))}</div></div>${icon('chev')}</button>`}
         ${App.update.state === 'ready' ? `<button class="about-row" id="upd-install">${icon('download')}<div class="grow"><b>Update ready</b><div class="desc">Restart to install v${esc(App.update.version || '')}</div></div>${icon('chev')}</button>` : ''}
-        <button class="about-row" id="wn-open">${icon('spark')}<div class="grow"><b>What’s new</b><div class="desc">Version ${esc(CHANGELOG[0].v)}</div></div>${icon('chev')}</button>
+        <button class="about-row" id="wn-open">${icon('spark')}<div class="grow"><b>What’s new</b><div class="desc">Changes in version ${esc(version)}</div></div>${icon('chev')}</button>
         <button class="about-row support-row" data-act="link" data-url="${esc(koFiUrl)}" ${koFiUrl ? '' : 'disabled'}>${icon('heart')}<div class="grow"><b>Support AniDeck on Ko-fi</b><div class="desc">${koFiUrl ? 'Help keep AniDeck growing. Thank you for your support.' : 'Support link coming soon'}</div></div>${icon('external')}</button>
         <button class="about-row" data-act="link" data-url="${GITHUB_URL}">${icon('code')}<div class="grow"><b>GitHub</b><div class="desc">${GITHUB_URL.replace('https://', '')}</div></div>${icon('external')}</button>
         <button class="about-row" data-act="link" data-url="${GITHUB_URL}/issues/new">${icon('bug')}<div class="grow"><b>Report a problem</b><div class="desc">Opens a new issue on GitHub</div></div>${icon('external')}</button>
@@ -4980,11 +4982,11 @@ const Views = {
     });
     $('#keys-reset').onclick = async () => { App.settings.keys = {}; await App.saveSettings(); document.querySelectorAll('[data-key]').forEach((x) => { x.textContent = keyLabel(keyFor(x.dataset.key)); }); toast('Shortcuts reset', 'good'); };
     $('#wn-open').onclick = () => showWhatsNew();
-    $('#upd-check').onclick = async () => {
-      $('#upd-status').textContent = 'Checking…';
-      const s = await window.native.checkUpdate();
-      if (App.config?.testBuild) $('#upd-status').textContent = updateText(s);
-      else if (s.state === 'unavailable') $('#upd-status').textContent = 'Updates only work in the installed app.';
+    if($('#upd-check'))$('#upd-check').onclick=async()=>{
+      const button=$('#upd-check'),status=$('#upd-status');button.disabled=true;status.textContent='Checking for updates…';
+      try{const state=await window.native.checkUpdate();if(status.isConnected)status.textContent=updateText(state);}
+      catch(error){if(status.isConnected)status.textContent='Update check failed: '+error.message;}
+      finally{if(button.isConnected)button.disabled=false;}
     };
     if ($('#upd-install')) $('#upd-install').onclick = () => window.native.installUpdate();
     const valid = (u) => !u || /^https:\/\/(canary\.|ptb\.)?(discord\.com|discordapp\.com)\/api\/webhooks\//.test(u);

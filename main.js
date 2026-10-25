@@ -278,7 +278,7 @@ function setupUpdater() {
 }
 ipcMain.handle('update:state', () => ({ ...updateState, packaged: app.isPackaged }));
 ipcMain.handle('update:check', async () => {
-  if (!autoUpdater) return { state: 'unavailable' };
+  if (!autoUpdater) return { ...updateState,state:updateState.state==='test'?'test':'unavailable',packaged:app.isPackaged };
   try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpdate({ state: 'error', message: e.message }); }
   return updateState;
 });
