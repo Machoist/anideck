@@ -494,6 +494,13 @@ const App = {
     $('#main').addEventListener('scroll', () => this.closeEpMenu(), { passive: true });
     document.addEventListener('mousedown', (e) => { if (!e.target.closest('#ep-menu')) this.closeEpMenu(); });
     window.addEventListener('blur', () => this.closeEpMenu());
+    // Dialogs live outside #main, so their delegated actions need their own listener.
+    $('#modal').addEventListener('click', (e) => {
+      const el = e.target.closest('[data-act]');
+      if (!el || el.disabled || e.defaultPrevented) return;
+      e.preventDefault();
+      this.act(el.dataset.act, el.dataset, el);
+    });
     $('#modal').addEventListener('mousedown', (e) => { if (e.target.id === 'modal') this.closeModal(); });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !$('#modal').hidden) this.closeModal();
