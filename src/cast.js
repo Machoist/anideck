@@ -40,7 +40,7 @@ const Cast = {
   document.getElementById('cast-connect').onsubmit=async event=>{event.preventDefault();if(code().length!==6)return;go.disabled=true;go.textContent='Connecting…';
    try{await this.connectReceiver(code());boxes.forEach(x=>{x.value='';});}catch(error){this.showError(error);boxes.forEach(x=>{x.value='';});boxes[0].focus();document.querySelector('.cast-code')?.classList.add('shake');setTimeout(()=>document.querySelector('.cast-code')?.classList.remove('shake'),450);}
    finally{go.textContent='Connect';go.disabled=code().length!==6;}};
-  document.getElementById('cast-choose').onclick=()=>{this.ready=true;App.closeModal();if(Player.el?.hidden)App.nav('home');toast('TV ready — start an episode to play it there.','good');};
+  document.getElementById('cast-choose').onclick=()=>{this.ready=true;App.closeModal();if(Player.el&&!Player.el.hidden)Player.close();App.nav('home');toast('TV ready — start an episode to play it there.','good');};
   document.getElementById('cast-pc-only').onclick=()=>this.returnToPc();
   document.getElementById('cast-send').onclick=()=>this.sendCurrent().catch(error=>this.showError(error));
   document.getElementById('cast-pause').onclick=()=>this.command(Player.casting?.paused?'play':'pause');
