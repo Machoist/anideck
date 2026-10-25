@@ -90,3 +90,14 @@ test('TV captions retain labels and caption-specific headers and use a WebVTT co
  const receiver=(await request('/hello',{})).body;cast.connect(receiver.code);cast.load({url:'https://video.example/master.m3u8',subtitles:[{url:'https://captions.example/en.vtt',label:'English',language:'en',headers:{Referer:'https://embed.example/'}}]});
  const state=(await request('/state',undefined,receiver.token)).body;assert.equal(state.media.subtitles[0].label,'English');const response=await fetch(base+state.media.subtitles[0].url);assert.equal(response.headers.get('content-type'),'text/vtt');assert.match(await response.text(),/Hello/);assert.equal(headers.Referer,'https://embed.example/');
 });
+
+test('remote commands notify the receiver immediately without waiting for its state poll',async t=>{
+ const {cast,request,base}=await setup(t);const receiver=(await request('/hello',{})).body;cast.connect(receiver.code);
+ assert.equal((await fetch(base+'/events?token=wrong')).status,401);
+ const connection=await fetch(base+'/events?token='+receiver.token);assert.equal(connection.headers.get('content-type'),'text/event-stream');const reader=connection.body.getReader();t.after(()=>reader.cancel());
+ const read=async()=>{let timer;try{return await Promise.race([reader.read(),new Promise((_,reject)=>timer=setTimeout(()=>reject(Error('No immediate command event')),1500))]);}finally{clearTimeout(timer);}};
+ assert.match(new TextDecoder().decode((await read()).value),/data:/);
+ cast.load({url:'https://video.example/main.m3u8'});assert.match(new TextDecoder().decode((await read()).value),/data:/);
+ for(const [action,value] of [['pause'],['seek',120],['play']]){cast.command(action,value);assert.match(new TextDecoder().decode((await read()).value),/data:/);}
+ cast.disconnect();assert.match(new TextDecoder().decode((await read()).value),/data:/);assert.equal(cast.status().screen,null);
+});

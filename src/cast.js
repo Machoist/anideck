@@ -61,7 +61,7 @@ const Cast = {
   el.querySelector('.cast-copy').onclick=async e=>{const b=e.currentTarget;try{await navigator.clipboard.writeText(b.dataset.url);b.querySelector('span').textContent='Copied';setTimeout(()=>{if(b.isConnected)b.querySelector('span').textContent='Copy';},1600);}catch{toast('Couldn’t copy the address','bad');}};
  },
  showError(error){const el=document.getElementById('cast-state');if(el){el.textContent=error.message;el.closest('.cast-pill')?.classList.add('bad');}else toast(error.message,'bad');},
- ensurePoll(){if(!this.timer)this.timer=setInterval(()=>{if(this.ready||this.active||document.getElementById('cast-state'))this.poll();else{clearInterval(this.timer);this.timer=null;}},1500);},
+ ensurePoll(){if(!this.timer)this.timer=setInterval(()=>{if(this.ready||this.active||document.getElementById('cast-state'))this.poll();else{clearInterval(this.timer);this.timer=null;}},250);},
  async poll(){
   if(this.polling)return;this.polling=true;const session=this.session||0;
   try{

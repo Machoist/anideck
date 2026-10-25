@@ -1,6 +1,6 @@
 'use strict';
 const video=document.getElementById('video'),welcome=document.getElementById('welcome'),message=document.getElementById('message'),activate=document.getElementById('activate'),nowPlaying=document.getElementById('now');
-let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false;
+let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false,events=null,tickAgain=false;
 async function api(path,data){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
@@ -30,7 +30,14 @@ function load(next){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Da
 }
 video.addEventListener('error',()=>{if(media){playbackError='The TV could not play this video format. Try a different quality or server.';notice(playbackError);}});
 video.addEventListener('playing',()=>{if(!playbackError)notice('');});
-async function hello(){token=null;const r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code.slice(0,3)+' '+r.code.slice(3);message.textContent='The code expires in two minutes.';}
+function listenForCommands(){
+ events?.close();events=null;if(typeof EventSource!=='function'||!token)return;
+ const stream=events=new EventSource('/events?token='+encodeURIComponent(token));
+ stream.onmessage=()=>{if(starting)tickAgain=true;else tick();};
+ // The regular state poll remains available to browsers or networks without event streams.
+ stream.onerror=()=>{stream.close();if(events===stream)events=null;};
+}
+async function hello(){events?.close();events=null;token=null;const r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code.slice(0,3)+' '+r.code.slice(3);message.textContent='The code expires in two minutes.';listenForCommands();}
 async function tick(){
  if(starting)return;starting=true;
  try{
@@ -55,11 +62,11 @@ async function tick(){
   }
   if(media&&s.connected)await api('/playback',{mediaId:media.id,time:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
  }catch(error){connectionLost();if(error.status===401)token=null;}
- finally{starting=false;}
+ finally{starting=false;if(tickAgain){tickAgain=false;tick();}}
 }
 let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
 tick();setInterval(tick,1000);setInterval(checkConnection,1000);
 
 window.addEventListener?.('pagehide',()=>{
- stop();if(token)fetch('/leave',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
+ events?.close();stop();if(token)fetch('/leave',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
 });
