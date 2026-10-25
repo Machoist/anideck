@@ -3,7 +3,7 @@ const source=fs.readFileSync(path.join(__dirname,'../src/cast.js'),'utf8');
 function setup(load=async()=>({ok:true,value:{id:'media'}})){
  const calls=[],video={currentTime:17,paused:false,pause(){this.paused=true},play(){this.paused=false;return Promise.resolve()}};
  const Player={async resumeFromCast(at){video.currentTime=at;await video.play()},tick(){},ctx:{series:{Name:'Example'},episode:{Name:'Episode'}},el:{hidden:false},loadSeq:1,video,castSource:{url:'https://video.example/main.m3u8',isHLS:true},castHeaders:{Referer:'https://player.example/'},dur:()=>1400,seekTo:t=>video.currentTime=t};
- const ctx={Player,window:{native:{cast:{connect:async code=>{calls.push(['connect',code]);return {ok:true,value:{}}},load:async m=>{calls.push(m);return load(m)},command:async(...args)=>{calls.push(args);return {ok:true,value:{}}}}}},document:{getElementById:()=>null},epLabel:()=> 'Episode 1',toast(){},setInterval(){},clearInterval(){},App:{settings:{maxBitrate:20000000,subLang:'eng'}}};
+ const ctx={Player,window:{native:{cast:{connect:async code=>{calls.push(['connect',code]);return {ok:true,value:{}}},load:async m=>{calls.push(m);return load(m)},command:async(...args)=>{calls.push(args);return {ok:true,value:{}}}}}},document:{getElementById:()=>null,querySelectorAll:()=>[]},epLabel:()=> 'Episode 1',toast(){},setInterval(){},clearInterval(){},App:{settings:{maxBitrate:20000000,subLang:'eng'}}};
  const cast=vm.runInNewContext(source+'\nCast',ctx);cast.originalPoll=cast.poll;cast.poll=async()=>{};cast.ensurePoll=()=>{};return {cast,Player,calls,ctx};
 }
 test('sending a provider episode keeps source headers and pauses PC only after loading TV',async()=>{
@@ -53,4 +53,9 @@ test('turn off receiver completes before a pending PC playback load',async()=>{
 test('a status response started before disconnection cannot repaint the old connected state',async()=>{
  const {cast,Player,ctx}=setup();let respond,painted=0;cast.poll=cast.originalPoll;cast.paint=()=>painted++;ctx.document.querySelector=()=>null;let reads=0;ctx.window.native.cast.status=()=>++reads===1?new Promise(r=>respond=r):Promise.resolve({ok:true,value:{running:false,screen:null}});ctx.window.native.cast.disconnect=async()=>({ok:true,value:{}});Player.ctx=null;Player.el.hidden=true;
  const pending=cast.poll();await cast.disconnectReceiver();respond({ok:true,value:{screen:{online:true}}});await pending;assert.equal(painted,1);assert.equal(cast.active,false);
+});
+
+test('disconnect clears the consumed PC pairing code and disables Connect until a new code is entered',async()=>{
+ const {cast,Player,ctx}=setup();const inputs=Array.from({length:6},()=>({value:'7'})),button={disabled:false};ctx.document.querySelectorAll=()=>inputs;ctx.document.getElementById=id=>id==='cast-connect-btn'?button:null;cast.paint=()=>{};
+ ctx.window.native.cast.disconnect=async()=>({ok:true,value:{}});ctx.window.native.cast.status=async()=>({ok:true,value:{screen:null,running:true}});Player.ctx=null;await cast.disconnectReceiver();assert(inputs.every(input=>input.value===''));assert.equal(button.disabled,true);
 });

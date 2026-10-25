@@ -1,6 +1,6 @@
 'use strict';
 const video=document.getElementById('video'),welcome=document.getElementById('welcome'),message=document.getElementById('message'),activate=document.getElementById('activate'),nowPlaying=document.getElementById('now');
-let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0;
+let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false;
 async function api(path,data){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
@@ -35,10 +35,13 @@ async function tick(){
  if(starting)return;starting=true;
  try{
   if(!token)await hello();
-  const s=await api('/state');
+  let s=await api('/state');
   lastContact=Date.now();
   if(!s.connected&&media)stop();
-  if(!s.connected&&Date.now()>expires){await hello();return;}
+  if(!s.connected&&(wasConnected||Date.now()>expires)){
+   await api('/leave',{}).catch(()=>{});await hello();s=await api('/state');
+  }
+  wasConnected=!!s.connected;
   document.getElementById('code').hidden=s.connected;
   document.getElementById('instructions').textContent=s.connected?'On your PC, choose a show in AniDeck and press Play. Your episode will appear here automatically. To watch on the PC instead, choose Continue on this PC in Cast to TV.':'In AniDeck on your PC, open Cast to TV and enter this code.';
   message.textContent=s.connected?'Connected · waiting for your episode':'The code expires in two minutes.';
