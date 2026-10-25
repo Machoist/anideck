@@ -39,3 +39,18 @@ test('switching episodes during a TV progress update cannot complete the new epi
  const {cast,Player,ctx}=setup();cast.poll=cast.originalPoll;ctx.document.querySelector=()=>null;let ends=0;Player.ended=()=>ends++;cast.active=true;cast.mediaId='media';Player.tick=()=>{cast.mediaId='new-media';};
  ctx.window.native.cast.status=async()=>({ok:true,value:{screen:{online:true,playback:{mediaId:'media',ended:true}}}});await cast.poll();assert.equal(ends,0);
 });
+
+test('disconnect unpairs before attempting PC playback and still works with no open episode',async()=>{
+ const {cast,Player,calls,ctx}=setup();ctx.document.querySelector=()=>null;cast.paint=()=>{};let closed=0;ctx.App.closeModal=()=>closed++;
+ ctx.window.native.cast.disconnect=async()=>{calls.push('disconnect');return {ok:true,value:{}}};ctx.window.native.cast.stop=async()=>{calls.push('off');return {ok:true,value:{}}};
+ Player.casting={time:80};Player.resumeFromCast=async()=>{assert.equal(cast.active,false);assert.equal(calls[0],'disconnect');throw Error('PC stream failed');};cast.active=true;await cast.disconnectReceiver();assert.equal(cast.active,false);assert.equal(cast.mediaId,null);
+ Player.ctx=null;Player.el.hidden=true;Player.tick=()=>{throw Error('Cannot tick an empty player')};await cast.disconnectReceiver();await cast.disconnectReceiver(true);assert.deepEqual(calls,['disconnect','disconnect','off']);assert.equal(closed,1);
+});
+test('turn off receiver completes before a pending PC playback load',async()=>{
+ const {cast,Player,ctx}=setup();let stopped=false,closed=false,finish;ctx.App.closeModal=()=>closed=true;ctx.window.native.cast.stop=async()=>{stopped=true;return {ok:true,value:{}}};Player.casting={time:40};Player.resumeFromCast=()=>new Promise(r=>finish=r);
+ const pending=cast.disconnectReceiver(true);await new Promise(setImmediate);assert.equal(stopped,true);assert.equal(closed,true);assert.equal(Player.casting,null);finish();await pending;
+});
+test('a status response started before disconnection cannot repaint the old connected state',async()=>{
+ const {cast,Player,ctx}=setup();let respond,painted=0;cast.poll=cast.originalPoll;cast.paint=()=>painted++;ctx.document.querySelector=()=>null;ctx.window.native.cast.status=()=>new Promise(r=>respond=r);ctx.window.native.cast.disconnect=async()=>({ok:true,value:{}});Player.ctx=null;Player.el.hidden=true;
+ const pending=cast.poll();await cast.disconnectReceiver();respond({ok:true,value:{screen:{online:true}}});await pending;assert.equal(painted,1);assert.equal(cast.active,false);
+});

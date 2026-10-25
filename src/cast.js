@@ -46,8 +46,8 @@ const Cast = {
   document.getElementById('cast-back').onclick=()=>this.command('seek',(Player.casting?.time||0)-10);
   document.getElementById('cast-forward').onclick=()=>this.command('seek',(Player.casting?.time||0)+10);
   document.getElementById('cast-return').onclick=()=>this.returnToPc();
-  document.getElementById('cast-disconnect').onclick=async()=>{await this.returnToPc();await this.call('disconnect');await this.poll();};
-  document.getElementById('cast-off').onclick=async()=>{await this.returnToPc();await this.call('stop');App.closeModal();};
+  document.getElementById('cast-disconnect').onclick=()=>this.disconnectReceiver();
+  document.getElementById('cast-off').onclick=()=>this.disconnectReceiver(true);
   try{const s=await this.call('start');this.showAddresses(s.urls||[]);await this.poll();this.ensurePoll();}catch(error){this.showError(error);}
  },
  // The likeliest address big with a copy button; virtual adapters (VirtualBox, Hyper-V/WSL, Docker) go under "Other addresses".
@@ -62,9 +62,9 @@ const Cast = {
  showError(error){const el=document.getElementById('cast-state');if(el){el.textContent=error.message;el.closest('.cast-pill')?.classList.add('bad');}else toast(error.message,'bad');},
  ensurePoll(){if(!this.timer)this.timer=setInterval(()=>{if(this.ready||this.active||document.getElementById('cast-state'))this.poll();else{clearInterval(this.timer);this.timer=null;}},1500);},
  async poll(){
-  if(this.polling)return;this.polling=true;
+  if(this.polling)return;this.polling=true;const session=this.session||0;
   try{
-   const s=await this.call('status'),screen=s.screen,p=screen?.playback,el=document.getElementById('cast-state');
+   const s=await this.call('status');if(session!==(this.session||0))return;const screen=s.screen,p=screen?.playback,el=document.getElementById('cast-state');
    if(el)el.textContent=screen?(screen.online?`${screen.name} · ${p?.error||(p?.needsInteraction?'Press Play on your TV remote':this.active?(p?.loading?'Loading on TV…':p?.paused?'Paused on TV':'Playing on TV'):this.ready?'Ready · choose an episode':'Connected')}`:'TV connection lost · reopen the receiver page'):'Waiting for a TV';
    const loaded=!!Player.ctx&&!Player.el?.hidden&&!!(Player.castSource||Player.item);
    const send=document.getElementById('cast-send');if(send)send.disabled=!screen?.online||!loaded||this.busy;
@@ -92,20 +92,33 @@ const Cast = {
   set('cast-hint',state==='connected'?(loaded?'Sends what’s playing here; it picks up from the same spot.':(this.ready?'Start an episode on this PC. It will play on your TV automatically.':'PC playback is selected. Use the player’s Cast button when you want to send an episode.')):'');
  },
  async sendCurrent({at:requestedAt}={}){
-  if(this.busy){this.resend=true;return;}if(!Player.ctx||Player.el.hidden)throw new Error('Start an episode before casting it.');
+  if(this.ending)return;if(this.busy){this.resend=true;return;}if(!Player.ctx||Player.el.hidden)throw new Error('Start an episode before casting it.');
   this.busy=true;
   try{
-   const seq=Player.loadSeq,at=requestedAt??Player.casting?.time??Player.video.currentTime;
+   const session=this.session||0,seq=Player.loadSeq,at=requestedAt??Player.casting?.time??Player.video.currentTime;
    let source=Player.castSource;
    const subtitles=[];
    if(Player.item&&Player.source){source={url:Jellyfin.streamUrl(Player.item,Player.source,{audioIndex:Player.audioIndex,burnSubIndex:Player.subMode==='burn'?Player.subIndex:null,maxBitrate:Math.min(App.settings.maxBitrate||10000000,10000000),playSessionId:Player.playSessionId,copyVideo:false,hevc:false,av1:false}),isHLS:true};if(Player.subMode==='text'&&Player.subIndex!=null)subtitles.push({url:Jellyfin.subtitleVttUrl(Player.item,Player.source,Player.subIndex),language:App.settings.subLang==='off'?'en':App.settings.subLang});}
    if(!source?.url)throw new Error('The episode is still loading. Try again when playback starts.');
    const result=await this.call('load',{...source,headers:Player.castHeaders||{},title:[Player.ctx.series?.Name,epLabel(Player.ctx.episode)].filter(Boolean).join(' · '),at,subtitles});
-   if(seq!==Player.loadSeq||Player.el.hidden){await this.call('command','stop');return;}
+   if(session!==(this.session||0)||seq!==Player.loadSeq||Player.el.hidden){await this.call('command','stop');return;}
    this.mediaId=result.id;this.handledEnd=false;this.ready=true;this.active=true;Player.casting={time:at,duration:Player.dur(),paused:false};Player.video.pause();this.ensurePoll();await this.poll();
   }finally{this.busy=false;if(this.resend){this.resend=false;if(this.active&&!Player.el.hidden)this.sendCurrent().catch(error=>this.showError(error));}}
  },
  async command(action,value){try{await this.call('command',action,value);await this.poll();}catch(error){this.showError(error);}},
  onTeardown(){if(this.mediaId){this.call('command','stop').catch(()=>{});this.mediaId=null;}},
- async returnToPc(){const at=Player.casting?.time;this.ready=false;this.active=false;this.mediaId=null;Player.casting=null;await this.call('command','stop').catch(()=>{});if(at!=null&&!Player.el.hidden){try{await Player.resumeFromCast(at);}catch(error){this.showError(error);}}await this.poll();Player.tick();},
+ async disconnectReceiver(turnOff=false){
+  if(this.ending)return;this.ending=true;this.session=(this.session||0)+1;
+  const at=Player.casting?.time,seq=Player.loadSeq;
+  const buttons=['cast-disconnect','cast-off'].map(id=>document.getElementById(id)).filter(Boolean);buttons.forEach(b=>b.disabled=true);
+  try{
+   // Unpair first. Restoring PC playback can take time or fail, and must never block disconnection.
+   await this.call(turnOff?'stop':'disconnect');
+   this.ready=false;this.active=false;this.mediaId=null;this.resend=false;Player.casting=null;
+   if(turnOff){clearInterval(this.timer);this.timer=null;App.closeModal();}
+   else {this.paint(null,null,!!Player.ctx&&!Player.el?.hidden);const state=document.getElementById('cast-state');if(state)state.textContent='TV disconnected · connect using a new code';}
+   if(Player.ctx&&!Player.el?.hidden){Player.tick();if(at!=null&&seq===Player.loadSeq)Player.resumeFromCast(at).catch(error=>this.showError(error));}
+  }catch(error){this.showError(error);}finally{this.ending=false;buttons.forEach(b=>b.disabled=false);}
+ },
+ async returnToPc(){const at=Player.casting?.time;this.ready=false;this.active=false;this.mediaId=null;Player.casting=null;await this.call('command','stop').catch(()=>{});if(at!=null&&!Player.el.hidden){try{await Player.resumeFromCast(at);}catch(error){this.showError(error);}}await this.poll();if(Player.ctx&&!Player.el?.hidden)Player.tick();},
 };
