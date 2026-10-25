@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('native', {
     }
     return ipcRenderer.invoke('resolveStream', { provider: arg1, ...(arg2 || {}) });
   },
+  relayStream: media => ipcRenderer.invoke('media:relay',media),
+  stopMediaRelay: () => ipcRenderer.invoke('media:stop'),
   cancelStreamResolution: () => ipcRenderer.invoke('cancelStreamResolution'),
   getQualityOptions: (source, episodeData) => ipcRenderer.invoke('stream:getQualityOptions', source, episodeData),
 

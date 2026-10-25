@@ -3981,3 +3981,6 @@ body:has(#modal:not([hidden])) #shell .topbar, body:has(#entry-pop) #shell .topb
 .hp-context{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:12px;font-size:11px;color:var(--muted)}.hp-context>span{display:flex;align-items:center;gap:6px}.hp-context svg{width:13px;height:13px;color:var(--accent)}.hp-context b{font-weight:500;color:var(--text)}
 .hp-studio{font-size:10px;color:var(--muted)}.hp-plan{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;min-height:36px}.hp-plan svg{width:13px;height:13px}.hp-feedback{margin:0;font-size:11px;line-height:1.6;color:var(--bad)}
 @media(prefers-reduced-motion:reduce){.hover-pop{animation:none!important;transition:none!important}}body.reduce-motion .hover-pop{animation:none!important;transition:none!important}
+
+/* Page shortcuts never overlay playback, regardless of later Home-button styling. */
+body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){display:none!important;pointer-events:none!important}

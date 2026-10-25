@@ -756,9 +756,10 @@ const App = {
   markNav() {
     if ($('#conn-btn')) $('#conn-btn').classList.toggle('active', this.view === 'profile');
     const homeBrand=$('#home-brand');if(homeBrand)homeBrand.hidden=this.view!=='home';
-    const pageBack=$('#page-back');if(pageBack){pageBack.hidden=this.view==='home';pageBack.disabled=!this.history.length;}
+    const playerOpen=!$('#player').hidden;
+    const pageBack=$('#page-back');if(pageBack){pageBack.hidden=playerOpen||this.view==='home';pageBack.disabled=!this.history.length;}
     const fab = $('#home-fab');
-    if (fab) { fab.hidden = this.view === 'home'; $('#shell').classList.toggle('fab-on', !fab.hidden); }
+    if (fab) { fab.hidden = playerOpen || this.view === 'home'; $('#shell').classList.toggle('fab-on', !fab.hidden); }
     const view = ['homesections'].includes(this.view) ? 'settings' : this.view; // settings sub-pages
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active',
       b.dataset.view === view));

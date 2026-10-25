@@ -145,6 +145,7 @@ const Player = {
     this.server = ctx.provider || (ctx.streamUrl ? activeStreamingServer : 'jellyfin');
     this.pendingServer = null; const openSeq = ++this.serverSeq;
     this.el.hidden = false;
+    App.markNav?.();
     this.wake();
     const vol = await window.native.get('volume');
     if (openSeq !== this.serverSeq || this.ctx !== ctx || this.el.hidden) return;
@@ -162,7 +163,7 @@ const Player = {
     this.ctx.episode = episode;
     if (!keepTracked) this.tracked = false;
     this.forceConvert = false;
-    this.segments = [];
+    this.segments = [];this.segmentDuration=null;this.lastAutoSkip=null;
     this.playSessionId = crypto.randomUUID().replace(/-/g, '');
     $p('p-spinner').hidden = false;
     this.updateTitle(episode);
@@ -308,7 +309,7 @@ const Player = {
   // Loads a URL into the video element: HLS through hls.js, anything else natively.
   attachSource(url, startAt = 0, isHLS = true) {
     this.sourceCancel?.();
-    this.castSource = { url, isHLS };
+    if(url!==this.pcRelayUrl)this.castSource = { url, isHLS };
     const v=this.video,seq=this.loadSeq;
     return new Promise((resolve,reject)=>{
       let settled=false,timer;
@@ -340,7 +341,7 @@ const Player = {
 
   async resumeFromCast(at=0) {
     const seq=this.loadSeq,source=this.castSource;
-    if(!this.localSourceReady&&source?.url)await this.attachSource(source.url,at,source.isHLS);
+    if(!this.localSourceReady&&source?.url)await this.attachSource(await this.localRemoteSource({streamUrl:source.url,headers:this.castHeaders}),at,source.isHLS);
     if(seq!==this.loadSeq||this.el.hidden)return;
     this.seekTo(at);await this.video.play();this.tick();
   },
@@ -365,11 +366,13 @@ const Player = {
     this.castSource={url:s.streamUrl,isHLS:s.isHLS!==false};
     if(typeof Cast!=='undefined'&&(Cast.ready||Cast.active)){
       try{await Cast.sendCurrent({at:startAt});}
-      catch(error){Cast.ready=false;Cast.active=false;this.casting=null;toast(`Couldn’t send to TV: ${error.message}. Trying this PC.`, 'bad');await this.attachSource(s.streamUrl,startAt,s.isHLS!==false);}
-    }else await this.attachSource(s.streamUrl, startAt, s.isHLS !== false);
+      catch(error){Cast.ready=false;Cast.active=false;this.casting=null;toast(`Couldn’t send to TV: ${error.message}. Trying this PC.`, 'bad');await this.attachSource(await this.localRemoteSource(s),startAt,s.isHLS!==false);}
+    }else await this.attachSource(await this.localRemoteSource(s), startAt, s.isHLS !== false);
     if (loadSeq !== this.loadSeq || this.el.hidden) return;
     return this.afterStart();
   },
+
+  async localRemoteSource(stream){if(this.server==='jellyfin'||!window.native.relayStream||stream.streamUrl===this.pcRelayUrl)return stream.streamUrl;const seq=this.loadSeq;const url=await window.native.relayStream({url:stream.streamUrl,headers:stream.headers||this.castHeaders||{}});if(seq!==this.loadSeq){const error=new Error('Playback superseded');error.name='AbortError';throw error;}this.pcRelayUrl=url;return url;},
 
   async resolveRemote(server, episode, prefetch = false) {
     const sid = this.ctx.series?.Id;
@@ -439,7 +442,7 @@ const Player = {
     v.onratechange = () => { this.rate = v.playbackRate; };
     if(this.casting){this.video.pause();this.tick();}
     else if (typeof Cast !== 'undefined' && (Cast.active || Cast.ready)) await Cast.sendCurrent().catch(error => { Cast.ready = false; Cast.active = false; this.casting = null; v.play().catch(() => {}); toast(error.message, 'bad'); });
-    else v.play().catch(() => {});
+    else v.play().catch(error=>{if(!this.el.hidden){$p('p-spinner').hidden=true;toast('Couldn’t start playback: '+error.message,'bad');}});
     this.monitorStalls();
     if (this.subMode === 'text') this.attachTextSub(); // don't hold up the picture for subtitles
     this.report('start');
@@ -716,15 +719,32 @@ const Player = {
   },
 
   async loadSegments() {
-    const ep = this.ctx.episode;
-    let segs = this.ctx.remoteOnly ? [] : await Jellyfin.segments(ep.Id);
-    if (!segs.length && this.ctx.match?.id && !this.ctx.movie) {
-      const mal = await Kitsu.malId(this.ctx.match.id);
-      if (mal && this.ctx.episode === ep) segs = await aniSkip(mal, relativeEpisodeNumber(ep, this.ctx.episodes), this.dur());
-    }
-    if (this.ctx.episode !== ep) return;
-    this.segments = segs.filter((s) => ['intro', 'outro', 'recap'].includes(s.type) && s.end > s.start);
-    this.drawMarks();
+    const ctx=this.ctx,ep=ctx?.episode,seq=this.loadSeq;if(!ep||ctx.movie)return;
+    const duration=this.casting?.duration||this.dur();
+    const key=[seq,ep.Id,ctx.match?.id||'',Math.round(duration||0)].join(':');
+    if(this.segmentPending?.key===key)return this.segmentPending.promise;
+    const request={key};this.segmentPending=request;this.segmentDuration=Math.round(duration||0);
+    request.promise=(async()=>{try{
+      let segs=ctx.remoteOnly?[]:await Jellyfin.segments(ep.Id).catch(()=>[]);
+      if(!segs.length&&ctx.match?.id&&duration>0){
+        const id=String(ctx.match.id);
+        const mal=id.startsWith('al:')?(await AniList.details(id))?.malId:await Kitsu.malId(id);
+        if(this.ctx!==ctx||this.ctx.episode!==ep||this.loadSeq!==seq)return;
+        const number=ctx.remoteOnly?Number(ep.IndexNumber):relativeEpisodeNumber(ep,ctx.episodes);
+        if(mal&&number>0)segs=await aniSkip(mal,number,duration);
+      }
+      if(this.ctx!==ctx||this.ctx.episode!==ep||this.loadSeq!==seq||this.el.hidden||this.segmentPending!==request)return;
+      this.segments=segs.filter(s=>['intro','outro','recap'].includes(s.type)&&Number.isFinite(s.start)&&Number.isFinite(s.end)&&s.start>=0&&s.end>s.start&&(!duration||s.end<=duration));
+      this.drawMarks();
+    }catch(error){console.warn('Intro timings unavailable:',error.message);}
+    finally{if(this.segmentPending===request)this.segmentPending=null;}})();return request.promise;
+  },
+
+  autoSkipSegment(segment){
+    if(!App.settings.autoSkip||!segment||segment.type==='outro'||(this.casting?.paused??this.video.paused))return false;
+    const key=[this.loadSeq,segment.type,segment.start,segment.end].join(':'),now=Date.now();
+    if(this.lastAutoSkip?.key===key&&now-this.lastAutoSkip.at<2000)return true;
+    this.lastAutoSkip={key,at:now};const result=this.seekTo(segment.end);result?.catch?.(error=>console.warn('Auto-skip seek failed:',error.message));return true;
   },
 
   drawMarks() {
@@ -769,10 +789,11 @@ const Player = {
     }
     if (this.remote && d > 120 && t > 15 && (!this.preloadKey || d - t <= 90)) this.preloadNextEpisode();
     const upNext = this.updateUpNext(t, d);
+    if(!this.segments.length&&!this.segmentPending&&d>0&&this.segmentDuration!==Math.round(d))this.loadSegments();
     const seg = this.activeSegment();
     const skip = $p('p-skip');
     if (seg && !(seg.type === 'outro' && upNext)) {
-      if (App.settings.autoSkip && seg.type !== 'outro') { this.seekTo(seg.end); return; }
+      if (this.autoSkipSegment(seg)) { skip.hidden=true; return; }
       skip.hidden = false;
       $p('p-skip-label').textContent = seg.type === 'outro' ? (this.nextEpisode() ? 'Next episode' : 'Skip credits') : seg.type === 'recap' ? 'Skip recap' : 'Skip intro';
     } else skip.hidden = true;
@@ -983,6 +1004,8 @@ const Player = {
     this.teardown();
     if (document.fullscreenElement) document.exitFullscreen();
     this.el.hidden = true;
+    window.native.stopMediaRelay?.().catch(()=>{});
+    App.markNav?.();
     const cb = this.onClose; this.onClose = null;
     if (cb) cb();
   },

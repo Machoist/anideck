@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../src/player.js'),'utf8');
-function player(extra={}){const ctx={document:{getElementById:()=>({style:{}})},App:{settings:{subLang:'off',showAudio:{show:'sub'},audioLang:'jpn'}},console,TICKS:10000000,applySubStyle(){},showTint(){},activeStreamingServer:'anikoto',...extra};return {p:vm.runInNewContext(source+'\nPlayer',ctx),ctx}}
+function player(extra={}){const ctx={window:{native:{}},document:{getElementById:()=>({style:{}})},App:{settings:{subLang:'off',showAudio:{show:'sub'},audioLang:'jpn'}},console,TICKS:10000000,applySubStyle(){},showTint(){},activeStreamingServer:'anikoto',...extra};return {p:vm.runInNewContext(source+'\nPlayer',ctx),ctx}}
 function deferred(){let resolve;return {promise:new Promise(r=>resolve=r),resolve}}
 test('Subtitles Off survives the per-show Sub preference',()=>{const {p}=player();p.ctx={series:{Id:'show'}};p.source={MediaStreams:[{Type:'Audio',Language:'jpn',Index:1},{Type:'Subtitle',Language:'eng',Index:2,IsTextSubtitleStream:true,IsDefault:true}]};p.pickTracks();assert.equal(p.subMode,'off');assert.equal(p.subIndex,null);assert.equal(p.audioIndex,1)});
 test('an old volume lookup cannot reopen or replace a newer player request',async()=>{const a=deferred(),b=deferred();let n=0;const {p}=player({window:{native:{get:()=>++n===1?a.promise:b.promise}}});p.bind=()=>{};p.el={hidden:true};p.video={};p.wake=()=>{};p.syncVol=()=>{};const loaded=[];p.load=async e=>loaded.push(e.Id);const first={episode:{Id:'one'},provider:'anikoto'},second={episode:{Id:'two'},provider:'anikoto'};const pa=p.open(first);const pb=p.open(second);b.resolve(0.8);await pb;a.resolve(0.2);await pa;assert.deepEqual(loaded,['two']);assert.equal(p.video.volume,0.8)});
@@ -21,3 +21,6 @@ test('returning from TV initializes a previously unused local source before resu
  p.attachSource=async(url,at,hls)=>calls.push(['attach',url,at,hls]);p.seekTo=at=>calls.push(['seek',at]);p.video={play:async()=>calls.push(['play'])};p.tick=()=>{};
  await p.resumeFromCast(123);assert.deepEqual(calls,[['attach','https://media.test/a.m3u8',123,true],['seek',123],['play']]);
 });
+
+
+test('PC media relay receives captured headers and keeps the original URL for TV handoff',async()=>{let request;const {p}=player({window:{native:{relayStream:async data=>{request=data;return 'http://127.0.0.1:1234/media/token';}}}});p.loadSeq=1;p.castHeaders={Referer:'https://player.test/'};p.castSource={url:'https://video.test/master.m3u8',isHLS:true};const local=await p.localRemoteSource({streamUrl:p.castSource.url});assert.equal(request.headers.Referer,'https://player.test/');assert.equal(local,p.pcRelayUrl);assert.equal(p.castSource.url,'https://video.test/master.m3u8');});

@@ -321,6 +321,10 @@ ipcMain.handle('stream:getQualityOptions', async (_e, source, episodeData) => {
 // ---------- Cast to TV: browser receiver, no PC-to-PC account sharing ----------
 const { createCasting } = require('./src/casting/server.js');
 const casting = createCasting({ fetchUpstream: (url, options) => net.fetch(url, options) });
+const mediaRelay = require('./src/mediaRelay').createMediaRelay({fetchUpstream:(url,options)=>net.fetch(url,options)});
+ipcMain.handle('media:relay', (_event, media) => mediaRelay.load(media));
+ipcMain.handle('media:stop', () => mediaRelay.stop());
+app.on('before-quit', () => { mediaRelay.stop().catch(()=>{}); });
 const castCall = fn => async (_event, ...args) => { try { return { ok: true, value: await fn(...args) }; } catch (error) { return { ok: false, error: error.message }; } };
 ipcMain.handle('cast:start', castCall(() => casting.start()));
 ipcMain.handle('cast:status', castCall(() => casting.status()));
