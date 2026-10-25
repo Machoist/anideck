@@ -10,7 +10,7 @@ async function api(path,data){
 }
 function notice(text){nowPlaying.textContent=text;nowPlaying.hidden=!text;}
 function stop(){media=null;needsInteraction=false;if(hls){hls.destroy();hls=null;}video.pause();video.removeAttribute('src');video.load();video.hidden=true;welcome.hidden=false;activate.hidden=true;notice('');}
-async function play(){try{await video.play();needsInteraction=false;activate.hidden=true;notice('');}catch{needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}}
+async function play(){const selected=media;if(!selected)return;try{await video.play();if(media!==selected)return;needsInteraction=false;activate.hidden=true;notice('');}catch{if(media!==selected)return;needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}}
 activate.onclick=()=>{video.requestFullscreen?.().catch(()=>{});return play();};
 function load(next){stop();lastSeek=0;pendingSeek=null;media=next;playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
