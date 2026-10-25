@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto').webcrypto;
+test('empty profile initializes without accounts, personal library settings or network sign-in requests',async()=>{
+ const config=JSON.parse(fs.readFileSync(path.join(__dirname,'../config.release.json'),'utf8')),store=new Map(),writes=[];let network=0;
+ const ctx={crypto,URLSearchParams,console,Map,Set,window:{native:{config:async()=>config,get:async key=>store.get(key),set:async(key,value)=>{writes.push(key);store.set(key,value);},getSecret:async()=>null,request:async()=>{network++;throw Error('No sign-in request expected')}}},App:{settings:{},libraries:[],config}};
+ const api=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/api.js'),'utf8')+'\n({Jellyfin,Kitsu,AniList,Trakt,Tracker,Requests})',ctx);
+ const results=await Promise.all([api.Kitsu.init(),api.AniList.init(),api.Trakt.init(),api.Jellyfin.init()]);assert(results.every(value=>!value));assert.equal(api.Tracker.loggedIn(),false);assert.equal(api.Jellyfin.connected(),false);assert.equal(api.Requests.enabled(),false);assert.equal(api.Jellyfin.server,'');assert.equal(api.Jellyfin.userName,'');assert.equal(api.AniList.userName,'');assert.equal(api.Kitsu.userName,'');assert.equal(network,0);assert.deepEqual(writes,['deviceId']);assert.match(store.get('deviceId'),/^anideck-/);
+});

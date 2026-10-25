@@ -1,11 +1,14 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),asar=require('@electron/asar');
+const {assertRuntimePath}=require('./release-guard.cjs');
 function audit(appOutDir){
  const resources=path.join(appOutDir,'resources'),archive=path.join(resources,'app.asar');
  const entries=asar.listPackage(archive).map(name=>name.replaceAll('\\','/'));
  for(const name of ['/config.json','/config.release.json','/store.json','/secrets.json','/tests','/server','/.git','/work'])assert(!entries.some(entry=>entry===name||entry.startsWith(name+'/')),'Private/development path packaged: '+name);
+ for(const name of entries.filter(name=>name.startsWith('/src/')))assertRuntimePath(name);
  const root=path.join(__dirname,'..'),html=fs.readFileSync(path.join(root,'src/index.html'),'utf8');
  const references=[...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)].map(match=>match[1]).filter(value=>!value.startsWith('#')&&!/^(?:https?:|data:|\/\/)/i.test(value));
  const runtime=new Set(['/main.js','/preload.js','/src/index.html','/src/providerSubtitles.js','/src/mediaRelay.js','/src/casting/server.js','/src/casting/receiver.js','/src/friends.js','/src/friends-plus.js','/src/friends.css','/src/watcher.js','/build/icon.png',...references.map(value=>'/src/'+value)]);
+ for(const name of entries.filter(name=>name.startsWith('/src/'))){const relative=name.slice(1),file=path.join(root,relative);assert(fs.existsSync(file),'Unreviewed runtime asset in package: '+name);if(fs.statSync(file).isFile())runtime.add(name);}
  for(const name of runtime){
   assert(entries.includes(name),'Missing runtime asset '+name);
   assert(asar.extractFile(archive,path.normalize(name.slice(1))).equals(fs.readFileSync(path.join(root,name.slice(1)))),'Packaged runtime is stale: '+name);
