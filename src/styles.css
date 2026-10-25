@@ -3944,3 +3944,13 @@ body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){d
 .cast-result { margin:0; padding:12px 22px; color:var(--accent); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 
 .set-identity .set-wordmark { display:block; width:158px; max-width:100%; height:auto; margin-bottom:12px; }
+
+/* Direct episode editing keeps long lists quick to update. */
+.entry-pop-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.entry-pop-heading .icon-btn{flex:none}
+.ee-count{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.ee-progress-input{width:4.5ch;min-width:54px;padding:7px 5px;text-align:center;font:inherit;font-weight:650;color:var(--text);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;appearance:textfield}
+.ee-progress-input::-webkit-inner-spin-button,.ee-progress-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ee-progress-input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ee-progress-input[aria-invalid=true]{border-color:#e17a88}
+@media(max-width:520px){.ee-row{flex-wrap:wrap;justify-content:center}.ee-row>label{flex-basis:100%}.ee-row>.spacer{display:none}}
