@@ -1426,7 +1426,7 @@ const App = {
       <div class="ee-chips" id="ee-status">${Object.entries(labels).map(([v, l]) => `<button type="button" class="ee-chip ${status === v ? 'on' : ''}" data-st="${v}">${icon('tick')}${l}</button>`).join('')}</div>
       <div class="ee-row"><span>Episodes watched</span><span class="spacer"></span>
         <button type="button" class="round-step" id="ee-minus" title="One less">${icon('minus')}</button><b class="ee-count"><span id="ee-prog">${e.progress || 0}</span>${total ? `<small> / ${total}</small>` : ''}</b><button type="button" class="round-step" id="ee-plus" title="One more">${icon('plus')}</button></div>
-      <div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save</button></div>
+      <p id="ee-error" class="error" role="alert" hidden></p><div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save</button></div>
     </div>`;
     document.body.appendChild(scrim);
     document.body.classList.add('modal-open'); // freezes #main's scroll (see styles.css)
@@ -1442,15 +1442,23 @@ const App = {
     const esc_ = (ev) => { if (ev.key === 'Escape') close(); };
     scrim.onmousedown = (ev) => { if (ev.target === scrim) close(); }; // click on the dimmed area closes it
     document.addEventListener('keydown', esc_);
-    pop.querySelector('#ee-remove').onclick = async () => { await Tracker.setStatus(animeId, 'remove').catch((x) => toast(x.message, 'bad')); close(); toast(`Removed from your ${Tracker.name} list`); this.refresh(); };
+    let busy=false;
+    const setBusy=value=>{busy=value;pop.querySelectorAll('button').forEach(button=>button.disabled=value);};
+    const showError=error=>{const message=pop.querySelector('#ee-error');message.textContent=`${Tracker.name} update failed: ${error.message}`;message.hidden=false;};
+    pop.querySelector('#ee-remove').onclick = async () => {
+      if(busy)return;setBusy(true);pop.querySelector('#ee-error').hidden=true;
+      try{await Tracker.setStatus(animeId,'remove');close();toast(`Removed from your ${Tracker.name} list`,'good');this.refresh();}
+      catch(error){showError(error);setBusy(false);}
+    };
     pop.querySelector('#ee-save').onclick = async () => {
-      const btn = pop.querySelector('#ee-save'); btn.disabled = true; btn.textContent = 'Saving…';
+      if(busy)return;setBusy(true);pop.querySelector('#ee-error').hidden=true;
+      const btn = pop.querySelector('#ee-save'); btn.textContent = 'Saving…';
       let st = status === 'rewatching' ? 'current' : status;
       if (total && prog >= total && st === 'current' && status !== 'rewatching') st = 'completed';
       try {
         await Tracker.saveEntry(animeId, { status: st, progress: prog, reconsuming: status === 'rewatching' });
         close(); toast(`${Tracker.name}: ${labels[status]} · ${prog}${total ? ` / ${total}` : ''}`, 'good'); this.refresh();
-      } catch (x) { btn.disabled = false; btn.textContent = 'Save'; toast(`${Tracker.name} update failed: ${x.message}`, 'bad'); }
+      } catch (x) { setBusy(false);btn.textContent='Save';showError(x); }
     };
   },
 
