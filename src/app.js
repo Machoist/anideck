@@ -4846,6 +4846,10 @@ const Views = {
       </div>
 
       <div class="set-card"><h3>TV</h3>
+        <div class="tv-intro">
+          <span class="tv-intro-icon" aria-hidden="true">${icon('cast')}</span>
+          <div class="tv-intro-copy"><span class="tv-intro-kicker">A little more room to watch</span><h4>Your deck. Big screen.</h4><p>Watch on your TV. Keep the controls on your PC.</p><span class="tv-intro-note">A compatible TV browser · Same home network</span></div>
+        </div>
         <button class="about-row" data-act="castTv">${icon('cast')}<div class="grow"><b>Cast to TV</b><div class="desc">Open AniDeck in your TV’s browser and connect using its code.</div></div>${icon('chev')}</button>
         <div class="set-row"><div><div>TV interface</div><div class="desc">Larger controls and full screen when using this PC directly on a TV.</div></div>${sw('tvMode')}</div>
       </div>

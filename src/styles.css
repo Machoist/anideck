@@ -3984,3 +3984,14 @@ body:has(#modal:not([hidden])) #shell .topbar, body:has(#entry-pop) #shell .topb
 
 /* Page shortcuts never overlay playback, regardless of later Home-button styling. */
 body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){display:none!important;pointer-events:none!important}
+
+/* TV introduction sits in the settings flow, alongside its controls. */
+.settings-layout .tv-intro { display:flex; align-items:center; gap:22px; padding:28px 0 24px; }
+.tv-intro-icon { display:grid; place-items:center; flex:0 0 76px; width:76px; height:76px; color:var(--accent); border-radius:24px; background:radial-gradient(circle at 35% 25%,rgba(var(--accent-rgb),.18),rgba(var(--accent-rgb),.04)); }
+.tv-intro-icon svg { width:36px; height:36px; }
+.tv-intro-copy { min-width:0; }
+.tv-intro-kicker { color:var(--accent); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+.tv-intro-copy h4 { margin:7px 0; font-size:25px; font-weight:700; letter-spacing:-.035em; line-height:1.2; }
+.tv-intro-copy p { margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+.tv-intro-note { display:block; margin-top:10px; color:var(--muted); font-size:11px; line-height:1.5; }
+@media(max-width:600px) { .settings-layout .tv-intro { gap:15px; align-items:flex-start; } .tv-intro-icon { flex-basis:54px; width:54px; height:54px; border-radius:18px; } .tv-intro-icon svg { width:28px; height:28px; } .tv-intro-copy h4 { font-size:22px; } }
