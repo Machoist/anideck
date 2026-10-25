@@ -84,3 +84,9 @@ test('leaving a receiver browser immediately unpairs it without waiting for hear
  assert.equal((await request('/leave',{},'invalid')).status,401);assert(cast.status().screen);
  assert.equal((await request('/leave',{},receiver.token)).status,200);assert.equal(cast.status().screen,null);assert.equal((await fetch(base+state.media.url)).status,403);
 });
+
+test('TV captions retain labels and caption-specific headers and use a WebVTT content type',async t=>{
+ let headers;const {cast,request,base}=await setup(t,{fetchUpstream:async(url,options)=>{headers=options.headers;return new Response('WEBVTT\n\n00:00.000 --> 00:02.000\nHello',{headers:{'content-type':'text/plain'}});}});
+ const receiver=(await request('/hello',{})).body;cast.connect(receiver.code);cast.load({url:'https://video.example/master.m3u8',subtitles:[{url:'https://captions.example/en.vtt',label:'English',language:'en',headers:{Referer:'https://embed.example/'}}]});
+ const state=(await request('/state',undefined,receiver.token)).body;assert.equal(state.media.subtitles[0].label,'English');const response=await fetch(base+state.media.subtitles[0].url);assert.equal(response.headers.get('content-type'),'text/vtt');assert.match(await response.text(),/Hello/);assert.equal(headers.Referer,'https://embed.example/');
+});

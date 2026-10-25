@@ -343,6 +343,7 @@ const Player = {
     const seq=this.loadSeq,source=this.castSource;
     if(!this.localSourceReady&&source?.url)await this.attachSource(await this.localRemoteSource({streamUrl:source.url,headers:this.castHeaders}),at,source.isHLS);
     if(seq!==this.loadSeq||this.el.hidden)return;
+    if(this.remote&&this.subMode==='text')await this.attachTextSub();
     this.seekTo(at);await this.video.play();this.tick();
   },
 
@@ -358,7 +359,7 @@ const Player = {
     }
     this.castHeaders = s.headers || {};
     this.remote = true;
-    this.subMode = 'off';
+    this.prepareRemoteSubtitles(s.subtitles||s.tracks||[]);
     this.playMethod = 'DirectPlay';
     $p('p-mode').textContent = this.serverName(this.server);
     [...this.video.querySelectorAll('track')].forEach((t) => t.remove());
@@ -444,7 +445,7 @@ const Player = {
     else if (typeof Cast !== 'undefined' && (Cast.active || Cast.ready)) await Cast.sendCurrent().catch(error => { Cast.ready = false; Cast.active = false; this.casting = null; v.play().catch(() => {}); toast(error.message, 'bad'); });
     else v.play().catch(error=>{if(!this.el.hidden){$p('p-spinner').hidden=true;toast('Couldn’t start playback: '+error.message,'bad');}});
     this.monitorStalls();
-    if (this.subMode === 'text') this.attachTextSub(); // don't hold up the picture for subtitles
+    if (this.subMode === 'text'&&!this.casting) this.attachTextSub(); // don't hold up the picture for subtitles
     this.report('start');
     clearInterval(this.reportTimer);
     this.reportTimer = setInterval(() => this.report('progress'), 10000);
@@ -489,19 +490,40 @@ const Player = {
   },
   clearSubs() { $p('p-subs').innerHTML = ''; $p('p-subs-top').innerHTML = ''; },
 
+  prepareRemoteSubtitles(tracks){
+    this.remoteSubtitles=tracks.filter(t=>{try{return /^https?:$/.test(new URL(t.url||t.file).protocol);}catch{return false;}}).slice(0,20).map(t=>({...t,url:t.url||t.file}));
+    const lang=App.settings.subLang||'eng',normal=s=>String(s||'').toLowerCase().replace(/^eng(?:lish)?$/,'en').replace(/^jpn$/,'ja');
+    this.remoteSubIndex=lang==='off'?-1:this.remoteSubtitles.findIndex(t=>normal(t.language)===normal(lang));
+    if(lang!=='off'&&this.remoteSubIndex<0)this.remoteSubIndex=Math.max(0,this.remoteSubtitles.findIndex(t=>t.default));
+    if(!this.remoteSubtitles.length)this.remoteSubIndex=-1;
+    this.subMode=this.remoteSubIndex>=0?'text':'off';
+  },
+  async changeRemoteSub(index){
+    this.remoteSubIndex=index;this.subMode=index>=0?'text':'off';
+    [...this.video.querySelectorAll('track')].forEach(t=>t.remove());this.subTrack=null;this.clearSubs();
+    if(this.casting)await Cast.sendCurrent({at:this.casting.time}).catch(error=>toast(error.message,'bad'));
+    else if(index>=0)await this.attachTextSub();
+    this.buildMenus();$p('p-sub-menu').hidden=true;
+  },
   async attachTextSub() {
+    const seq=this.loadSeq,remoteTrack=this.remote?this.remoteSubtitles?.[this.remoteSubIndex]:null;
+    if(this.remote&&!remoteTrack)return;
     try {
-      const res = await window.native.request({ url: Jellyfin.subtitleVttUrl(this.item, this.source, this.subIndex) });
-      if (!res.ok || !res.text) throw new Error();
-      const blob = new Blob([res.text], { type: 'text/vtt' });
+      const res = await window.native.request({ url: remoteTrack?.url||Jellyfin.subtitleVttUrl(this.item, this.source, this.subIndex),headers:remoteTrack?.headers||this.castHeaders||{} });
+      if (!res.ok || !res.text) throw new Error('Subtitle download failed');
+      if(seq!==this.loadSeq||this.el.hidden)return;
+      const blob = new Blob([res.text.replace(/^\uFEFF/,'')], { type: 'text/vtt' });
       const track = document.createElement('track');
-      track.kind = 'subtitles'; track.default = true; track.src = URL.createObjectURL(blob);
+      track.kind = 'subtitles';track.label=remoteTrack?.label||'Subtitles';track.srclang=remoteTrack?.language||'und'; track.default = true; track.src = URL.createObjectURL(blob);if(this.subtitleBlob)URL.revokeObjectURL(this.subtitleBlob);this.subtitleBlob=track.src;
       this.video.appendChild(track);
       track.track.mode = 'hidden'; // never the browser's box; hookSubs() draws it
       this.subTrack = track.track;
       track.track.oncuechange = () => this.drawSubs();
-      track.addEventListener('load', () => this.drawSubs());
+      track.addEventListener('load', () => {if(seq===this.loadSeq)this.drawSubs();});
+      track.addEventListener('error',()=>{if(seq===this.loadSeq)toast('This subtitle track could not be read. Try another track or server.','bad');});
     } catch {
+      if(seq!==this.loadSeq)return;
+      if(this.remote){toast('Couldn’t load subtitles from this source. Try another subtitle track or server.','bad');return;}
       // Text track failed (unusual format) - fall back to burning it into the video.
       this.subMode = 'burn';
       const t = this.video.currentTime;
@@ -522,7 +544,13 @@ const Player = {
   },
 
   buildMenus() {
-    const streams = this.source?.MediaStreams || []; // outside streams have no track list
+    if(this.remote){
+      const menu=$p('p-sub-menu');menu.innerHTML='<div class="menu-h">Subtitles</div>';
+      const choices=[{label:'Off',index:-1},...(this.remoteSubtitles||[]).map((t,index)=>({label:t.label||t.language||`Track ${index+1}`,index}))];
+      for(const choice of choices){const b=document.createElement('button');b.textContent=choice.label;if(choice.index===this.remoteSubIndex)b.className='on';b.onclick=()=>this.changeRemoteSub(choice.index);menu.appendChild(b);}
+      $p('p-sub-btn').disabled=!(this.remoteSubtitles?.length);$p('p-sub-btn').title=this.remoteSubtitles?.length?'Subtitles':'This source has no separate subtitle tracks';$p('p-quality-btn').disabled=true;return;
+    }
+    const streams = this.source?.MediaStreams || [];
     $p('p-quality-btn').disabled = this.remote;
     const audios = streams.filter((x) => x.Type === 'Audio');
     const subs = streams.filter((x) => x.Type === 'Subtitle');
@@ -683,6 +711,7 @@ const Player = {
     $p('p-sub-menu').hidden = true;
     const prevMode = this.subMode;
     this.setSub(sub);
+    if(this.casting){await Cast.sendCurrent({at:this.casting.time});this.buildMenus();return;}
     const t = this.video.currentTime;
     if (prevMode === 'burn' || this.subMode === 'burn') return this.restartStream(t);
     [...this.video.querySelectorAll('track')].forEach((x) => x.remove());
@@ -989,6 +1018,7 @@ const Player = {
     const v = this.video;
     if (v) { v.pause(); v.removeAttribute('src'); [...v.querySelectorAll('track')].forEach((t) => t.remove()); v.load(); }
     this.subTrack = null; this.clearSubs();
+    if(this.subtitleBlob){URL.revokeObjectURL(this.subtitleBlob);this.subtitleBlob=null;}this.remoteSubtitles=[];this.remoteSubIndex=-1;
     this.item = null; this.source = null; this.duration = 0; this.remote = false;
     $p('p-skip').hidden = true; $p('p-marks').innerHTML = ''; $p('p-fill').style.width = '0'; $p('p-buf').style.width = '0';
   },

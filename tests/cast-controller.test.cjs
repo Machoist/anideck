@@ -59,3 +59,7 @@ test('disconnect clears the consumed PC pairing code and disables Connect until 
  const {cast,Player,ctx}=setup();const inputs=Array.from({length:6},()=>({value:'7'})),button={disabled:false};ctx.document.querySelectorAll=()=>inputs;ctx.document.getElementById=id=>id==='cast-connect-btn'?button:null;cast.paint=()=>{};
  ctx.window.native.cast.disconnect=async()=>({ok:true,value:{}});ctx.window.native.cast.status=async()=>({ok:true,value:{screen:null,running:true}});Player.ctx=null;await cast.disconnectReceiver();assert(inputs.every(input=>input.value===''));assert.equal(button.disabled,true);
 });
+
+test('casting includes the selected provider caption and its source headers',async()=>{
+ const {cast,Player,calls}=setup();Player.remote=true;Player.subMode='text';Player.remoteSubIndex=0;Player.remoteSubtitles=[{url:'https://captions.test/en.vtt',language:'en',label:'English',headers:{Referer:'https://embed.test/'}}];await cast.sendCurrent();assert.equal(calls[0].subtitles[0].url,'https://captions.test/en.vtt');assert.equal(calls[0].subtitles[0].headers.Referer,'https://embed.test/');
+});

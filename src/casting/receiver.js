@@ -21,7 +21,7 @@ async function play(){const selected=media;if(!selected)return;try{await video.p
 activate.onclick=()=>{video.requestFullscreen?.().catch(()=>{});return play();};
 function load(next){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
- for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);}
+ for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);if(track.track)track.track.mode='showing';}
  if(next.isHLS&&window.Hls&&Hls.isSupported()){
   hls=new Hls({maxBufferLength:60,backBufferLength:30});hls.on(Hls.Events.ERROR,(_,data)=>{if(data.fatal){playbackError='This stream could not play on the TV. Try another server or quality.';notice(playbackError);}});hls.loadSource(next.url);hls.attachMedia(video);
  }else if(!next.isHLS||video.canPlayType('application/vnd.apple.mpegurl'))video.src=next.url;

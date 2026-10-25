@@ -47,7 +47,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
    const upstream=await fetchUpstream(a.url,{headers,signal:controller.signal,method:req.method==='HEAD'?'HEAD':'GET'});
    if(!upstream.ok){res.writeHead(upstream.status);res.end();return;}
    clearTimeout(timeout);
-   const type=upstream.headers.get('content-type')||'application/octet-stream';
+   const type=/\.vtt(?:$|\?)/i.test(a.url)?'text/vtt':upstream.headers.get('content-type')||'application/octet-stream';
    const playlist=/mpegurl/i.test(type)||/\.m3u8(?:$|\?)/i.test(a.url);
    if(playlist&&req.method!=='HEAD'){
     let chunks=[],size=0;
@@ -115,7 +115,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   clearAssets();
   const safeHeaders={};for(const [key,value]of Object.entries(headers))if(/^(referer|origin|user-agent|authorization|cookie)$/i.test(key))safeHeaders[key]=String(value);
   const id=secret();screen.playback={};
-  screen.state={revision:++revision,action:'load',paused:false,seekRevision:0,media:{id,url:register(url,current,safeHeaders),title:String(title).slice(0,300),at:Math.max(0,Number(at)||0),isHLS:!!isHLS,subtitles:subtitles.slice(0,1).map(s=>({url:register(s.url,current,{}),label:'Subtitles',language:s.language||'en'}))}};
+  screen.state={revision:++revision,action:'load',paused:false,seekRevision:0,media:{id,url:register(url,current,safeHeaders),title:String(title).slice(0,300),at:Math.max(0,Number(at)||0),isHLS:!!isHLS,subtitles:subtitles.slice(0,1).map(s=>({url:register(s.url,current,Object.fromEntries(Object.entries(s.headers||safeHeaders).filter(([key])=>/^(referer|origin|user-agent|authorization|cookie)$/i.test(key)))),label:String(s.label||'Subtitles').slice(0,80),language:s.language||'und'}))}};
   return {id};
  }
  function command(action,value){const screen=screens.get(current);if(!screen)throw new Error('No TV connected.');if(!['play','pause','seek','stop'].includes(action))throw new Error('Unknown cast command');screen.state={...screen.state,revision:++revision,action,value:Math.max(0,Number(value)||0)};if(action==='play'||action==='pause')screen.state.paused=action==='pause';if(action==='seek'){screen.state.seekTime=screen.state.value;screen.state.seekRevision=revision;}if(action==='stop'){screen.state.media=null;screen.playback={};clearAssets();}return status();}

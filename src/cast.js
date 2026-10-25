@@ -98,7 +98,8 @@ const Cast = {
   try{
    const session=this.session||0,seq=Player.loadSeq,at=requestedAt??Player.casting?.time??Player.video.currentTime;
    let source=Player.castSource;
-   const subtitles=[];
+   const selected=Player.remoteSubtitles?.[Player.remoteSubIndex];
+   const subtitles=Player.remote&&Player.subMode==='text'&&selected?[{...selected,headers:selected.headers||Player.castHeaders||{}}]:[];
    if(Player.item&&Player.source){source={url:Jellyfin.streamUrl(Player.item,Player.source,{audioIndex:Player.audioIndex,burnSubIndex:Player.subMode==='burn'?Player.subIndex:null,maxBitrate:Math.min(App.settings.maxBitrate||10000000,10000000),playSessionId:Player.playSessionId,copyVideo:false,hevc:false,av1:false}),isHLS:true};if(Player.subMode==='text'&&Player.subIndex!=null)subtitles.push({url:Jellyfin.subtitleVttUrl(Player.item,Player.source,Player.subIndex),language:App.settings.subLang==='off'?'en':App.settings.subLang});}
    if(!source?.url)throw new Error('The episode is still loading. Try again when playback starts.');
    const result=await this.call('load',{...source,headers:Player.castHeaders||{},title:[Player.ctx.series?.Name,epLabel(Player.ctx.episode)].filter(Boolean).join(' · '),at,subtitles});

@@ -1,5 +1,6 @@
 // File: src/streamResolver.js
 const { app, BrowserWindow, net, session } = require('electron');
+const {discoverSubtitleTracks}=require('./providerSubtitles');
 
 const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '124.0.0.0'} Safari/537.36`;
 
@@ -287,6 +288,19 @@ class StreamResolver {
       return { stage: 'player', frame:frame?.src,click,streamUrl: src && /^https?:/.test(src) ? src : null };
     };
     // Observe the headers sent by the embedded player, rather than guessing its Referer.
+    const withSubtitles=async stream=>{
+      let subtitles=[];
+      // Metadata is normally ready with the playlist; briefly allow the player to create its tracks.
+      for(let attempt=0;attempt<4;attempt++){
+        this.signal?.throwIfAborted();
+        const frames=win.webContents.mainFrame?.framesInSubtree||[win.webContents];
+        const groups=await Promise.race([Promise.all(frames.slice(0,12).map(frame=>frame.executeJavaScript(`(${discoverSubtitleTracks.toString()})()`,true).catch(()=>[]))),new Promise(resolve=>setTimeout(()=>resolve([]),500))]);
+        const unique=new Map();for(const track of groups.flat())if(track?.url)unique.set(track.url,track);subtitles=[...unique.values()].slice(0,20);
+        if(subtitles.length)break;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,150));
+      }
+      console.log('[StreamResolver] Anikoto subtitle tracks:',subtitles.length);
+      return {...stream,subtitles:subtitles.map(track=>({...track,headers:stream.headers||{}}))};
+    };
     ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, callback) => {
       if (selected && !captured && /\.(m3u8|mp4)(\?|$)/i.test(details.url) && !/preview|thumb/i.test(details.url)) {
         const headers = { 'User-Agent': CHROME_UA };
@@ -305,7 +319,7 @@ class StreamResolver {
       const deadline = Date.now() + 45000;
       while (Date.now() < deadline) {
         this.signal?.throwIfAborted();
-        if (captured) { console.log('[StreamResolver] Anikoto resolution complete'); rememberPage(); return captured; }
+        if (captured) { console.log('[StreamResolver] Anikoto resolution complete'); rememberPage(); return await withSubtitles(captured); }
         if (stage !== lastStage) { console.log(`[StreamResolver] Anikoto stage: ${stage}`); lastStage = stage; }
         let inspectionTimer;
         const result = await Promise.race([
@@ -335,7 +349,7 @@ class StreamResolver {
           await loadAnikotoPage(win, next.href);
         }
         if(selected&&result.frame&&!captured&&!result.streamUrl&&!playerFrames.has(result.frame)&&playerFrames.size<4){const frame=new URL(result.frame);if(frame.protocol!=='https:')throw new Error('Invalid embedded player address');playerFrames.add(result.frame);const referrer=win.webContents.getURL();await loadAnikotoPage(win,frame.href,referrer);}
-        if (selected && result.streamUrl) { rememberPage(); return { streamUrl: result.streamUrl, isHLS: /\.m3u8/i.test(result.streamUrl), headers: { Referer: win.webContents.getURL(), 'User-Agent': CHROME_UA } }; }
+        if (selected && result.streamUrl) { rememberPage(); return await withSubtitles({ streamUrl: result.streamUrl, isHLS: /\.m3u8/i.test(result.streamUrl), headers: { Referer: win.webContents.getURL(), 'User-Agent': CHROME_UA } }); }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       throw new Error(`Anikoto timed out at ${stage} stage: ${win.webContents.getURL()} (${title}, episode ${episodeNum}, ${audio})`);
