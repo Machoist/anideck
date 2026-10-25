@@ -4,7 +4,7 @@ function setup(load=async()=>({ok:true,value:{id:'media'}})){
  const calls=[],video={currentTime:17,paused:false,pause(){this.paused=true},play(){this.paused=false;return Promise.resolve()}};
  const Player={async resumeFromCast(at){video.currentTime=at;await video.play()},tick(){},ctx:{series:{Name:'Example'},episode:{Name:'Episode'}},el:{hidden:false},loadSeq:1,video,castSource:{url:'https://video.example/main.m3u8',isHLS:true},castHeaders:{Referer:'https://player.example/'},dur:()=>1400,seekTo:t=>video.currentTime=t};
  const ctx={Player,window:{native:{cast:{connect:async code=>{calls.push(['connect',code]);return {ok:true,value:{}}},load:async m=>{calls.push(m);return load(m)},command:async(...args)=>{calls.push(args);return {ok:true,value:{}}}}}},document:{getElementById:()=>null},epLabel:()=> 'Episode 1',toast(){},setInterval(){},clearInterval(){},App:{settings:{maxBitrate:20000000,subLang:'eng'}}};
- const cast=vm.runInNewContext(source+'\nCast',ctx);cast.poll=async()=>{};cast.ensurePoll=()=>{};return {cast,Player,calls,ctx};
+ const cast=vm.runInNewContext(source+'\nCast',ctx);cast.originalPoll=cast.poll;cast.poll=async()=>{};cast.ensurePoll=()=>{};return {cast,Player,calls,ctx};
 }
 test('sending a provider episode keeps source headers and pauses PC only after loading TV',async()=>{
  const {cast,Player,calls}=setup();await cast.sendCurrent();assert.equal(calls[0].at,17);assert.equal(calls[0].headers.Referer,'https://player.example/');assert.equal(cast.active,true);assert.equal(Player.video.paused,true);assert.equal(Player.casting.time,17);
@@ -27,4 +27,15 @@ test('connecting from Settings arms the next episode without trying to cast an e
 });
 test('connecting while an episode is loaded sends it immediately',async()=>{
  const {cast,calls,Player}=setup();await cast.connectReceiver('123456');assert.equal(cast.ready,true);assert.equal(cast.active,true);assert.equal(calls[1].url,Player.castSource.url);assert.equal(Player.video.paused,true);
+});
+
+test('receiver completion is handled once and stale episode reports are ignored',async()=>{
+ const {cast,Player,ctx}=setup();cast.poll=cast.originalPoll;ctx.document.querySelector=()=>null;let ends=0;Player.ended=()=>ends++;cast.active=true;cast.mediaId='media';
+ ctx.window.native.cast.status=async()=>({ok:true,value:{screen:{online:true,playback:{mediaId:'old',ended:true}}}});await cast.poll();assert.equal(ends,0);
+ ctx.window.native.cast.status=async()=>({ok:true,value:{screen:{online:true,playback:{mediaId:'media',ended:true}}}});await cast.poll();await cast.poll();assert.equal(ends,1);
+});
+
+test('switching episodes during a TV progress update cannot complete the new episode',async()=>{
+ const {cast,Player,ctx}=setup();cast.poll=cast.originalPoll;ctx.document.querySelector=()=>null;let ends=0;Player.ended=()=>ends++;cast.active=true;cast.mediaId='media';Player.tick=()=>{cast.mediaId='new-media';};
+ ctx.window.native.cast.status=async()=>({ok:true,value:{screen:{online:true,playback:{mediaId:'media',ended:true}}}});await cast.poll();assert.equal(ends,0);
 });

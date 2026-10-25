@@ -783,10 +783,8 @@ const Player = {
     $p('p-fill').style.width = `${f}%`;
     $p('p-thumb').style.left = `${f}%`;
 
-    if (this.casting) {
-      if (!this.tracked && d && t / d >= App.settings.threshold) { this.tracked = true; this.markWatched(); }
-      return;
-    }
+    // Receiver progress drives the same tracking, skip and next-episode controls as local playback.
+    if (!this.tracked && d && t / d >= App.settings.threshold) { this.tracked = true; this.markWatched(); }
     if (this.remote && d > 120 && t > 15 && (!this.preloadKey || d - t <= 90)) this.preloadNextEpisode();
     const upNext = this.updateUpNext(t, d);
     if(!this.segments.length&&!this.segmentPending&&d>0&&this.segmentDuration!==Math.round(d))this.loadSegments();
@@ -827,7 +825,7 @@ const Player = {
     if (!this.ctx.remoteOnly) this.sendToTrakt(ep);
     if (!this.ctx.remoteOnly && !App.isAnime(this.ctx.series?.Id)) return;
     if (!App.settings.autoTrack || !Tracker.loggedIn() || !m?.id || (this.ctx.season?.IndexNumber === 0)) return;
-    const num = this.ctx.movie ? 1 : relativeEpisodeNumber(ep, this.ctx.episodes);
+    const num = this.ctx.movie ? 1 : this.ctx.remoteOnly ? Number(ep.IndexNumber) : relativeEpisodeNumber(ep, this.ctx.episodes);
     if (!num) return;
     try {
       const r = await Tracker.setProgress(m.id, num, this.ctx.movie ? (m.episodes || 1) : m.episodes);

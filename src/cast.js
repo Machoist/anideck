@@ -71,7 +71,7 @@ const Cast = {
    for(const id of ['cast-pause','cast-back','cast-forward','cast-return']){const b=document.getElementById(id);if(b)b.disabled=!this.active;}
    this.paint(screen,p,loaded);
    if((this.active||this.ready)&&(!screen||!screen.online)){this.ready=false;this.active=false;this.mediaId=null;Player.casting=null;if(Player.video&&Player.ctx)Player.tick();toast('TV disconnected. Press Play to continue on this PC.','bad');}
-   if(this.active&&p?.mediaId===this.mediaId){Player.casting=p;Player.tick();if(p.ended&&!this.handledEnd){this.handledEnd=true;Player.ended();}}
+   if(this.active&&p?.mediaId===this.mediaId){Player.casting=p;Player.tick();if(this.active&&p.mediaId===this.mediaId&&p.ended&&!this.handledEnd){this.handledEnd=true;Player.ended();}}
   }catch(error){this.showError(error);}finally{this.polling=false;}
  },
  // Panel state, the device line, and (while casting) the title, progress and play/pause button.

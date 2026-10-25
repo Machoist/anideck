@@ -121,7 +121,7 @@ const Jellyfin = {
   async init() {
     this.deviceId = await window.native.get('deviceId');
     if (!this.deviceId) {
-      this.deviceId = 'anishelf-' + crypto.randomUUID();
+      this.deviceId = 'anideck-' + crypto.randomUUID();
       await window.native.set('deviceId', this.deviceId);
     }
     const saved = await window.native.get('jellyfin');

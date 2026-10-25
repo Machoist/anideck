@@ -6,7 +6,7 @@ const play={dataset:{},setAttribute(){},getBoundingClientRect:box,click(){throw 
 const server={setAttribute(){},classList:{contains:()=>true},getBoundingClientRect:box,scrollIntoView(){calls++},click(){throw Error('DOM click should not run')}};
 const document={querySelector:s=>s==='#player .play'?play:null,querySelectorAll:()=>[server]};
 const inspect=vm.runInNewContext('('+src.slice(begin,end).trim().replace(/;$/,'')+')',{document});
-const first=inspect({audio:'sub'},'audio');assert.equal(first.stage,'player');assert.equal(first.selected,true);assert.equal(first.click.x,60);assert.equal(play.dataset.anishelfStarted,'1');
+const first=inspect({audio:'sub'},'audio');assert.equal(first.stage,'player');assert.equal(first.selected,true);assert.equal(first.click.x,60);assert.equal(play.dataset.anideckStarted,'1');
 assert.equal(calls,0,'active requested server must arm capture before the initial Play click');
 server.classList.contains=()=>false;play.dataset={};const other=inspect({audio:'dub'},'audio');assert.equal(other.selected,true);assert.equal(other.stage,'player');assert.equal(calls,1);
 console.log('PASS: arm capture before initial Play and use native coordinates for requested audio');

@@ -267,18 +267,18 @@ class StreamResolver {
         if (!server) {
           // The site initializes its server list only after the initial play click.
           const start = document.querySelector('#player .play');
-          if (start && !start.dataset.anishelfStarted) {
-            start.dataset.anishelfStarted = '1';
+          if (start && !start.dataset.anideckStarted) {
+            start.dataset.anideckStarted = '1';
             return { stage: 'audio', click: clickTarget(start), diagnostic: { action: 'initialize player' } };
           }
-          return { stage: 'audio', diagnostic: { readyState: document.readyState, playButton: !!start, playClicked: !!start?.dataset.anishelfStarted, serverGroups: [...document.querySelectorAll('#w-servers [data-type]')].map(el => el.dataset.type), serverCount: document.querySelectorAll('#w-servers li').length, playerText: document.querySelector('#player')?.innerText?.slice(0, 180) } };
+          return { stage: 'audio', diagnostic: { readyState: document.readyState, playButton: !!start, playClicked: !!start?.dataset.anideckStarted, serverGroups: [...document.querySelectorAll('#w-servers [data-type]')].map(el => el.dataset.type), serverCount: document.querySelectorAll('#w-servers li').length, playerText: document.querySelector('#player')?.innerText?.slice(0, 180) } };
         }
-        if(initialPlay&&server.classList.contains('active')){initialPlay.dataset.anishelfStarted='1';return {stage:'player',selected:true,click:clickTarget(initialPlay)};}
+        if(initialPlay&&server.classList.contains('active')){initialPlay.dataset.anideckStarted='1';return {stage:'player',selected:true,click:clickTarget(initialPlay)};}
         const target=!initialPlay&&server.classList.contains('active')&&servers.length>1?servers[1]:server;
         target.scrollIntoView({block:'center'});return {stage:'player',selected:true,click:clickTarget(target)};
       }
       const play = document.querySelector('#player .play');
-      if (play && !play.dataset.anishelfStarted) { play.dataset.anishelfStarted = '1'; return { stage: 'player', click: clickTarget(play) }; }
+      if (play && !play.dataset.anideckStarted) { play.dataset.anideckStarted = '1'; return { stage: 'player', click: clickTarget(play) }; }
       const frame=[...document.querySelectorAll('#player iframe[src], iframe[src]')].find(f=>f.offsetWidth>200&&/^https:/.test(f.src));
       const button=document.querySelector('.jw-icon-display,.vjs-big-play-button,.play-button,.btn-play,video');
       let click;if(button&&!button.dataset.anideckStarted){button.dataset.anideckStarted='1';const r=button.getBoundingClientRect();if(r.width&&r.height)click=clickTarget(button);}
@@ -638,7 +638,7 @@ class StreamResolver {
                   if (hit) { hit.click(); return { type: 'clicked' }; }
                 }
                 const play = document.querySelector('.play-button, .vjs-big-play-button, .jw-icon-display, .btn-play, video');
-                if (play && !play.dataset.anishelfStarted) { play.dataset.anishelfStarted = '1'; return { stage: 'player', click: clickTarget(play) }; }
+                if (play && !play.dataset.anideckStarted) { play.dataset.anideckStarted = '1'; return { stage: 'player', click: clickTarget(play) }; }
                 return null;
               })(${episodeNum});
             `);
