@@ -10,3 +10,12 @@ test('queue includes only released next episodes, normalizes progress, and omits
 test('out-of-week airings are verified against title metadata with bounded concurrency',async()=>{
  const code=source.slice(source.indexOf('async function verifyQueueAiring('),source.indexOf('function buildQueue('));let active=0,peak=0;const verify=vm.runInNewContext(code+'\nverifyQueueAiring',{AniList:{details:async id=>{active++;peak=Math.max(peak,active);await Promise.resolve();active--;return id==='known'?{next:{episode:3,at:Date.now()+10000}}:{status:'releasing'}}},Date});const input=Array.from({length:8},(_,i)=>({anime:{id:i===0?'known':String(i),status:'current'}}));const result=await verify(input,()=>null);assert.equal(result[0].queueAir.aired,2);assert.equal(result[1].queueAir.aired,null);assert(peak<=3);assert.equal(input[0].queueAir,undefined);
 });
+
+test('AniList queue release checks use one batch instead of one request per title',async()=>{
+ const code=source.slice(source.indexOf('async function verifyQueueAiring('),source.indexOf('function buildQueue('));let batches=0,individual=0;
+ const verify=vm.runInNewContext(code+'\nverifyQueueAiring',{AniList:{airingBatch:async ids=>{batches++;assert.equal(ids.length,20);return Object.fromEntries(ids.map(id=>[id,{status:'releasing',next:{episode:5,at:Date.now()+10000}}]));},details:async()=>{individual++;}},Date});
+ const input=Array.from({length:20},(_,i)=>({anime:{id:'al:'+(i+1),status:'releasing'}}));const result=await verify(input,()=>null);assert.equal(batches,1);assert.equal(individual,0);assert(result.every(entry=>entry.queueAir.aired===4));
+});
+test('a failed batch leaves release status unknown without retrying every title',async()=>{
+ const code=source.slice(source.indexOf('async function verifyQueueAiring('),source.indexOf('function buildQueue('));let individual=0;const verify=vm.runInNewContext(code+'\nverifyQueueAiring',{AniList:{airingBatch:async()=>{throw Error('Offline')},details:async()=>individual++},Date});const result=await verify([{anime:{id:'al:1',status:'releasing'}}],()=>null);assert.equal(result[0].queueAir.aired,null);assert.equal(individual,0);
+});

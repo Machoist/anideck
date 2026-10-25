@@ -2689,8 +2689,13 @@ async function queueWatching() {
 }
 async function verifyQueueAiring(watching, airing) {
   const verified=watching.map(w=>({...w}));let next=0;
+  const needsCheck=a=>a&&!airing?.(a)&&!/^(finished|completed)$/i.test(a.status||'');
+  const ids=verified.filter(w=>needsCheck(w.anime)&&/^al:\d+$/.test(String(w.anime.id))).map(w=>w.anime.id);
+  let batch=null,batchFailed=false;
+  if(ids.length&&typeof AniList.airingBatch==='function'){try{batch=await AniList.airingBatch(ids);}catch{batchFailed=true;}}
+
   const worker=async()=>{while(next<verified.length){const w=verified[next++],a=w.anime;if(!a||airing?.(a)||/^(finished|completed)$/i.test(a.status||''))continue;
-    try{const d=await AniList.details(a.id);if(d?.next)w.queueAir={aired:Math.max(0,Number(d.next.episode)-(d.next.at>Date.now()?1:0)),next:d.next.at>Date.now()?d.next:null};else if(/finished/i.test(d?.status||'')){const total=Number(d.episodes)||Number(a.episodes)||(String(d?.format||a.subtype||'').toLowerCase()==='movie'?1:0);w.queueAir={aired:total||null,next:null};}else if(/upcoming|not[ _]yet[ _]released/i.test(d?.status||a.status||''))w.queueAir={aired:0,next:null};else w.queueAir={aired:null,next:null};}catch{w.queueAir={aired:null,next:null};}
+    try{const batched=ids.includes(a.id)&&(batch!==null||batchFailed);const d=batched?batch?.[a.id]:await AniList.details(a.id);if(d?.next)w.queueAir={aired:Math.max(0,Number(d.next.episode)-(d.next.at>Date.now()?1:0)),next:d.next.at>Date.now()?d.next:null};else if(/finished/i.test(d?.status||'')){const total=Number(d.episodes)||Number(a.episodes)||(String(d?.format||a.subtype||'').toLowerCase()==='movie'?1:0);w.queueAir={aired:total||null,next:null};}else if(/upcoming|not[ _]yet[ _]released/i.test(d?.status||a.status||''))w.queueAir={aired:0,next:null};else w.queueAir={aired:null,next:null};}catch{w.queueAir={aired:null,next:null};}
   }};await Promise.all([worker(),worker(),worker()]);return verified;
 }
 function buildQueue(resume, up, watching, airing = null) {

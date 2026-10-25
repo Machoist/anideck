@@ -723,6 +723,12 @@ const AniList = {
   // Title-page metadata from AniList (works signed out): its banner and cover art usually beat library art,
   // and it has the next airing episode. Kitsu id or "al:123" in. Cached for 30 minutes.
   detailsCache: {},
+  async airingBatch(ids) {
+    const mediaIds=[...new Set(ids.filter(id=>/^al:\d+$/.test(String(id))).map(id=>Number(String(id).slice(3))).filter(id=>Number.isInteger(id)&&id>0&&id<=2147483647))].slice(0,50);
+    if(!mediaIds.length)return {};
+    const data=await this.gql('query($ids:[Int]){ Page(page:1,perPage:50){ media(id_in:$ids,type:ANIME){ id status episodes format nextAiringEpisode{ episode airingAt } } } }',{ids:mediaIds},false);
+    return Object.fromEntries((data?.Page?.media||[]).map(m=>['al:'+m.id,{status:String(m.status||'').toLowerCase(),episodes:m.episodes,format:m.format,next:m.nextAiringEpisode?{episode:m.nextAiringEpisode.episode,at:m.nextAiringEpisode.airingAt*1000}:null}]));
+  },
   async details(id) {
     const hit = this.detailsCache[id];
     if (hit && Date.now() - hit.at < 30 * 60_000) return hit.value;
