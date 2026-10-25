@@ -4846,8 +4846,7 @@ const Views = {
       </div>
 
       <div class="set-card"><h3>TV</h3>
-        <div class="tv-guide"><b>Your deck. Big screen.</b><p>Send the episode to your Fire Stick using Silk, or another TV with a compatible web browser. Your PC stays in control.</p></div>
-        <button class="about-row" data-act="castTv">${icon('cast')}<div class="grow"><b>Cast to TV</b><div class="desc">Open the TV receiver, connect with its code, and send your episode.</div></div>${icon('chev')}</button>
+        <button class="about-row" data-act="castTv">${icon('cast')}<div class="grow"><b>Cast to TV</b><div class="desc">Open AniDeck in your TV’s browser and connect using its code.</div></div>${icon('chev')}</button>
         <div class="set-row"><div><div>TV interface</div><div class="desc">Larger controls and full screen when using this PC directly on a TV.</div></div>${sw('tvMode')}</div>
       </div>
 
