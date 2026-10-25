@@ -29,6 +29,7 @@ async function tick(){
  try{
   if(!token)await hello();
   const s=await api('/state');
+  if(!s.connected&&media)stop();
   if(!s.connected&&Date.now()>expires){await hello();return;}
   document.getElementById('code').hidden=s.connected;
   document.getElementById('instructions').textContent=s.connected?'On your PC, choose a show in AniDeck and press Play. Your episode will appear here automatically. To watch on the PC instead, choose Continue on this PC in Cast to TV.':'In AniDeck on your PC, open Cast to TV and enter this code.';
@@ -42,7 +43,8 @@ async function tick(){
    else if(media&&s.action==='play')play();
   }
   if(media&&s.connected)await api('/playback',{mediaId:media.id,time:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
- }catch(error){message.textContent='Connection lost. Keep AniDeck open on your PC. Retrying…';if(media)notice(error.message);if(error.status===401){stop();token=null;}}
+ }catch(error){message.textContent='Connection lost. Keep AniDeck open on your PC. Retrying…';if(media)stop();if(error.status===401)token=null;}
  finally{starting=false;}
 }
+let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
 tick();setInterval(tick,1000);

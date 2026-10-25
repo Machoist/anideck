@@ -30,7 +30,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
  const clearAssets=()=>{assets.clear();assetIndex.clear();};
  const publicScreen=s=>({name:s.name, connected:current===s.token, online:now()-s.seen<15000, playback:s.playback});
  const status=()=>({running:!!server?.listening, port:server?.address()?.port||port, urls:server?.listening?localAddresses().map(a=>`http://${a}:${server.address().port}`):[], screen:current&&screens.has(current)?publicScreen(screens.get(current)):null});
- const cleanup=()=>{for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
+ const cleanup=()=>{const active=screens.get(current);if(active&&now()-active.seen>=15000)disconnect();for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
  const register=(url,token,headers={})=>{
   if(!/^https?:$/.test(new URL(url).protocol))throw new Error('Unsupported media address');
   const indexKey=token+'\0'+url;let id=assetIndex.get(indexKey);

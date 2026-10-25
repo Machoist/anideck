@@ -70,3 +70,5 @@ test('TV receiver script handles connect, playback, pause, seek and stop against
  cast.command('play');await receiver.tick();assert.equal(video.paused,false);assert.equal(video.currentTime,42);
  cast.command('stop');await receiver.tick();assert.equal(video.paused,true);assert.equal(video.hidden,true);assert.equal(elements.welcome.hidden,false);
 });
+
+test('an offline receiver loses its active media lease and receives a stop state',async t=>{let now=1000;const {cast,request,base}=await setup(t,{now:()=>now});const hello=await request('/hello',{});cast.connect(hello.body.code);cast.load({url:'https://video.example/main.m3u8'});const state=await request('/state',undefined,hello.body.token);const url=state.body.media.url;now+=15001;assert.equal(cast.status().screen,null);assert.equal((await fetch(base+url)).status,403);const stopped=await request('/state',undefined,hello.body.token);assert.equal(stopped.body.connected,false);assert.equal(stopped.body.action,'stop');assert.equal(stopped.body.media,null);});
