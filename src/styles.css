@@ -2204,17 +2204,6 @@ body:has(.player:not([hidden])) #shell .topbar::before { display: none; }
 .ad-page{max-width:1500px;margin:auto;padding-top:90px}.ad-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:28px;flex-wrap:wrap}.ad-page-head h1{font:650 clamp(30px,3vw,48px)/1.1 var(--display);letter-spacing:-.035em;margin:8px 0 12px}.ad-page-head p,.ad-footnote{color:var(--muted);line-height:1.65;font-size:13px;max-width:760px}.ad-eyebrow{font-size:10px;font-weight:650;letter-spacing:.18em;color:var(--accent)}.ad-page-head>.row{flex-wrap:wrap;align-self:center}.ad-deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:20px}.ad-deck-card{padding:22px;background:var(--panel);border:1px solid var(--line);border-radius:18px;display:grid;align-content:start;gap:12px}.ad-deck-card p{font-size:13px;color:var(--muted);line-height:1.5;margin:0;min-height:38px}.ad-deck-open{display:grid;justify-items:start;gap:8px;text-align:left;background:none;border:0;color:var(--text);padding:0;width:100%}.ad-deck-open>b{font-size:21px;font-family:var(--display)}.ad-deck-open small{color:var(--muted)}.ad-stack{position:relative;width:155px;height:165px;display:block;margin:4px 0 18px}.ad-stack>span{position:absolute;left:0;top:0;width:106px;height:155px;border:1px solid rgba(var(--accent-rgb),.22);border-radius:10px;background:#292434;overflow:hidden;transform:rotate(-8deg)}.ad-stack>span:nth-child(2){left:23px;top:4px;transform:rotate(1deg)}.ad-stack>span:nth-child(3){left:45px;top:10px;transform:rotate(9deg)}.ad-stack img,.ad-cover img,.ad-swipe-art img{width:100%;height:100%;object-fit:cover;display:block}.ad-stack-empty,.ad-cover-ph{display:grid!important;place-items:center;color:var(--accent);font-size:34px}.ad-title-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:24px 18px}.ad-title{display:grid;align-content:start;gap:12px;min-width:0}.ad-title>b{font-size:14px;line-height:1.35}.ad-cover{aspect-ratio:2/3;overflow:hidden;border-radius:12px;background:var(--panel-2)}.ad-title>.row{flex-wrap:wrap}.ad-form{display:grid;gap:16px}.ad-form textarea{min-height:80px;resize:vertical}.ad-picker,.ad-search-results{max-height:50vh;overflow-y:auto}.ad-route-links{display:flex;gap:8px;justify-content:flex-end;margin:0 0 20px;flex-wrap:wrap}.ad-footnote{margin:24px 0}.ad-dashboard{margin:10px 0 32px}.ad-dashboard .section-head h2{margin:5px 0 0}.ad-widgets{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}.ad-widget{grid-column:span var(--widget-span);min-width:0;position:relative;padding:20px;border-radius:16px;background:linear-gradient(135deg,rgba(var(--accent-rgb),.035),transparent),var(--panel);border:1px solid var(--line);min-height:180px}.ad-widget-head{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}.ad-widget-head h3{font-size:14px;font-weight:600;margin:0;flex:1}.ad-widget-head[draggable=true]{cursor:grab}.ad-widget-edit{display:flex;gap:7px;align-items:center}.ad-widget-edit select{font-size:11px;max-width:88px;padding:5px}.ad-widget-body{display:grid;gap:12px}.ad-widget-body>p{margin:0;line-height:1.5;font-size:13px}.ad-widget-resize{position:absolute;bottom:3px;right:5px;cursor:ew-resize;color:var(--accent);background:none;border:0;font-size:18px;touch-action:none}.editing .ad-widget{border-style:dashed;border-color:rgba(var(--accent-rgb),.4)}.ad-pinned{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ad-pinned button{display:grid;gap:6px;text-align:left;padding:18px 14px;color:var(--text);background:rgba(var(--accent-rgb),.055);border:1px solid var(--line);border-radius:12px}.ad-pinned small{color:var(--muted);font-size:11px}.ad-countdown{font:650 clamp(26px,3.4vw,48px)/1.2 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}.ad-log-row{display:grid;grid-template-columns:minmax(0,1fr) 90px auto;gap:10px;align-items:center;padding:7px 0}.ad-log-title{display:grid;gap:4px;min-width:0}.ad-log-title b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ad-log-title span{font-size:10px}.ad-log-row input[type=range]{width:100%;accent-color:var(--accent)}.ad-log-row button{font-size:11px;padding:6px 10px}.ad-roulette{display:grid;gap:10px}.ad-roulette .ad-cover{width:75px}.ad-roulette>b{font-size:14px}.ad-mini-stats{display:flex;gap:28px}.ad-mini-stats div{display:grid;gap:5px}.ad-mini-stats b{font:650 36px var(--display)}.ad-mini-stats small{font-size:11px;color:var(--muted)}.ad-swipe-stage{max-width:740px;margin:32px auto;outline-offset:10px}.ad-swipe-card{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1fr);gap:30px;padding:26px;border:1px solid rgba(var(--accent-rgb),.2);border-radius:24px;background:linear-gradient(135deg,rgba(var(--accent-rgb),.07),transparent),var(--panel);box-shadow:0 18px 60px #0003;touch-action:pan-y;animation:adDeal .24s ease-out}.ad-swipe-art{aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:var(--panel-2)}.ad-swipe-info{align-self:center;min-width:0}.ad-swipe-info h2{font:650 clamp(22px,3vw,36px)/1.15 var(--display);letter-spacing:-.02em}.ad-swipe-info p{font-size:13px;line-height:1.6;color:var(--muted)}.ad-swipe-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:24px 0}.ad-review-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;max-width:1040px;margin:auto}.ad-review-cards canvas{width:100%;height:auto;aspect-ratio:4/5;border-radius:22px;border:1px solid rgba(var(--accent-rgb),.22)}.ad-widget button:focus-visible,.ad-deck-card button:focus-visible{outline:2px solid var(--accent);outline-offset:4px}@keyframes adDeal{from{opacity:0;transform:translateY(10px) rotate(-1deg)}to{opacity:1;transform:none}}@media(max-width:1050px){.ad-widget{grid-column:span 6}.ad-log-row{grid-template-columns:minmax(0,1fr) auto}.ad-log-row input{grid-column:1/-1;grid-row:2}.ad-widget[style*="12"]{grid-column:span 12}}@media(max-width:700px){.ad-page{padding-top:130px}.ad-widgets{display:block}.ad-widget{margin-bottom:14px}.ad-widget-resize{display:none}.ad-review-cards{grid-template-columns:1fr}.ad-swipe-card{gap:18px;padding:18px;grid-template-columns:110px minmax(0,1fr)}.ad-swipe-info h2{font-size:22px}.ad-pinned{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.ad-swipe-card{animation:none}}
 .ad-swipe-card{touch-action:none}.ad-swipe-art img{pointer-events:none;user-select:none}.ad-swipe-stage .ad-swipe-actions button{touch-action:manipulation}
 
-/* Home button, top left on every page but Home: a small glass pill that shows its label on hover */
-.home-fab { position: absolute; top: 14px; left: 16px; z-index: 44; display: inline-flex; align-items: center; height: 38px; padding: 0 10px; border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.1); background: rgba(20,18,27,.72); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
-  color: var(--text); box-shadow: 0 6px 18px rgba(0,0,0,.35); transition: background .18s, border-color .18s; animation: fabIn .3s cubic-bezier(.2,.9,.25,1) both; }
-.home-fab svg.ic { width: 17px; height: 17px; flex: none; }
-.home-fab span { max-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; font-weight: 600; transition: max-width .25s ease, margin .25s ease; }
-.home-fab:hover span, .home-fab:focus-visible span { max-width: 60px; margin: 0 4px 0 8px; }
-.home-fab:hover { background: rgba(var(--accent-rgb),.28); border-color: rgba(var(--accent-rgb),.55); }
-@keyframes fabIn { from { opacity: 0; transform: translateX(-8px); } }
-body:has(.player:not([hidden])) .home-fab { display: none; }
-.reduce-motion .home-fab { animation: none; }
 /* make room for it at the top of ordinary pages (title pages keep their hero art behind it) */
 .fab-on #main > .page:first-child { padding-top: 68px; }
 .fab-on #main > .settings-layout { padding-top: 68px; }
@@ -2663,24 +2652,6 @@ body:has(.player:not([hidden])) .home-fab { display: none; }
 .reduce-motion .wk2-card { animation: none; }
 .wk2-panel { position: relative; } /* cards measure offsets from the row (open at "now") */
 
-/* Home: two cards fan out beneath the house, with a small spring on release. */
-.home-fab{width:40px;height:40px;padding:0;justify-content:center;border-radius:13px;overflow:visible;isolation:isolate;background:rgba(22,21,30,.76);transition:transform .48s cubic-bezier(.2,.8,.2,1.15),background .25s,border-color .25s}
-.home-fab .home-fab-glyph{position:relative;display:grid;place-items:center;max-width:none;width:24px;height:27px;overflow:visible;margin:0;flex:none;transition:transform .48s cubic-bezier(.2,.8,.2,1.15)}
-.home-fab-glyph::before,.home-fab-glyph::after{content:"";position:absolute;inset:3px 2px;border:1px solid rgba(var(--accent-rgb),.5);border-radius:5px;opacity:0;transform:translate(0,2px) rotate(0);transition:transform .48s cubic-bezier(.2,.8,.2,1.15),opacity .22s;background:rgba(var(--accent-rgb),.06);z-index:-1}
-.home-fab-glyph svg{position:relative;z-index:1;transition:transform .48s cubic-bezier(.2,.8,.2,1.15),color .22s}
-.home-fab .home-fab-label{position:absolute;left:calc(100% + 9px);top:6px;display:block;max-width:none;margin:0;padding:6px 10px;border:1px solid rgba(var(--accent-rgb),.18);border-radius:8px;background:var(--panel);font-size:11px;line-height:14px;white-space:nowrap;opacity:0;pointer-events:none;transform:translateX(-7px);transition:opacity .2s,transform .35s cubic-bezier(.2,.8,.2,1)}
-.home-fab:is(:hover,:focus-visible){transform:translateY(-1px);background:rgba(var(--accent-rgb),.16);border-color:rgba(var(--accent-rgb),.45)}
-.home-fab:is(:hover,:focus-visible) .home-fab-glyph{transform:translateY(-2px)}
-.home-fab:is(:hover,:focus-visible) .home-fab-glyph::before{opacity:.85;transform:translate(-4px,3px) rotate(-14deg)}
-.home-fab:is(:hover,:focus-visible) .home-fab-glyph::after{opacity:.6;transform:translate(4px,3px) rotate(14deg)}
-.home-fab:is(:hover,:focus-visible) svg{transform:scale(.88) translateY(-1px);color:var(--accent)}
-.home-fab:is(:hover,:focus-visible) .home-fab-label{max-width:none;margin:0;opacity:1;transform:translateX(0)}
-.home-fab:active{transform:translateY(1px) scale(.93);transition-duration:.1s}
-.home-fab:active .home-fab-glyph::before,.home-fab:active .home-fab-glyph::after{transform:translateY(2px) rotate(0)}
-.home-fab:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.reduce-motion .home-fab,.reduce-motion .home-fab *,.reduce-motion .home-fab-glyph::before,.reduce-motion .home-fab-glyph::after{transition:none!important;animation:none!important}
-@media(prefers-reduced-motion:reduce){.home-fab,.home-fab *,.home-fab-glyph::before,.home-fab-glyph::after{transition:none!important;animation:none!important}}
-
 /* =====================================================================
    NOTIFICATIONS: springs out of the bell, rows deal in, reads and clears are animated, the bell rings for news
    ===================================================================== */
@@ -3018,24 +2989,6 @@ button.ad3-pill:hover { background: rgba(255,255,255,.08); color: var(--text); }
 @media (max-width: 900px) { .ad4-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ad4-strip > div:nth-child(4) { border-left: 0; } .ad4-strip > div:nth-child(n+4) { border-top: 1px solid rgba(255,255,255,.06); } }
 .reduce-motion .ad3-card, .reduce-motion .ad4-card, .reduce-motion .ad4-strip > div, .reduce-motion .ad3-done { animation: none; }
 .yn-meta em:empty { display: none; }
-
-/* Home button: a round glass icon that pops in; the house hops and glows on hover, presses in on click */
-.home-fab { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; gap: 0;
-  border-color: rgba(255,255,255,.12); background: rgba(22,20,29,.62); box-shadow: 0 8px 22px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
-  transition: background .2s, border-color .2s, box-shadow .25s, transform .15s cubic-bezier(.2,1.4,.4,1); animation: fabPop .42s cubic-bezier(.2,1.4,.4,1) both; }
-.home-fab .home-fab-label { display: none !important; }
-.home-fab .home-fab-glyph { width: auto; height: auto; transform: none !important; }
-.home-fab-glyph::before, .home-fab-glyph::after { display: none !important; }
-.home-fab:is(:hover, :focus-visible) { transform: none; }
-.home-fab:is(:hover, :focus-visible) svg { transform: none; }
-.home-fab svg.ic { width: 19px; height: 19px; transition: transform .3s cubic-bezier(.2,1.4,.4,1), color .2s; }
-.home-fab:hover { background: rgba(var(--accent-rgb),.2); border-color: rgba(var(--accent-rgb),.55); box-shadow: 0 10px 26px rgba(0,0,0,.4), 0 0 0 4px rgba(var(--accent-rgb),.12), 0 0 22px rgba(var(--accent-rgb),.35); }
-.home-fab:hover svg.ic { color: var(--accent); animation: fabHop .5s cubic-bezier(.2,1.4,.4,1); }
-.home-fab:active { transform: scale(.9); }
-.home-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-@keyframes fabPop { from { opacity: 0; transform: scale(.6) rotate(-12deg); } }
-@keyframes fabHop { 0% { transform: none; } 35% { transform: translateY(-3px) scale(1.08); } 65% { transform: translateY(0) scale(.96); } 100% { transform: none; } }
-.reduce-motion .home-fab, .reduce-motion .home-fab:hover svg.ic { animation: none; }
 
 /* My list: the deck tools as one grouped strip under the title */
 .ml-decklinks { display: inline-flex; margin-top: 14px; padding: 4px; gap: 4px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
@@ -3687,15 +3640,6 @@ button.ad3-pill:hover { background: rgba(255,255,255,.08); color: var(--text); }
 .topbar .conn-btn:hover { box-shadow: 0 0 0 2px rgba(var(--accent-rgb),.6), 0 0 16px rgba(var(--accent-rgb),.4); transform: scale(1.05); }
 .topbar :is(.icon-btn, #nav-settings):active { transform: scale(.92); }
 
-/* Home button: the roof lifts and the door lights up */
-.home-fab:hover svg.ic, .home-fab:focus-visible svg.ic { animation: none !important; color: var(--text) !important; }
-.home-fab svg.ic path { transition: transform .4s cubic-bezier(.2,1.4,.35,1), fill .3s, stroke .3s, filter .3s; }
-.home-fab svg.ic path:nth-child(3) { fill: transparent; }
-.home-fab:is(:hover, :focus-visible) svg.ic path:nth-child(1) { transform: translateY(-1.6px); stroke: var(--accent); }
-.home-fab:is(:hover, :focus-visible) svg.ic path:nth-child(3) { fill: rgba(var(--accent-rgb),.55); stroke: var(--accent); filter: drop-shadow(0 0 3px rgba(var(--accent-rgb),.9)); }
-.home-fab::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 0 rgba(var(--accent-rgb),.5); opacity: 0; }
-.home-fab:is(:hover, :focus-visible)::after { animation: fabRing .7s ease-out; }
-@keyframes fabRing { 0% { opacity: 1; box-shadow: 0 0 0 0 rgba(var(--accent-rgb),.5); } 100% { opacity: 0; box-shadow: 0 0 0 10px rgba(var(--accent-rgb),0); } }
 .reduce-motion .topbar svg.ic, .reduce-motion .topbar svg.ic path, .reduce-motion .home-fab::after { animation: none !important; transition: none !important; }
 /* Your list: the hand sits in the middle of its card, not along the bottom */
 #pf2-list .pf2-hand { align-self: center; align-items: center; min-height: 220px; padding: 10px 6px 20px; }
@@ -3962,13 +3906,14 @@ body:has(#modal:not([hidden])) #shell .topbar, body:has(#entry-pop) #shell .topb
 
 /* Home button: the same look and light-up as the Back button beside it */
 #home-fab.home-fab { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border-radius: 12px; border: 1px solid rgba(255,255,255,.13); background: rgba(22,21,30,.86);
-  color: var(--text); box-shadow: 0 3px 12px #0003; transform: none; transition: background .18s, border-color .18s, color .18s; animation: none; }
-#home-fab.home-fab::after { display: none; }
+  position:absolute; top:14px; left:16px; z-index:44; gap:0; color: var(--text); box-shadow: 0 3px 12px #0003; transform: none; transition: background .18s, border-color .18s, color .18s; animation: none; }
+#home-fab.home-fab::after, #home-fab .home-fab-glyph::before, #home-fab .home-fab-glyph::after, #home-fab .home-fab-label { display: none; }
+#home-fab .home-fab-glyph { display:grid;place-items:center;width:18px;height:18px;margin:0; }
 #home-fab.home-fab svg.ic { width: 18px; height: 18px; animation: none !important; transition: color .18s; }
 #home-fab.home-fab svg.ic path { transform: none !important; fill: transparent !important; stroke: currentColor !important; filter: none !important; transition: none; }
-#home-fab.home-fab:is(:hover, :focus-visible) { background: rgba(35,31,46,.97); border-color: rgba(var(--accent-rgb),.55); color: var(--accent); box-shadow: 0 3px 12px #0003; transform: none; }
+#home-fab.home-fab:is(:hover, :focus-visible) { background: rgba(35,31,46,.97); border-color: rgba(var(--accent-rgb),.55); color: var(--accent); box-shadow: 0 3px 12px #0003,0 0 12px rgba(var(--accent-rgb),.12); transform: none; }
 #home-fab.home-fab:is(:hover, :focus-visible) svg.ic { color: var(--accent) !important; }
-#home-fab.home-fab:active { transform: scale(.94); }
+#home-fab.home-fab:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
 /* Home button holds still: no press, pop-in, hop or glyph movement */
 #home-fab.home-fab, #home-fab.home-fab:active, #home-fab.home-fab:is(:hover, :focus-visible) { transform: none !important; animation: none !important; }
 #home-fab.home-fab *, #home-fab.home-fab *::before, #home-fab.home-fab *::after { animation: none !important; transform: none !important; }

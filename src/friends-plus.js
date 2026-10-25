@@ -101,8 +101,8 @@ Object.assign(FriendExtras,{
 const FriendSignals={
  timer:null,busy:false,who:null,seen:new Map(),unread:0,
  paint(){document.querySelectorAll('[data-view="friends"]').forEach(button=>{let badge=button.querySelector('.afx-nav-badge');if(!badge){badge=document.createElement('span');badge.className='afx-nav-badge';button.append(badge);}badge.textContent=this.unread>99?'99+':String(this.unread);badge.hidden=!this.unread;button.setAttribute('aria-label',this.unread?'Friends, '+this.unread+' unread messages':'Friends');});},
- consume(rows){const who=Cloud.ident();if(this.who!==who){this.who=who;this.seen=new Map();}const hadBaseline=this.baselineWho===who;this.unread=rows.reduce((n,row)=>n+(Number(row.unread)||0),0);this.paint();
-  for(const row of rows){const previous=this.seen.get(row.handle),at=Number(row.last?.at)||0;const fresh=hadBaseline&&row.unread>0&&!row.last?.mine&&previous&&(at>previous.at||Number(row.unread)>previous.unread);this.seen.set(row.handle,{at,unread:Number(row.unread)||0});if(fresh&&FriendExtras.prefs?.desktop&&FriendExtras.owner===who&&!(App.view==='friends'&&Friends.handle===row.handle&&!document.hidden)){
+ consume(rows){const who=Cloud.ident();if(this.who!==who){this.who=who;this.seen=new Map();}const hadBaseline=this.baselineWho===who;if(!hadBaseline)this.baselineAt=Date.now();this.unread=rows.reduce((n,row)=>n+(Number(row.unread)||0),0);this.paint();
+  for(const row of rows){const previous=this.seen.get(row.handle),at=Number(row.last?.at)||0;const fresh=hadBaseline&&row.unread>0&&!row.last?.mine&&(previous?(at>previous.at||Number(row.unread)>previous.unread):at>this.baselineAt);this.seen.set(row.handle,{at,unread:Number(row.unread)||0});if(fresh&&FriendExtras.prefs?.desktop&&FriendExtras.owner===who&&!(App.view==='friends'&&Friends.handle===row.handle&&!document.hidden)){
    try{const notice=new Notification('New AniDeck message',{body:FriendExtras.name(row)+' sent you a message.',silent:false});notice.onclick=()=>{window.focus();App.nav('friends',{handle:row.handle});};}catch{}
   }}this.baselineWho=who;
  },
