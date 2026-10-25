@@ -4795,7 +4795,7 @@ const Views = {
     const sw = (key) => `<label class="switch"><input type="checkbox" data-set="${key}" ${s[key] ? 'checked' : ''}><span></span></label>`;
     const langs = [['jpn', 'Japanese'], ['eng', 'English'], ['spa', 'Spanish'], ['por', 'Portuguese'], ['fre', 'French'], ['ger', 'German']];
     const opt = (list, val) => list.map(([v, l]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${l}</option>`).join('');
-    return `<div class="settings-layout"><nav class="set-nav" aria-label="Settings sections"><div class="set-identity"><b>AniDeck</b><small>Your next watch, on deck.</small></div><h1>Settings</h1><div id="set-menu"></div><p class="set-autosave">Your preferences save automatically.</p></nav><div class="settings">
+    return `<div class="settings-layout"><nav class="set-nav" aria-label="Settings sections"><div class="set-identity"><img class="set-wordmark" src="brand/wordmark.svg" alt="AniDeck"><small>Your next watch, on deck.</small></div><h1>Settings</h1><div id="set-menu"></div><p class="set-autosave">Your preferences save automatically.</p></nav><div class="settings">
       <div class="set-card set-account"><h3>Account</h3><p class="set-section-intro">Your identity, your list, your library. Connect a tracker to keep your anime in sync; Jellyfin is optional.</p>
         <div class="acct-list">${trackerRows()}
         <div class="acct-row"><span class="avatar">${icon('grid')}</span>

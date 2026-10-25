@@ -24,6 +24,7 @@ const Cast = {
     <div class="cast-next" id="cast-next"><b>Your TV is ready. Pick an episode.</b><p>Choose a show on this PC and press Play. AniDeck will send it to your TV automatically.</p><button class="btn primary" id="cast-choose">Choose an episode</button><button class="link-btn" id="cast-pc-only">Keep playback on this PC instead</button></div><div class="cast-acts"><button class="btn primary" id="cast-send">${icon('cast')} Play this episode on TV</button><button class="btn ghost" id="cast-return">Continue on this PC</button></div>
     <p class="desc" id="cast-hint"></p>
    </section>
+   <p id="cast-result" role="status" class="cast-result" hidden></p>
    <footer class="cast-foot"><button class="link-btn" id="cast-disconnect">Disconnect TV</button><button class="link-btn" id="cast-off">Turn off receiver</button><span class="spacer"></span><small>Keep AniDeck open and this PC awake while casting.</small></footer>
   </div>`,'cast-card');
   document.getElementById('cast-close').onclick=()=>App.closeModal();
@@ -109,16 +110,19 @@ const Cast = {
  onTeardown(){if(this.mediaId){this.call('command','stop').catch(()=>{});this.mediaId=null;}},
  async disconnectReceiver(turnOff=false){
   if(this.ending)return;this.ending=true;this.session=(this.session||0)+1;
+  const result=document.getElementById('cast-result');if(result){result.hidden=false;result.textContent=turnOff?'Turning off receiver…':'Disconnecting TV…';}
   const at=Player.casting?.time,seq=Player.loadSeq;
   const buttons=['cast-disconnect','cast-off'].map(id=>document.getElementById(id)).filter(Boolean);buttons.forEach(b=>b.disabled=true);
   try{
    // Unpair first. Restoring PC playback can take time or fail, and must never block disconnection.
    await this.call(turnOff?'stop':'disconnect');
+   const status=await this.call('status');if(status.screen||(turnOff&&status.running))throw new Error('The receiver did not confirm disconnection. Please try again.');
+   if(result)result.textContent='TV disconnected.';
    this.ready=false;this.active=false;this.mediaId=null;this.resend=false;Player.casting=null;
    if(turnOff){clearInterval(this.timer);this.timer=null;App.closeModal();}
    else {this.paint(null,null,!!Player.ctx&&!Player.el?.hidden);const state=document.getElementById('cast-state');if(state)state.textContent='TV disconnected · connect using a new code';}
    if(Player.ctx&&!Player.el?.hidden){Player.tick();if(at!=null&&seq===Player.loadSeq)Player.resumeFromCast(at).catch(error=>this.showError(error));}
-  }catch(error){this.showError(error);}finally{this.ending=false;buttons.forEach(b=>b.disabled=false);}
+  }catch(error){if(result){result.hidden=false;result.textContent='Couldn’t disconnect: '+error.message;}this.showError(error);}finally{this.ending=false;buttons.forEach(b=>b.disabled=false);}
  },
  async returnToPc(){const at=Player.casting?.time;this.ready=false;this.active=false;this.mediaId=null;Player.casting=null;await this.call('command','stop').catch(()=>{});if(at!=null&&!Player.el.hidden){try{await Player.resumeFromCast(at);}catch(error){this.showError(error);}}await this.poll();if(Player.ctx&&!Player.el?.hidden)Player.tick();},
 };

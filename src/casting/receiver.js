@@ -56,3 +56,7 @@ async function tick(){
 }
 let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
 tick();setInterval(tick,1000);setInterval(checkConnection,1000);
+
+window.addEventListener?.('pagehide',()=>{
+ stop();if(token)fetch('/leave',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
+});

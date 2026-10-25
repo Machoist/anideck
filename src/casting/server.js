@@ -87,6 +87,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   const token=req.headers.authorization?.replace(/^Bearer /,''), screen=screens.get(token);
   if(!screen)return json(res,401,{error:'Open the receiver page again to reconnect.'});
   screen.seen=now();
+  if(req.method==='POST'&&url.pathname==='/leave'){if(current===token)disconnect();screens.delete(token);return json(res,200,{ok:true});}
   if(req.method==='GET'&&url.pathname==='/state')return json(res,200,{...screen.state,connected:current===token});
   if(req.method==='POST'&&url.pathname==='/playback'){
    const data=await body(req);
