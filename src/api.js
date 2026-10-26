@@ -697,16 +697,16 @@ const AniList = {
   loggedIn() { return !!(this.token && this.userId); },
   async save() { await window.native.setSecret('anilistAuth', JSON.stringify({ token: this.token, userId: this.userId, userName: this.userName, avatar: this.avatar })); },
   async logout() { Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', coll: null }); await window.native.setSecret('anilistAuth', null); },
-  async gql(query, variables = {}, auth = true) {
+  async gql(query, variables = {}, auth = true, { timeout = 15000 } = {}) {
     const headers = { Accept: 'application/json' };
     if (auth && this.token) headers.Authorization = `Bearer ${this.token}`;
     let r;
-    try { r = await http(ANILIST_API, { method: 'POST', headers, json: { query, variables }, timeout: 15000 }); }
+    try { r = await http(ANILIST_API, { method: 'POST', headers, json: { query, variables }, timeout }); }
     catch (e) {
       if (e.status === 401 || e.data?.errors?.some?.((x) => x.status === 401)) { await this.logout(); throw new Error('AniList sign-in expired. Please sign in again.'); }
-      throw new Error(e.data?.errors?.[0]?.message || e.message);
+      const error=new Error(e.data?.errors?.[0]?.message || e.message);error.status=e.status;error.data=e.data;throw error;
     }
-    if (r?.errors?.length) throw new Error(r.errors[0].message);
+    if (r?.errors?.length){const error=new Error(r.errors[0].message);error.status=r.errors[0].status;throw error;}
     return r.data;
   },
   // Opens AniList's sign-in page in a small window and picks the token up from the redirect.

@@ -1700,7 +1700,8 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.4', items:[
+  { v:'1.0.0', revision:'2026-10-26.5', items:[
+    'More reliable favorite searches, browsable rating columns, a compact status hand and fixed corner navigation.',
     'Choose and arrange a favorite-anime shelf on your AniDeck profile.',
     'Customize your AniDeck picture, display name and bio; sign in on another device with your private key.',
     'Visible import controls explain connection and local-list requirements in Account settings.',

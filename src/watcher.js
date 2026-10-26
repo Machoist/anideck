@@ -104,7 +104,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
     <div class="pf2-grid">
       ${card('pf2-taste', 'Taste fingerprint', 'The genres they keep coming back to'.replace('they', self ? 'you' : 'they'), '<div class="pf2-radar" id="pf2-radar"></div>', 'pf2-span2')}
       ${card('pf2-list', self ? 'Your list' : 'Their list', '<span id="pf2-list-total">0</span> titles, dealt by status', '<div class="pf2-hand" id="pf2-hand"></div>')}
-      ${card('pf2-score', self ? 'How you score' : 'How they score', `Every show ${self ? 'you’ve' : 'they’ve'} rated, piled by score`, '<div class="pf2-axis"><span>Score →</span></div><div class="pf2-stacks" id="pf2-hist"></div><p class="pf2-note" id="pf2-score-note">&nbsp;</p><div class="pf2-calls" id="pf2-calls"></div>')}
+      ${card('pf2-score', self ? 'How you score' : 'How they score', `Every show ${self ? 'you’ve' : 'they’ve'} rated, piled by score`, '<div class="pf2-axis"><button class="link-btn" id="pf-score-browse">Browse ratings →</button></div><div class="pf2-stacks" id="pf2-hist"></div><p class="pf2-note" id="pf2-score-note">&nbsp;</p><div class="pf2-calls" id="pf2-calls"></div>')}
       ${card('pf2-erascard', 'Eras & formats', `When ${self ? 'your' : 'their'} shows are from, and what kind`, '<div class="pf2-eras" id="pf2-eras"></div><div class="pf2-formats" id="pf2-formats"></div>')}
       ${card('pf2-now', 'Watching now', '', '<div class="pf2-now" id="pf2-nowlist"></div>', 'pf2-span2')}
       ${card('pf2-badges', 'Milestones', '<span id="pf2-badge-count">0</span> unlocked', '<div class="pf2-badges" id="pf2-badgelist"></div>', 'pf2-span2')}
@@ -131,7 +131,7 @@ function drawHand(vals, total, self = true) {
   // The cards overlap, so which one is "under the pointer" comes from where you are across the hand (five equal
   // slices): sliding left or right moves card to card in both directions, and a click opens the lifted one.
   const cards = [...box.querySelectorAll('.pf2-pcard')];
-  const pick = (e) => { const r = box.getBoundingClientRect(); return Math.max(0, Math.min(cards.length - 1, Math.floor((e.clientX - r.left) / (r.width / cards.length)))); };
+  const pick = (e) => { let best=0,distance=Infinity;cards.forEach((card,index)=>{const rect=card.getBoundingClientRect(),next=Math.abs(e.clientX-(rect.left+rect.width/2));if(next<distance){best=index;distance=next;}});return best; };
   box.onpointermove = (e) => { const i = pick(e); cards.forEach((c, j) => c.classList.toggle('lift', j === i)); };
   box.onpointerleave = () => cards.forEach((c) => c.classList.remove('lift'));
   box.handCards = cards; box.handPick = pick;
@@ -171,7 +171,9 @@ function paintProfile(cd, { self = true, rarity = null } = {}) {
     <ol class="pf2-r-list">${top.map(([g, w], i) => `<li style="--i:${i}"><span>${esc(g)}</span><i><b style="width:${Math.round(w / gmax * 100)}%"></b></i><small>${w.toLocaleString()} eps</small></li>`).join('')}</ol>`
     : `<p class="pf2-note">A few more shows and ${your} fingerprint takes shape here.</p>`;
   // scores
-  $('#pf2-hist').innerHTML = cd.scores.map((sc, i) => `<div class="pf2-stack ${sc.n ? '' : 'zero'}" style="--i:${i}" title="${sc.n ? sc.titles.map(esc).join('&#10;') : `Nothing rated ${i + 1}`}"><div class="pf2-pile">${sc.covers.map((p, j) => `<span style="--j:${j}">${p ? `<img src="${esc(p)}" alt="" loading="lazy">` : ''}</span>`).join('')}${sc.n > 5 ? `<em>+${sc.n - 5}</em>` : ''}</div><b>${i + 1}</b><small>${sc.n ? `${sc.n} show${sc.n === 1 ? '' : 's'}` : ''}</small></div>`).join('');
+  $('#pf2-hist').innerHTML = cd.scores.map((sc, i) => `<button type="button" data-score="${i+1}" aria-label="Score ${i+1}: ${sc.n} rated titles" class="pf2-stack ${sc.n ? '' : 'zero'}" style="--i:${i}" title="${sc.n ? sc.titles.map(esc).join('&#10;') : `Nothing rated ${i + 1}`}"><div class="pf2-pile">${sc.covers.map((p, j) => `<span style="--j:${j}">${p ? `<img src="${esc(p)}" alt="" loading="lazy">` : ''}</span>`).join('')}${sc.n > 5 ? `<em>+${sc.n - 5}</em>` : ''}</div><b>${i + 1}</b><small>${sc.n ? `${sc.n} show${sc.n === 1 ? '' : 's'}` : ''}</small></button>`).join('');
+  $('#pf-score-browse').onclick=()=>ProfileRatings.open(cd);
+  $('#pf2-hist').onclick=event=>{const button=event.target.closest('[data-score]');if(button)ProfileRatings.open(cd,Number(button.dataset.score));};
   const rated = cd.scores.reduce((n, s) => n + s.n, 0);
   $('#pf2-score-note').innerHTML = !rated ? `Rate a few shows and ${your} piles appear here.`
     : `Average score <b>${cd.mean.toFixed(1)}</b>${cd.gap == null ? '' : ` · ${Math.abs(cd.gap) < 0.2 ? `${you} score <b>right in line with</b> AniList’s community` : `${you} score shows <b>${Math.abs(cd.gap).toFixed(1)} ${cd.gap > 0 ? 'higher' : 'lower'}</b> than AniList’s community does`}`}`;

@@ -4030,3 +4030,24 @@ body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){d
 .favorite-picker .dk-foot small { margin-right:auto; align-self:center; color:var(--muted); }
 @media(max-width:1000px){.pf-favorite-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }}
 @media(max-width:550px){.favorite-results{grid-template-columns:1fr}.pf-favorites {padding:18px}.pf-favorite-grid{gap:10px}.ani-account-panel{padding:20px}}
+
+/* Keep page shortcuts outside scroll containers and page entrance transforms. */
+#page-shortcuts { position:fixed; inset:0; z-index:44; pointer-events:none; }
+#page-shortcuts>button { pointer-events:auto; }
+body:has(#shell[hidden]) #page-shortcuts { display:none; }
+button.pf2-stack { color:var(--text); background:none; border:0; padding:4px 1px; border-radius:8px; }
+button.pf2-stack:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
+.rated-titles { display:grid; gap:8px; max-height:55vh; overflow:auto; }
+.rated-title { display:flex; align-items:center; gap:14px; padding:10px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.025); color:var(--text); text-align:left; }
+.rated-title:hover { border-color:var(--accent); }
+.rated-title img { width:38px; height:54px; object-fit:cover; border-radius:6px; }
+.rated-title>b { flex:1; }.rated-title>span{color:var(--accent);font-weight:600}.rated-title small{display:block;color:var(--muted);font-size:10px}
+.pf2-hand { width:100%; min-width:0; max-width:100%; min-height:230px; padding-inline:18px; }
+#pf2-list { grid-template-columns:minmax(0,1fr); }
+.pf2-hand .pf2-pcard { flex-basis:24%; min-width:0; max-width:112px; margin-inline:-6%; transform:translateY(calc(var(--lift)*.45)) rotate(calc(var(--rot)*.5)); transition:margin .32s ease,transform .32s ease,box-shadow .2s; }
+.pf2-hand:is(:hover,:focus-within) .pf2-pcard { margin-inline:-3.8%; transform:translateY(calc(var(--lift)*.6)) rotate(calc(var(--rot)*.7)); }
+.pf2-hand .pf2-pcard.lift,.pf2-hand .pf2-pcard:focus-visible { transform:translateY(-16px) rotate(0deg) scale(1.03); z-index:20; }
+.reduce-motion .pf2-hand .pf2-pcard { transition:none; }
+@media(prefers-reduced-motion:reduce){.pf2-hand .pf2-pcard{transition:none}}
+.favorite-retry { justify-self:start; }
