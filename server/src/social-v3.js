@@ -18,7 +18,7 @@ export async function hydrateMessages(env,rows,uid){
  if(!rows.length)return [];
  const extras=await all(env,`SELECT e.*,i.state,i.proposed_at,i.responded_by FROM message_extras e LEFT JOIN watch_invites i ON i.message_id=e.message_id WHERE e.message_id IN (${rows.map(()=>'?').join(',')})`,...rows.map(r=>r.id));const map=new Map(extras.map(e=>[e.message_id,e]));
  return rows.map(m=>{const extra=map.get(m.id);let payload=null;try{payload=extra?.payload?JSON.parse(extra.payload):null;}catch{}
-  return {id:m.id,text:extra?.deleted_at?'Message removed':m.body,at:m.created_at,mine:m.sender===uid,...(extra?.edited_at?{editedAt:extra.edited_at}:{}),...(extra?.deleted_at?{deleted:true}:{}),...(!extra?.deleted_at&&payload?{payload}:{}),...(!extra?.deleted_at&&extra?.state?{invite:{state:extra.state,at:extra.proposed_at,canRespond:['pending','proposed'].includes(extra.state)&&extra.responded_by!==uid}}:{})};
+  return {id:m.id,text:extra?.deleted_at?'Message removed':m.body,at:m.created_at,mine:m.sender===uid,...(extra?.edited_at?{editedAt:extra.edited_at}:{}),...(extra?.deleted_at?{deleted:true}:{}),...(m.client_id==='invitation-response-'+m.id?{system:true}:{}),...(!extra?.deleted_at&&payload?{payload}:{}),...(!extra?.deleted_at&&extra?.state?{invite:{state:extra.state,at:extra.proposed_at,canRespond:['pending','proposed'].includes(extra.state)&&extra.responded_by!==uid}}:{})};
  });
 }
 export async function controlMessage(req,env,uid,peer,id,invitation=false){
@@ -43,6 +43,7 @@ export async function controlMessage(req,env,uid,peer,id,invitation=false){
   const reply=await one(env,'SELECT * FROM messages WHERE id=?',responseId);
   return json({message:(await hydrateMessages(env,[message],uid))[0],...(reply?{reply:(await hydrateMessages(env,[reply],uid))[0]}:{})});
  }
+ if(message.client_id==='invitation-response-'+message.id)return json({error:'System events cannot be edited or removed.'},403);
  if(message.sender!==uid)return json({error:'You can only change your own messages.'},403);
  if(req.method==='PATCH'){
   const body=((await req.json().catch(()=>({})))||{}),text=typeof body.text==='string'?body.text.trim():'';if(!text||text.length>2000)return json({error:'Write a message of 1–2,000 characters.'},400);

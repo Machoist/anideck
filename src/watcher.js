@@ -86,7 +86,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
   const acts = self
     ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}Sign out</button>`
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
-  return `<div class="page profile pf2 ${self ? '' : 'pf2-friend'}">
+  return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
     <section class="pf2-hero pf-in" style="--d:0ms">
       <div class="pf2-id">
         <div class="pf2-ava"><svg class="pf2-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="55"/><circle class="pf2-ring-fill" id="pf2-ring" cx="60" cy="60" r="55" stroke-dasharray="0 400"/></svg>
@@ -511,8 +511,8 @@ Object.assign(Views, {
       btn.dataset.handle = u.handle;
     }
     if (r.locked || !u.card) {
-      $('.pf2-grid')?.insertAdjacentHTML('beforebegin', `<div class="pf2-locked">${icon('eyeOff')}<b>${esc(u.name || '@' + u.handle)}’s card is for friends</b><span>${r.requested === 'out' ? 'Your request is waiting for them.' : 'Add them as a friend; once they accept, their card shows here.'}</span></div>`);
-      document.querySelector('.pf2-friend .pf2-grid')?.classList.add('blurred'); $('#pf2-habits')?.classList.add('blurred');
+      $('.pf2-grid')?.insertAdjacentHTML('beforebegin', `<div class="pf2-locked">${icon('eyeOff')}<b>${r.locked?esc(u.name || '@' + u.handle)+'’s card is for friends':'Their watcher card isn’t shared yet'}</b><span>${r.friend==='accepted'?'You’re friends. Their stats will appear when they share their card.':r.requested === 'out' ? 'Your request is waiting for them.' : 'Add them as a friend; once they accept, their card shows here.'}</span></div>`);
+      const grid=document.querySelector('.pf2-peer-profile .pf2-grid');if(grid)grid.hidden=true;const habits=$('#pf2-habits');if(habits)habits.hidden=true;
       return;
     }
     const rarity = await Cloud.milestones().catch(() => null);

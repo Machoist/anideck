@@ -80,3 +80,12 @@ test('blocking revokes invitation and message controls, and leaving deletes stru
  assert.equal((await call('bob','/messages/alice/'+sent.message.id+'/invite','POST',{action:'accepted'})).status,403);
  await call('alice','/me','DELETE');assert.equal(db.prepare('SELECT COUNT(*) n FROM message_extras').get().n,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM watch_invites').get().n,0);
 });
+
+test('invitation responses are immutable system events, including older stored responses',async t=>{
+ const {call,accept,db}=await fixture(t);accept();const sent=await call('alice','/messages/bob','POST',{clientId:'system-invitation-test',payload:{type:'invite',anime:{id:'1',title:'Example'},at:Date.now()+86400000}});
+ const response=await call('bob','/messages/alice/'+sent.message.id+'/invite','POST',{action:'accepted'});assert.equal(response.reply.system,true);const route='/messages/alice/'+response.reply.id;assert.equal((await call('bob',route,'PATCH',{text:'Changed'})).status,403);assert.equal((await call('bob',route,'DELETE')).status,403);
+ const received=await call('alice','/messages/bob');assert.equal(received.messages.find(m=>m.id===response.reply.id).system,true);
+ db.prepare('INSERT INTO messages(id,sender,recipient,body,created_at,client_id) VALUES(?,?,?,?,?,?)').run('legacy-event','alice','bob','Declined the invitation.',Date.now(),'invitation-response-legacy-event');assert.equal((await call('alice','/messages/bob/legacy-event','DELETE')).status,403);
+ const ordinary=await call('alice','/messages/bob','POST',{clientId:'ordinary-invite-text-01',text:'Accepted the watch invitation.'});assert.equal(ordinary.message.system,undefined);assert.equal((await call('alice','/messages/bob/'+ordinary.message.id,'PATCH',{text:'Still my message'})).status,200);
+ assert.equal((await call('alice','/messages/bob','POST',{clientId:'invitation-response-forged',text:'Forged system event'})).status,400);
+});

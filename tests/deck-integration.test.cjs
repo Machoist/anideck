@@ -55,3 +55,9 @@ test('Quick Log caps known airing titles and shows caught-up state until the nex
 test('Quick Log rejects an unaired episode even if the form value is changed',async()=>{
  const {DeckStore:S,DeckUI:UI,nodes,ctx}=setup();await S.load();let writes=0;ctx.Tracker.svc.setProgress=async()=>{writes++;};UI.airing=()=>({aired:4,next:{episode:5}});UI.quickEntries=[{anime:{id:'al:1',title:'Weekly show',episodes:12},progress:3}];const button={querySelector:()=>({})};nodes.set('[data-log-row="0"]',{querySelector:s=>s==='input'?{value:'5'}:button});await UI.quickLog(0);assert.equal(writes,0);
 });
+
+test('Add titles searches while typing and stale or cleared queries cannot replace current results',async()=>{
+ const f=setup(),timers=new Map();let next=0;f.ctx.setTimeout=fn=>{timers.set(++next,fn);return next;};f.ctx.clearTimeout=id=>timers.delete(id);f.ctx.sfw=values=>values;f.ctx.App.modal=()=>{};const box={isConnected:true,innerHTML:'',setAttribute(){},removeAttribute(){},querySelectorAll:()=>[]},query={value:'',focus(){}};f.nodes.set('#ad-search-results',box);f.nodes.set('#ad-query',query);f.nodes.set('#ad-search-form',{});f.nodes.set('#ad-search-done',{});const searches=[];f.ctx.Kitsu.search=text=>new Promise(resolve=>searches.push({text,resolve}));f.DeckUI.addSearch('tonight');
+ query.value='Fri';query.oninput();query.value='Frieren';query.oninput();assert.equal(timers.size,1);const callback=[...timers.values()][0];timers.clear();const pending=callback();assert.equal(searches[0].text,'Frieren');query.value='One Piece';query.oninput();const newer=[...timers.values()][0]();searches[1].resolve([{id:'2',title:'One Piece'}]);await newer;assert.match(box.innerHTML,/One Piece/);searches[0].resolve([{id:'1',title:'Frieren'}]);await pending;assert.doesNotMatch(box.innerHTML,/Frieren/);
+ query.value='';query.oninput();assert.match(box.innerHTML,/Start typing/);
+});

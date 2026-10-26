@@ -775,7 +775,7 @@ const App = {
     const cur = $('#nav').querySelector(`.nav-item[data-view="${view}"]`);
     if (cur) this.navSection = cur;
     const show = cur || this.navSection || $('#nav').querySelector('.nav-item');
-    if (show && $('#nav-current')) $('#nav-current').innerHTML = `${show.querySelector('svg')?.outerHTML || ''}<span>${esc(show.textContent.trim())}</span>${icon('caret', 'fill caret-ic')}`;
+    if (show && $('#nav-current')) $('#nav-current').innerHTML = `${show.querySelector('svg')?.outerHTML || ''}<span>${esc(show.querySelector('span:not(.afx-nav-badge)')?.textContent?.trim()||VIEW_TITLES[show.dataset.view]||show.dataset.view)}</span>${icon('caret', 'fill caret-ic')}`;
   },
   toggleNavMenu(open) {
     const menu = $('#nav'), btn = $('#nav-current');
@@ -1920,7 +1920,7 @@ const Notifier = {
   },
 
   async save() { await window.native.set('notifications', this.list.slice(0, 60)); },
-  unread() { return this.list.filter((n) => !n.read).length; },
+  unread() { return this.list.filter((n) => !n.read&&(!n.owner||n.owner===Cloud.ident())).length; },
 
   async check() {
     const fresh = [];
@@ -1983,11 +1983,11 @@ const Notifier = {
     if (panel.hidden) return;
     panel.classList.toggle('fresh', opening);
     const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
-    const kind = (n) => (n.type === 'request' ? ['Request ready', 'checkCircle'] : ['New episode', 'play']);
+    const kind = (n) => (n.type === 'friend' ? ['Friend request','user'] : n.type === 'request' ? ['Request ready', 'checkCircle'] : ['New episode', 'play']);
     // Filter tabs (All / Episodes / Requests), then the list grouped by day.
     const filter = this.filter || 'all';
-    const counts = { all: this.list.length, episode: this.list.filter((n) => n.type !== 'request').length, request: this.list.filter((n) => n.type === 'request').length };
-    const shown = this.list.map((n, i) => [n, i]).filter(([n]) => filter === 'all' || (filter === 'request' ? n.type === 'request' : n.type !== 'request'));
+    const visible=this.list.filter(n=>!n.owner||n.owner===Cloud.ident());const counts = { all: visible.length, episode: visible.filter(n=>n.type==='episode').length, request: visible.filter(n=>n.type==='request').length, friend:visible.filter(n=>n.type==='friend').length };
+    const shown = this.list.map((n, i) => [n, i]).filter(([n])=>!n.owner||n.owner===Cloud.ident()).filter(([n]) => filter === 'all' || n.type === filter);
     const day0 = new Date(); day0.setHours(0, 0, 0, 0);
     const group = (t) => (t >= +day0 ? 'Today' : t >= +day0 - 86400000 ? 'Yesterday' : 'Earlier');
     let last = '', k = 0;
@@ -1999,7 +1999,7 @@ const Notifier = {
           <span class="n-acts">${n.act === 'play' ? `<button class="n-act play" data-n="play" data-i="${i}" title="Play now">${icon('play', 'fill')}</button>` : ''}<button class="n-act" data-n="read" data-i="${i}" title="${n.read ? 'Mark unread' : 'Mark read'}">${icon(n.read ? 'bell' : 'check')}</button><button class="n-act" data-n="dismiss" data-i="${i}" title="Dismiss">${icon('close')}</button></span>
         </div>`;
     }).join('');
-    const tabs = this.list.length ? `<div class="n-tabs" role="tablist">${[['all', 'All'], ['episode', 'Episodes'], ['request', 'Requests']].filter(([v]) => v === 'all' || counts[v]).map(([v, l]) => `<button class="n-tab ${filter === v ? 'on' : ''}" data-filter="${v}" role="tab" aria-selected="${filter === v}">${l}<small>${counts[v]}</small></button>`).join('')}</div>` : '';
+    const tabs = this.list.length ? `<div class="n-tabs" role="tablist">${[['all', 'All'], ['episode', 'Episodes'], ['request', 'Requests'],['friend','Friends']].filter(([v]) => v === 'all' || counts[v]).map(([v, l]) => `<button class="n-tab ${filter === v ? 'on' : ''}" data-filter="${v}" role="tab" aria-selected="${filter === v}">${l}<small>${counts[v]}</small></button>`).join('')}</div>` : '';
     panel.innerHTML = `<div class="notif-head"><span class="n-bell">${icon('bell')}</span><b>Notifications</b>${c ? `<span class="notif-new">${c} new</span>` : ''}<span class="spacer"></span>
         ${this.list.length ? `${c ? `<button class="notif-tool" id="n-read" title="Mark all read">${icon('check')}<span>Read all</span></button>` : ''}<button class="notif-tool" id="n-clear" title="Clear all">${icon('trash')}<span>Clear</span></button>` : ''}</div>
       ${tabs}
@@ -2050,6 +2050,7 @@ const Notifier = {
     if (!n) return;
     n.read = true; await this.save();
     this.close(); this.render();
+    if(n.act==='friendsRequests'){if(n.owner&&n.owner!==Cloud.ident())return;await App.nav('friends');return Friends.requestsDialog();}
     if (n.act === 'play') App.playEpisode(n.id, n.series); else App.openItem(n.id);
   },
 };

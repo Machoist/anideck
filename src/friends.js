@@ -13,7 +13,7 @@ const Friends={
  avatar(u){return `<span class="af-avatar">${esc((u.name||u.handle||'?').slice(0,1))}${u.avatar?`<img src="${esc(u.avatar)}" alt="" loading="lazy">`:''}</span>`;},
  person(u,actions=''){return `<article class="af-person"><button class="af-identity" data-act="wfOpen" data-handle="${esc(u.handle)}">${this.avatar(u)}<span><b>${esc(u.name||u.handle)}</b><small>@${esc(u.handle)}</small></span></button><div class="af-person-actions">${actions}</div></article>`;},
  async after(params,rid){
-  this.stop();const who=Cloud.ident(),box=$('#af-content');if(!box)return;
+  this.stop();this.me=null;this.meWho=null;const actions=document.querySelector('.af-page-actions');if(actions)actions.hidden=true;const who=Cloud.ident(),box=$('#af-content');if(!box)return;
   const fail=error=>{if(this.valid(rid,who)){const reauth=error.data?.code==='provider_reauth',unavailable=error.data?.code==='provider_unavailable';box.innerHTML=`<div class="af-empty"><h2>${reauth?'Reconnect to AniDeck Friends':unavailable?'Sign-in verification is temporarily unavailable':'Friends couldn’t load'}</h2><p>${esc(error.data?.error||error.message)}</p><p>AniList or Kitsu confirms your identity. Your friends, profile, and messages belong to AniDeck.</p>${reauth?`<button class="btn primary" data-act="friendsReconnect">Reconnect ${esc(Tracker.name)}</button>`:''}<button class="btn" data-act="friendsOpen">Try again</button></div>`;}};
   if(!Cloud.enabled()){box.innerHTML='<div class="af-empty"><h2>Bring your anime friends along</h2><p>Sign in to AniList or Kitsu in Settings → Account to use AniDeck profiles.</p><button class="btn primary" data-act="goAccount">Account settings</button></div>';return;}
   try{
@@ -22,7 +22,7 @@ const Friends={
    const features=await this.capability();if(!this.valid(rid,who))return;
    if(!features.includes('messages')){box.innerHTML='<div class="af-empty"><h2>Friends are getting an upgrade</h2><p>The AniDeck cloud needs its messaging update before this screen is available. Your existing friends and profile are still available.</p><button class="btn primary" data-act="profileNav">Open my profile</button></div>';return;}
    const [friends,inbox]=await Promise.all([Cloud.friends(),this.request('/v1/conversations')]);if(!this.valid(rid,who))return;
-   this.rows=inbox.conversations||[];this.me=me;this.meWho=who;this.social=friends;this.listMode='all';this.requestsAt=Date.now();
+   if(actions)actions.hidden=false;this.rows=inbox.conversations||[];this.me=me;this.meWho=who;this.social=friends;this.listMode='all';this.requestsAt=Date.now();
    box.innerHTML=`<div class="af-layout af-messenger"><aside class="af-sidebar af-roster"><header class="af-roster-head"><div><span class="ad-eyebrow">YOUR CIRCLE</span><h2>Friends <span id="af-friend-count">${friends.friends.length}</span></h2></div></header>
     <label class="af-filter-wrap" id="af-filter-wrap"><span class="sr-only">Search friends</span>${icon('search')}<input id="af-filter" type="search" placeholder="Search your friends" autocomplete="off"></label>
     <div class="af-list-tabs" role="group" aria-label="Filter friends"><button data-act="friendsFilter" data-mode="all" aria-pressed="true">All friends</button><button data-act="friendsFilter" data-mode="unread" aria-pressed="false">Unread <span id="af-unread-count" hidden></span></button></div><div id="af-conversations" aria-label="Friend list"></div>
@@ -33,7 +33,7 @@ const Friends={
    this.schedule(rid,who);
   }catch(error){fail(error);}
  },
- paintRequestBadge(){const badge=$('#af-request-count');if(badge){badge.textContent=this.social.incoming?.length||0;badge.hidden=!this.social.incoming?.length;}},
+ paintRequestBadge(){if(typeof FriendSignals!=='undefined')FriendSignals.consumeRequests(this.social);const badge=$('#af-request-count');if(badge){badge.textContent=this.social.incoming?.length||'';badge.hidden=!this.social.incoming?.length;}},
  paintList(){
   const box=$('#af-conversations');if(!box)return;const query=($('#af-filter')?.value||'').trim().toLowerCase();
   const count=$('#af-friend-count');if(count)count.textContent=this.rows.length;
@@ -108,7 +108,7 @@ const Friends={
  paintMessages(bottom=false){
   const box=$('#af-messages');if(!box)return;const stick=bottom||box.scrollHeight-box.scrollTop-box.clientHeight<70;
   let previousDay='';
-  box.innerHTML=this.messages.map(m=>{const date=new Date(m.at),day=date.toLocaleDateString(),today=new Date().toLocaleDateString(),separator=day!==previousDay?`<div class="af-day-divider"><span>${esc(day===today?'Today':date.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}))}</span></div>`:'';previousDay=day;return separator+`<article class="af-message ${m.mine?'mine':''}" aria-label="${m.mine?'You':'Friend'}"><p>${esc(m.text)}</p><time datetime="${date.toISOString()}">${esc(date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time></article>`;}).join('')||'<div class="af-message-start">'+icon('chat')+'<b>A new conversation, on deck.</b><p>Say hello. A recommendation is a good place to start.</p></div>';
+  box.innerHTML=this.messages.map(m=>{const date=new Date(m.at),day=date.toLocaleDateString(),today=new Date().toLocaleDateString(),separator=day!==previousDay?`<div class="af-day-divider"><span>${esc(day===today?'Today':date.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}))}</span></div>`:'';previousDay=day;return separator+(m.system?`<div class="af-system-event" data-message-id="${esc(m.id)}" role="note"><span>${icon('clock')}${m.mine?'You':esc(this.rows.find(r=>r.handle===this.handle)?.name||this.handle)} ${esc(m.text.charAt(0).toLowerCase()+m.text.slice(1))}</span><time datetime="${date.toISOString()}">${esc(date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time></div>`:`<article data-message-id="${esc(m.id)}" class="af-message ${m.mine?'mine':''}" aria-label="${m.mine?'You':'Friend'}"><p>${esc(m.text)}</p><time datetime="${date.toISOString()}">${esc(date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time></article>`);}).join('')||'<div class="af-message-start">'+icon('chat')+'<b>A new conversation, on deck.</b><p>Say hello. A recommendation is a good place to start.</p></div>';
   $('#af-older').hidden=!this.cursor;if(stick)box.scrollTop=box.scrollHeight;
  },
  async markRead(){const last=[...this.messages].reverse().find(m=>!m.mine),handle=this.handle,who=Cloud.ident();if(last&&handle){await this.request('/v1/messages/'+encodeURIComponent(handle)+'/read',{method:'POST',json:{through:last.id}});if(this.handle===handle&&Cloud.ident()===who){const row=this.rows.find(u=>u.handle===handle);if(row)row.unread=0;this.paintList();}}},
@@ -128,9 +128,14 @@ const Friends={
  },
  schedule(rid,who){clearTimeout(this.timer);this.timer=setTimeout(async()=>{
   if(!this.valid(rid,who)||App.view!=='friends')return;
-  try{if(!document.hidden){const generation=this.generation,handle=this.handle,version=this.rosterVersion;const inbox=await this.request('/v1/conversations');if(!this.valid(rid,who)||version!==this.rosterVersion)return;this.rows=inbox.conversations||[];this.reconcileThread();this.paintList();if(Date.now()-this.requestsAt>15000){const social=await Cloud.friends();if(!this.valid(rid,who)||version!==this.rosterVersion)return;this.social=social;this.requestsAt=Date.now();this.paintRequestBadge();}if(handle&&handle===this.handle&&!this.sending&&!this.threadLoading){const data=await this.request('/v1/messages/'+encodeURIComponent(handle));if(!this.valid(rid,who)||generation!==this.generation||handle!==this.handle)return;const known=new Map(this.messages.map(m=>[m.id,m]));let added=false;for(const m of data.messages){if(!known.has(m.id)||JSON.stringify(known.get(m.id))!==JSON.stringify(m))added=true;known.set(m.id,m);}if(added){this.messages=[...known.values()].sort((a,b)=>a.at-b.at);this.paintMessages();await this.markRead();}}}}catch(error){const box=$('#af-message-error');if(this.valid(rid,who)&&box)box.textContent='Connection interrupted. Retrying…';}
+  try{if(!document.hidden){const generation=this.generation,handle=this.handle,version=this.rosterVersion,thread=handle&&!this.sending&&!this.threadLoading,refresh=Date.now()-this.requestsAt>4000;
+   const [inbox,data,social]=await Promise.all([this.request('/v1/conversations'),thread?this.request('/v1/messages/'+encodeURIComponent(handle)):null,refresh?Cloud.friends():null]);
+   if(!this.valid(rid,who)||version!==this.rosterVersion)return;this.pollFailed=false;this.rows=inbox.conversations||[];this.reconcileThread();this.paintList();
+   if(social){this.social=social;this.requestsAt=Date.now();this.paintRequestBadge();}
+   if(data&&generation===this.generation&&handle===this.handle&&!this.sending){const known=new Map(this.messages.map(m=>[m.id,m]));let changed=false;for(const m of data.messages){if(!known.has(m.id)||JSON.stringify(known.get(m.id))!==JSON.stringify(m))changed=true;known.set(m.id,m);}if(changed){this.messages=[...known.values()].sort((a,b)=>a.at-b.at);this.paintMessages();await this.markRead();}}
+  }}catch(error){this.pollFailed=true;const box=$('#af-message-error');if(this.valid(rid,who)&&box)box.textContent='Connection interrupted. Retrying…';}
   finally{if(this.valid(rid,who)&&App.view==='friends')this.schedule(rid,who);}
- },5000);},
+ },this.pollFailed?5000:(this.handle?1000:2000));},
  blockedEmpty(){return `<div class="af-blocked-empty"><span class="af-blocked-emblem" aria-hidden="true">${icon('user')}<i>${icon('check')}</i></span><h3>No blocked profiles</h3><p>People you block will appear here.<br>You’re in control of who’s in your circle.</p></div>`;},
  async blocked(){
   const who=Cloud.ident(),rid=App.renderId;
@@ -172,7 +177,7 @@ const Friends={
   }catch(error){if(this.valid(rid,who))box.innerHTML=`<div class="empty">${esc(error.data?.error||error.message)}</div>`;}
  }
 };
-Views.friends=async()=>`<div class="page af-page af-messenger-page"><header class="af-page-head"><div class="af-page-title"><span class="af-title-mark" aria-hidden="true">${icon('deck')}</span><div><span class="ad-eyebrow">YOUR PEOPLE, ON DECK</span><h1>Friends</h1></div></div><div class="af-page-actions"><button class="btn ghost" data-act="friendsRequests">${icon('user')}Requests <span id="af-request-count" hidden></span></button><button class="btn primary" data-act="friendsFind">${icon('plus')}Add friends</button><button class="af-icon-action" data-act="friendsBlocked" aria-label="Blocked profiles" title="Blocked profiles">${icon('eyeOff')}</button></div></header><div id="af-content"><div class="af-empty" role="status">Loading friends…</div></div></div>`;
+Views.friends=async()=>`<div class="page af-page af-messenger-page"><header class="af-page-head"><div class="af-page-title"><span class="af-title-mark" aria-hidden="true">${icon('deck')}</span><div><span class="ad-eyebrow">YOUR PEOPLE, ON DECK</span><h1>Friends</h1></div></div><div class="af-page-actions" hidden><button class="btn ghost" data-act="friendsRequests">${icon('user')}Requests <span id="af-request-count" hidden></span></button><button class="btn primary" data-act="friendsFind">${icon('plus')}Add friends</button><button class="af-icon-action" data-act="friendsBlocked" aria-label="Blocked profiles" title="Blocked profiles">${icon('eyeOff')}</button></div></header><div id="af-content"><div class="af-empty" role="status">Loading friends…</div></div></div>`;
 Views.friendsAfter=(params,rid)=>Friends.after(params,rid);
 {
  const nav=App.nav,act=App.act;

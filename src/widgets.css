@@ -49,3 +49,9 @@
 .ad-widgets:not(.editing)>.ad-widget:is(.ad-widget--tonight,.ad-widget--finishline):has(.ad-lineup.single,.ad-lineup.solo):is([style*="8"],[style*="12"]){grid-column:span 6}
 }
 @container deck-module (max-width:699px){.ad-lineup.single>.ad-lineup-add{display:none}}
+/* Compact pick: cover, title and actions form one unit without empty space. */
+.ad-widgets>.ad-widget--roulette{align-self:start;min-height:0}.ad-widget--roulette .ad-widget-body{flex:0}
+.ad-widget--roulette .ad-roulette{grid-template-columns:88px minmax(0,1fr);gap:18px;align-items:center}.ad-widget--roulette .ad-roulette .ad-cover{width:88px;grid-row:1;border-radius:11px}.ad-widget--roulette .ad-roulette-info{gap:10px}.ad-roulette-info>b{line-height:1.4;overflow-wrap:anywhere}
+.ad-roulette-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:4px}.ad-roulette-actions .btn{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:9px 13px}.ad-roulette-actions .link-btn{display:inline-flex;gap:6px;align-items:center;font-size:12px}.ad-roulette-actions svg{width:14px;height:14px}
+.ad-search-results{min-height:100px;position:relative;transition:opacity .16s ease;scrollbar-color:rgba(255,255,255,.2) transparent;scrollbar-width:thin}.ad-search-results[aria-busy=true]{opacity:.55;pointer-events:none}.ad-search-results[aria-busy=true]:empty:after{content:'Finding titles…';display:block;padding:24px;color:var(--muted)}
+@container deck-module (max-width:280px){.ad-widget--roulette .ad-roulette{grid-template-columns:65px minmax(0,1fr);gap:12px}.ad-widget--roulette .ad-roulette .ad-cover{width:65px}.ad-roulette-actions{gap:10px}}
