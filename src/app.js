@@ -2114,11 +2114,11 @@ function episodeCard(ep) {
 function animeCard(a, extra = '') {
   const inLib = App.libIndex?.find(a);
   const badge = (inLib ? '<span class="badge in">In library</span>' : '') + (a.rating ? `<span class="badge right rating">★ ${a.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(a.id)}" hidden></span>`);
-  return `<button class="card" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
-    <div class="poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}</div>
+  return `<article class="card ta-card" tabindex="0" role="link" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
+    <div class="poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}<span class="ta-overlay"><button type="button" class="ta-play" data-ta="play" aria-label="Watch next episode">${icon('play','fill')}</button><button type="button" class="ta-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></span></div>
     <div class="card-title">${esc(a.title)}</div>
     <div class="card-sub">${esc(extra || [a.subtype, a.year].filter(Boolean).join(' · '))}</div>
-  </button>`;
+  </article>`;
 }
 
 const STATUS_LABELS = { current: 'Watching', planned: 'Planning', completed: 'Completed', on_hold: 'Paused', dropped: 'Dropped' };
@@ -2962,9 +2962,9 @@ function mosaicRow(list) {
           ${lead.synopsis ? `<p class="mz-about">${esc(lead.synopsis.replace(SOURCE_NOTE, ''))}</p>` : ''}
           <div class="row gap">${lib ? `<button class="btn primary" data-act="series" data-id="${esc(lib.Id)}">${icon('play', 'fill')} Watch</button>` : ''}<button class="btn ${lib ? 'ghost' : 'primary'}" ${attrs(lead)}>Details</button></div></div>
       </div>
-      <div class="mz-grid">${rest.map((a, i) => `<button class="mz-tile" ${attrs(a)}><span class="mz-n">${i + 2}</span><img src="${esc(a.poster || '')}" alt="" loading="lazy">
+      <div class="mz-grid">${rest.map((a, i) => `<article class="mz-tile ta-compact" tabindex="0" role="link" ${attrs(a)}><span class="mz-n">${i + 2}</span><img src="${esc(a.poster || '')}" alt="" loading="lazy">
         <span class="mz-tile-text"><b>${esc(a.title)}</b><small>${esc([a.rating ? `★ ${a.rating}%` : '', a.subtype, a.year].filter(Boolean).join(' · '))}</small>
-          ${a.synopsis ? `<span class="mz-tile-about">${esc(a.synopsis.replace(SOURCE_NOTE, ''))}</span>` : ''}</span></button>`).join('')}</div>
+          ${a.synopsis ? `<span class="mz-tile-about">${esc(a.synopsis.replace(SOURCE_NOTE, ''))}</span>` : ''}</span><button type="button" class="ta-compact-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></article>`).join('')}</div>
     </section>`;
 }
 async function enhanceMosaic(rid) {
@@ -3017,7 +3017,7 @@ const HoverPreview = {
     document.addEventListener('pointerover',e=>{
       if(!App.settings.hoverPreview||e.pointerType==='touch')return;
       if(e.target.closest?.('.hover-pop')){clearTimeout(this.hideTimer);return;}
-      const card=e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id]');
+      const card=e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id], #main .mz-tile[data-id]');
       if(card===this.card){clearTimeout(this.hideTimer);return;}
       clearTimeout(this.timer);if(!card){this.hideSoon();return;}this.hide();
       this.card=card;this.timer=setTimeout(()=>this.show(card),650);
@@ -3054,11 +3054,12 @@ const HoverPreview = {
     const next=al?.next?.at>Date.now()?`Episode ${al.next.episode} airs ${new Date(al.next.at).toLocaleDateString([],{month:'short',day:'numeric'})}`:'';
     const canPlan=Tracker.loggedIn()&&data.trackerId&&data.entryKnown&&!entry;
     this.pop?.remove();const pop=document.createElement('section');pop.className='hover-pop';pop.setAttribute('aria-label','Quick look: '+title);
-    pop.innerHTML=`<div class="hp-body"><span class="hp-eyebrow">QUICK LOOK</span><b class="hp-title">${esc(title)}</b>${meta?`<div class="hp-meta">${esc(meta)}</div>`:''}${genres.length?`<div class="hp-genres">${genres.map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}<p class="hp-about">${esc(about||'A synopsis isn’t available for this title yet.')}</p>${al?.studios?.length?`<small class="hp-studio">${esc(al.studios.slice(0,2).join(' · '))}</small>`:''}${entry||next?`<div class="hp-context">${entry?`<span>${icon('check')}<b>${esc(status)}</b>${Number(entry.progress)>0?' · '+Number(entry.progress)+' watched':''}</span>`:''}${next?`<span>${icon('clock')}${esc(next)}</span>`:''}</div>`:''}${canPlan?`<button class="btn ghost hp-plan">${icon('plus')}Add to Planning</button><p class="hp-feedback" role="status" hidden></p>`:''}</div>`;
+    pop.innerHTML=`<div class="hp-body"><span class="hp-eyebrow">QUICK LOOK</span><b class="hp-title">${esc(title)}</b>${meta?`<div class="hp-meta">${esc(meta)}</div>`:''}${genres.length?`<div class="hp-genres">${genres.map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}<p class="hp-about">${esc(about||'A synopsis isn’t available for this title yet.')}</p>${al?.studios?.length?`<small class="hp-studio">${esc(al.studios.slice(0,2).join(' · '))}</small>`:''}${entry||next?`<div class="hp-context">${entry?`<span>${icon('check')}<b>${esc(status)}</b>${Number(entry.progress)>0?' · '+Number(entry.progress)+' watched':''}</span>`:''}${next?`<span>${icon('clock')}${esc(next)}</span>`:''}</div>`:''}<div class="hp-actions"><button class="btn primary hp-watch">${icon('play','fill')}Watch next</button><button class="btn ghost hp-open">Details</button></div>${canPlan?`<button class="btn ghost hp-plan">${icon('plus')}Add to Planning</button><p class="hp-feedback" role="status" hidden></p>`:''}</div>`;
     showTint(pop,al?.color);document.body.appendChild(pop);this.pop=pop;
     const r=card.getBoundingClientRect(),w=pop.offsetWidth,h=pop.offsetHeight;
     pop.style.left=`${Math.max(12,Math.min(innerWidth-w-12,r.left+r.width/2-w/2))}px`;
     pop.style.top=`${Math.max(12,Math.min(innerHeight-h-12,r.top-24))}px`;
+    pop.querySelector('.hp-watch').onclick=()=>{if(typeof TitleActions!=='undefined')TitleActions.watch(data,card);};pop.querySelector('.hp-open').onclick=()=>{this.hide();App.act(d.act,d,card);};
     const button=pop.querySelector('.hp-plan');if(button)button.onclick=async()=>{
       if(button.disabled)return;button.disabled=true;button.textContent='Adding…';
       const feedback=pop.querySelector('.hp-feedback');
@@ -3321,7 +3322,7 @@ async function listAiring() {
   };
   [...recent, ...week].forEach(add);
   for (const v of byId.values()) if (v.next) v.aired = Math.max(v.aired, v.next.episode - 1);
-  return (anime) => byId.get(String(anime.id)) || keysOf(anime).map((k) => byKey.get(k)).find(Boolean) || null;
+  return (anime) => byId.get(String(anime.id)) || (String(anime.id).startsWith('al:')?null:keysOf(anime).map((k) => byKey.get(k)).find(Boolean)) || null;
 }
 // Episodes watched, time spent, completed and your mean score, over your whole list.
 function listStats(entries) {
