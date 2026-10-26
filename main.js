@@ -165,6 +165,13 @@ function createWindow() {
       })()`);
       if(Object.values(setup).some(value=>value!==true))throw Error('Packaged setup flow check failed: '+JSON.stringify(setup));
       console.log('AniDeck isolated guest setup checks: '+JSON.stringify(setup));
+      if(process.argv.includes('--anideck-checks')){
+        const report=await win.webContents.executeJavaScript('(async()=>{await SystemChecks.open();return SystemChecks.last;})()');
+        if(!report?.rows?.length)throw Error('System checks did not produce a report');
+        console.log('AniDeck live readiness: '+JSON.stringify(report));
+        const capture=process.argv.find(arg=>arg.startsWith('--anideck-checks-capture='));
+        if(capture){await new Promise(resolve=>setTimeout(resolve,250));fs.writeFileSync(path.resolve(capture.slice('--anideck-checks-capture='.length)),(await win.webContents.capturePage()).toPNG());}
+      }
       console.log('AniDeck native smoke check passed');
       app.exit(0);
     } catch (error) { console.error(error); app.exit(1); }
@@ -236,7 +243,7 @@ ipcMain.handle('http:request', async (_e, req) => {
       bypassCustomProtocolHandlers: true,
     });
     const text = await res.text();
-    if (isChallenge(res.status, text)) {
+    if (req.allowChallenge !== false && isChallenge(res.status, text)) {
       const { 'User-Agent': _ua, ...plain } = headers;
       return await requestViaBrowser(url, method, plain, body);
     }
@@ -274,6 +281,7 @@ ipcMain.handle('shell:open', (_e, url) => {
 });
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('system:check', () => require('./src/system-checks-native.cjs').storageCheck(safeStorage,dataDir()));
 ipcMain.handle('win:fullscreen', (e, on) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!on); return true; });
 // Episode downloads: Electron asks where to save, and the URL (with its token) never leaves the app.
 ipcMain.handle('file:download', (e, url) => {

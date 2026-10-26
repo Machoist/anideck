@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('native', {
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
   oauth: (opts) => ipcRenderer.invoke('oauth:open', opts),
   version: () => ipcRenderer.invoke('app:version'),
+  systemCheck: () => ipcRenderer.invoke('system:check'),
   saveArtifact: artifact => ipcRenderer.invoke('artifact:save', artifact),
   setFullscreen: (on) => ipcRenderer.invoke('win:fullscreen', on),
   updateState: () => ipcRenderer.invoke('update:state'),

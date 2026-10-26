@@ -67,12 +67,12 @@ const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" ari
 let APP_VERSION = '1.0.0'; // replaced with the real version at startup
 let KITSU_BASE = 'https://kitsu.app/api'; // overridable via config.json "kitsuBase"
 const TICKS = 10_000_000; // Jellyfin ticks per second
-async function httpUncached(url, { method = 'GET', headers = {}, json, form, body, timeout } = {}) {
+async function httpUncached(url, { method = 'GET', headers = {}, json, form, body, timeout, allowChallenge = true } = {}) {
   const h = { ...headers };
   let payload = body;
   if (json !== undefined) { payload = JSON.stringify(json); h['Content-Type'] ??= 'application/json'; }
   if (form !== undefined) { payload = new URLSearchParams(form).toString(); h['Content-Type'] = 'application/x-www-form-urlencoded'; }
-  const res = await window.native.request({ url, method, headers: h, body: payload, timeout });
+  const res = await window.native.request({ url, method, headers: h, body: payload, timeout, allowChallenge });
   let data = null;
   if (res.text) { try { data = JSON.parse(res.text); } catch { data = res.text; } }
   if (!res.ok) {
