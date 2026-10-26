@@ -10,8 +10,17 @@ const CardSynopsis={
   if(!card.isConnected||card.dataset.id!==id||App.stale(rid)||this.activeCard!==card)return;
   const text=data?.text||'A synopsis isn’t available for this title yet.';story.innerHTML=`${data?.meta?`<small class="card-story-meta">${esc(data.meta)}</small>`:''}<p class="card-story-text" tabindex="0">${esc(text)}</p>${text.length>140?'<button type="button" class="card-story-expand" aria-expanded="false">Read synopsis</button>':''}`;
  },
+ warmVisible(){
+  const main=document.getElementById('main');if(!main||typeof IntersectionObserver==='undefined'||typeof MutationObserver==='undefined')return;
+  let rid=App.renderId,remaining=6,seen=new WeakSet(),queue=[],running=0,scheduled=false;
+  const pump=()=>{while(running<2&&queue.length){const item=queue.shift();if(item.rid!==App.renderId||!item.card.isConnected)continue;running++;this.metadata(item.card.dataset.id).finally(()=>{running--;pump();});}};
+  const observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;observer.unobserve(entry.target);if(remaining<=0||entry.target.dataset.synopsis)continue;remaining--;queue.push({card:entry.target,rid:App.renderId});}pump();},{root:main,threshold:.1});
+  const scan=()=>{scheduled=false;if(rid!==App.renderId){rid=App.renderId;remaining=6;seen=new WeakSet();queue=[];observer.disconnect();}for(const card of main.querySelectorAll('.card[data-act="anime"]')){if(seen.has(card)||!card.querySelector('.poster'))continue;seen.add(card);if(!card.dataset.synopsis)observer.observe(card);}};
+  new MutationObserver(()=>{if(!scheduled){scheduled=true;if(typeof requestAnimationFrame==='function')requestAnimationFrame(scan);else scan();}}).observe(main,{childList:true,subtree:true});scan();
+ },
  bind(){
-  const schedule=(card,touch=false)=>{if(touch||!card?.querySelector('.poster')||this.activeCard===card)return;clearTimeout(this.timer);this.collapse(this.activeCard);this.activeCard=card;this.timer=setTimeout(()=>this.show(card),300);};
+  this.warmVisible();
+  const schedule=(card,touch=false)=>{if(touch||!card?.querySelector('.poster')||this.activeCard===card)return;clearTimeout(this.timer);this.collapse(this.activeCard);this.activeCard=card;this.show(card);};
   document.addEventListener('pointerover',event=>schedule(event.target.closest?.(this.selector),event.pointerType==='touch'));
   document.addEventListener('focusin',event=>schedule(event.target.closest?.(this.selector)));
   document.addEventListener('pointerout',event=>{const card=event.target.closest?.(this.selector);if(!card||card.contains(event.relatedTarget)||card.contains(document.activeElement))return;if(this.activeCard===card){clearTimeout(this.timer);this.activeCard=null;}this.collapse(card);});

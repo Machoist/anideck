@@ -4032,9 +4032,9 @@ body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){d
 @media(max-width:550px){.favorite-results{grid-template-columns:1fr}.pf-favorites {padding:18px}.pf-favorite-grid{gap:10px}.ani-account-panel{padding:20px}}
 
 /* Page shortcuts belong to the top of the page and scroll away with its content. */
-.page-shortcuts-anchor { position:relative; height:0; z-index:44; animation:none!important; }
+.page-shortcuts-anchor { position:relative; height:70px; margin-bottom:-70px; z-index:44; animation:none!important; pointer-events:none; }
 #main.view-in>.page-shortcuts-anchor { animation:none!important; }
-#page-shortcuts { position:absolute; inset:0; height:0; z-index:44; pointer-events:none; }
+#page-shortcuts { position:absolute; inset:0; height:70px; z-index:44; pointer-events:none; }
 #page-shortcuts>button { pointer-events:auto; }
 body:has(#shell[hidden]) #page-shortcuts { display:none; }
 button.pf2-stack { color:var(--text); background:none; border:0; padding:4px 1px; border-radius:8px; }

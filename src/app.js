@@ -1703,7 +1703,8 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.6', items:[
+  { v:'1.0.0', revision:'2026-10-26.7', items:[
+    'Faster favorite searches, immediate poster-story loading and page shortcuts that scroll naturally.',
     'Search-first favorite picking, stories on hovered posters, and shortcuts anchored to the page top.',
     'More reliable favorite searches, browsable rating columns, a compact status hand and fixed corner navigation.',
     'Choose and arrange a favorite-anime shelf on your AniDeck profile.',
