@@ -1700,7 +1700,8 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.3', items:[
+  { v:'1.0.0', revision:'2026-10-26.4', items:[
+    'Choose and arrange a favorite-anime shelf on your AniDeck profile.',
     'Customize your AniDeck picture, display name and bio; sign in on another device with your private key.',
     'Visible import controls explain connection and local-list requirements in Account settings.',
     'Optional profile setup, AniDeck discussions, safe local-list imports and a separate Jellyfin library.',
@@ -4863,7 +4864,7 @@ const Views = {
     const opt = (list, val) => list.map(([v, l]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${l}</option>`).join('');
     return `<div class="settings-layout"><nav class="set-nav" aria-label="Settings sections"><div class="set-identity"><img class="set-wordmark" src="brand/wordmark.svg" alt="AniDeck"><small>Your next watch, on deck.</small></div><h1>Settings</h1><div id="set-menu"></div><p class="set-autosave">Your preferences save automatically.</p></nav><div class="settings">
       <div class="set-card set-account"><h3>Account</h3><p class="set-section-intro">Your identity, your list, your library. Connect a tracker to keep your anime in sync; Jellyfin is optional.</p>
-        <div class="acct-social"><div><b>Your AniDeck profile</b><p>Make it yours, or sign in on another device with your private key. Your local watchlist stays on this device.</p></div><div class="row gap"><button class="btn ghost sm" data-act="aniEdit">Edit profile</button><button class="btn ghost sm" data-act="localRecovery">Sign-in & recovery</button></div></div><div class="acct-list">${trackerRows()}
+        <div class="acct-social"><div><b>Your AniDeck profile</b><p>Make it yours, or sign in on another device with your private key. Your local watchlist stays on this device.</p></div><div class="row gap"><button class="btn ghost sm" data-act="aniEdit">Edit profile</button><button class="btn ghost sm" data-act="aniFavorites">Favorite anime</button><button class="btn ghost sm" data-act="localRecovery">Sign-in & recovery</button></div></div><div class="acct-list">${trackerRows()}
         <div class="acct-row"><span class="avatar">${icon('grid')}</span>
           <div class="grow"><b>Jellyfin library</b><div class="desc">${Jellyfin.connected() ? `${esc(Jellyfin.userName)} · ${esc(Jellyfin.server)}` : 'Optional · connect your own media server and library'}</div></div>
           <button class="btn ghost sm" data-act="${Jellyfin.connected() ? 'jellyLogout' : 'jellyLogin'}">${Jellyfin.connected() ? 'Disconnect' : 'Connect library'}</button></div></div>

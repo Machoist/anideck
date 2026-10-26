@@ -98,6 +98,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
       <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p>
         <div class="pf2-hero-acts">${acts}</div></div>
     </section>
+    <section id="pf-favorites" class="pf-favorites" hidden></section>
     ${self ? '<section class="pf2-social pf-in" id="pf2-social" style="--d:60ms" hidden></section>' : '<section class="pf2-compare pf-in" id="pf2-compare" style="--d:60ms" hidden></section>'}
     <section class="pf2-habits pf-in" style="--d:80ms" id="pf2-habits">${['Current streak', 'Longest streak', 'Best day', 'Per active day'].map((l) => `<div><b>–</b><span>${l}</span></div>`).join('')}</section>
     <div class="pf2-grid">
@@ -506,6 +507,7 @@ Object.assign(Views, {
     if (App.stale(rid)) return;
     let identity=null;try{identity=await Cloud.loadMe();}catch{}if(App.stale(rid))return;
     if(identity){card.name=identity.name||card.name;card.avatar=identity.avatar||'';const bio=$('#pf-bio');bio.textContent=identity.bio||'';bio.hidden=!identity.bio;const image=$('#pf-avatar img');if(image)image.remove();}
+    AniFavorites.paint(identity,true);
     paintProfile(card, { self: true, rarity });
     if (!stale) Cloud.publish(card);
   },
@@ -518,6 +520,7 @@ Object.assign(Views, {
     try { r = await Cloud.user(handle); } catch (e) { if (!App.stale(rid)) fail(e.data?.error || e.message); return; }
     if (App.stale(rid)) return;
     const u = r.user, btn = $('#wf-friend-btn');
+    AniFavorites.paint(u,false);
     const bio=$('#pf-bio');bio.textContent=u.bio||'';bio.hidden=!u.bio;
     $('#pf-name').textContent = u.name || `@${u.handle}`;
     if (u.avatar && !$('#pf-avatar img')) $('#pf-avatar').insertAdjacentHTML('beforeend', `<img src="${esc(u.avatar)}" alt="">`);

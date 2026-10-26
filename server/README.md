@@ -65,3 +65,8 @@ Registered profiles can read and post at `/v1/discussion/al:<mediaId>`. These co
 ## Profile customization upgrade
 
 Apply social-v5.sql before deploying. `/v1/me/profile` accepts PUT from registered profiles with display name (1–80 characters), bio (up to 400) and an optional small PNG/JPEG/WebP data image. Pictures are cropped/resized by the client. Custom name/artwork survive provider session renewal and watcher-card publication. Identity fields are visible on profile lookup; watcher-card visibility remains independent. Recovery keys never appear in public profile responses.
+
+
+## Favorite anime upgrade
+
+Apply social-v6.sql before deploying. PUT `/v1/me/favorites` replaces the authenticated profile’s ordered selection of up to eight unique anime catalog IDs, titles and HTTPS cover URLs. Replacement is an atomic D1 batch, independent of profile identity updates and watcher-card publication. GET `/v1/me` and profile lookup include favorites. Favorites are visible to profile visitors, separately from watcher-card privacy. Leaving the account cascades deletion. No external tracker favorites or list entries are changed.
