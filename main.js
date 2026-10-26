@@ -90,7 +90,7 @@ function createWindow() {
     },
   });
   mainWin = win;
-  win.once('ready-to-show', () => { if (getStore().windowMaximized) win.maximize(); win.show(); });
+  win.once('ready-to-show', () => { if(smokeTest)return;if (getStore().windowMaximized) win.maximize(); win.show(); });
 
   const remember = () => {
     if (win.isDestroyed()) return;
@@ -138,8 +138,13 @@ function createWindow() {
 
   if (smokeTest) win.webContents.once('did-finish-load', async () => {
     try {
-      const result = await win.webContents.executeJavaScript(`(async()=>({version:await window.native.version(),testBuild:(await window.native.config()).testBuild,main:!!document.querySelector('#main')}))()`);
-      if (!result.main || !result.testBuild || result.version !== app.getVersion()) throw Error('Packaged preload or renderer smoke check failed');
+      const result = await win.webContents.executeJavaScript(`(async()=>{
+        const deadline=Date.now()+15000;
+        while(document.querySelector('#login')?.hidden!==false){if(Date.now()>deadline)throw Error('Fresh-profile login screen did not appear');await new Promise(resolve=>setTimeout(resolve,50));}
+        return {version:await window.native.version(),testBuild:(await window.native.config()).testBuild,main:!!document.querySelector('#main'),loginVisible:!document.querySelector('#login').hidden,shellHidden:document.querySelector('#shell').hidden,signedOut:!Tracker.loggedIn()&&!Jellyfin.connected()&&!AniList.loggedIn()&&!Kitsu.loggedIn(),emptyLibrary:App.allItems.length===0,emptyServer:!document.querySelector('#login-server').value,controls:typeof document.querySelector('#login-anilist').onclick==='function'&&typeof document.querySelector('#login-kitsu').onclick==='function',modules:typeof TitleActions==='object'&&typeof DeckUI==='object'&&typeof Friends==='object'};
+      })()`);
+      if (!result.main || !result.testBuild || result.version !== app.getVersion() || !result.loginVisible || !result.shellHidden || !result.signedOut || !result.emptyLibrary || !result.emptyServer || !result.controls || !result.modules) throw Error('Packaged fresh-profile smoke check failed: '+JSON.stringify(result));
+      console.log('AniDeck fresh-profile checks: '+JSON.stringify(result));
       console.log('AniDeck native smoke check passed');
       app.exit(0);
     } catch (error) { console.error(error); app.exit(1); }

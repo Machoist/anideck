@@ -37,6 +37,9 @@ jobs:
       - name: Build test installer (not published)
         run: npx electron-builder --win --x64 --publish never --config.extraMetadata.testBuild="${{ github.run_number }}-${{ github.sha }}"
 
+      - name: Launch isolated signed-out Windows check
+        run: node scripts/native-smoke.cjs dist/win-unpacked/AniDeck.exe
+
       - name: Upload test installer
         uses: actions/upload-artifact@v4
         with:
