@@ -171,7 +171,7 @@ function createWindow() {
         if(!report?.rows?.length)throw Error('System checks did not produce a report');
         console.log('AniDeck live readiness: '+JSON.stringify(report));
         const capture=process.argv.find(arg=>arg.startsWith('--anideck-checks-capture='));
-        if(capture){await win.webContents.executeJavaScript("document.querySelector('#splash').hidden=true");await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});await new Promise(resolve=>setTimeout(resolve,250));fs.writeFileSync(path.resolve(capture.slice('--anideck-checks-capture='.length)),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());}
+        if(capture){await win.webContents.executeJavaScript("document.querySelector('#splash').hidden=true;for(const a of document.getAnimations()){try{if(a.effect?.getTiming().iterations!==Infinity)a.finish();}catch{}}");await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});await new Promise(resolve=>setTimeout(resolve,250));fs.writeFileSync(path.resolve(capture.slice('--anideck-checks-capture='.length)),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());}
       }
       console.log('AniDeck native smoke check passed');
       app.exit(0);
