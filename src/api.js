@@ -628,7 +628,9 @@ const Kitsu = {
   // Adds a show to the list or changes its status (Watching, Planning, ...). 'remove' deletes it.
   async setStatus(animeId, status) {
     if (!this.loggedIn()) throw new Error('Not signed in to Kitsu');
+    const account = this.userId;
     const existing = await this.entry(animeId);
+    if (this.userId !== account || !this.loggedIn()) throw Error('Kitsu account changed. Start again.');
     if (status === 'remove') {
       if (existing) await this.call(`/edge/library-entries/${existing.id}`, { method: 'DELETE' });
       return null;
@@ -649,8 +651,10 @@ const Kitsu = {
   // Sets progress, never moving it backwards. Returns the resulting entry.
   async setProgress(animeId, episode, totalEpisodes) {
     if (!this.loggedIn()) throw new Error('Not signed in to Kitsu');
+    const account = this.userId;
     const status = totalEpisodes && episode >= totalEpisodes ? 'completed' : 'current';
     const existing = await this.entry(animeId);
+    if (this.userId !== account || !this.loggedIn()) throw Error('Kitsu account changed. Start again.');
     if (existing) {
       if (existing.progress >= episode && existing.status !== 'planned') return { ...existing, unchanged: true };
       await this.call(`/edge/library-entries/${existing.id}`, {
@@ -811,7 +815,9 @@ const AniList = {
   async setStatus(id, status) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
     if (status === 'remove') {
+      const account = this.userId;
       const e = await this.entry(id);
+      if (this.userId !== account || !this.loggedIn()) throw Error('AniList account changed. Start again.');
       if (e) await this.gql('mutation($id:Int){ DeleteMediaListEntry(id:$id){ deleted } }', { id: e.id });
       this.coll = null;
       return null;
@@ -820,8 +826,10 @@ const AniList = {
   },
   async setProgress(id, episode, totalEpisodes) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
+    const account = this.userId;
     const status = totalEpisodes && episode >= totalEpisodes ? 'COMPLETED' : 'CURRENT';
     const e = await this.entry(id);
+    if (this.userId !== account || !this.loggedIn()) throw Error('AniList account changed. Start again.');
     if (e && e.progress >= episode && e.status !== 'planned') return { ...e, unchanged: true };
     return this.write(id, { progress: Math.max(episode, e?.progress || 0), status: e?.reconsuming && status === 'CURRENT' ? 'REPEATING' : status });
   },
@@ -998,7 +1006,7 @@ const LocalTracker = {
       const rating=values.rating===undefined?entry?.rating||null:Number(values.rating);if(rating!==null&&(!Number.isFinite(rating)||rating<0||rating>10))throw Error('Ratings range from 0 to 10.');
       if(!entry){entry={id:'local:'+id,anime:await this.metadata(id)};entries.push(entry);}
       entry.anime.aliases=[...new Set([...(entry.anime.aliases||[]),original])];
-      Object.assign(entry,{status:status==='rewatching'?'current':status,reconsuming:status==='rewatching'||!!values.reconsuming,progress,rating,updatedAt:new Date().toISOString()});return {...entry};
+      Object.assign(entry,{status:status==='rewatching'?'current':status,reconsuming:status==='rewatching'||(status==='current'&&(values.reconsuming===undefined?!!entry.reconsuming:!!values.reconsuming)),progress,rating,updatedAt:new Date().toISOString()});return {...entry};
     });
   },
   setStatus(id,status){return this.saveEntry(id,{status});},
