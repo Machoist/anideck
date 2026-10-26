@@ -29,7 +29,7 @@ AniDeck brings anime discovery, watching, tracking, and friends together in one 
 Once the Windows app is available:
 
 1. **Choose how to track.** Continue without an account to save progress on this device, or connect AniList or Kitsu to sync your list.
-2. **Make it social, optionally.** The next step offers an AniDeck profile. Choose a handle or select Skip for now; playback and local tracking remain available.
+2. **Make it social, optionally.** The next step offers an AniDeck profile. Choose a handle, sign in with an existing AniDeck key, or select Skip for now; playback and local tracking remain available.
 3. **Arrange your deck.** Choose the Home widgets and collections you want close by.
 4. **Find your people.** Open Friends, choose a handle, and add someone by handle or friend code.
 5. **Start watching.** Pick a title, choose an available source, and continue where you left off.
@@ -56,7 +56,7 @@ Share a title and time with a friend. They can accept, decline, or suggest anoth
 
 ## Privacy and connected services
 
-AniDeck profiles are optional, including when you use a local watchlist. A standalone profile uses a private recovery key available in Settings → Account; keep it safe to restore your Friends profile on another device. Local watchlists stay on the device and are separate from connected tracker lists. You choose who can see your watcher card, and only accepted friends can message you. Social profiles and messages are stored by AniDeck; messages are not end-to-end encrypted. Desktop message alerts are optional.
+AniDeck profiles are optional, including when you use a local watchlist. Edit your AniDeck display name, picture and bio from your profile or Settings → Account. These details are visible to people opening your profile, separately from watcher-card privacy. A standalone profile uses a private recovery key available in Settings → Account → Sign-in & recovery; keep it safe to restore your Friends profile on another device. Local watchlists stay on the device and are separate from connected tracker lists. You choose who can see your watcher card, and only accepted friends can message you. Social profiles and messages are stored by AniDeck; messages are not end-to-end encrypted. Desktop message alerts are optional.
 
 Anime information, artwork, and streaming sources come from connected services and third-party providers. Availability depends on those services. Jellyfin playback uses the library you connect.
 

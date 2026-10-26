@@ -60,3 +60,8 @@ After schema.sql and social-v2.sql, apply social-v3.sql and social-v4.sql before
 Standalone sessions accept provider `anideck` with a private recovery key; no AniList or Kitsu account is required. The server derives its identity from a domain-separated hash and does not store the raw recovery key.
 
 Registered profiles can read and post at `/v1/discussion/al:<mediaId>`. These conversations are public to AniDeck profiles, stored as plain text, and are separate from friends-only watcher cards and DMs. Authors can edit/delete their own comments; blocking filters both directions. Replies, spoilers, pagination and idempotent likes are supported. Posting is limited to 2,000 characters and ten new comments per minute. Health advertises `discussions`.
+
+
+## Profile customization upgrade
+
+Apply social-v5.sql before deploying. `/v1/me/profile` accepts PUT from registered profiles with display name (1–80 characters), bio (up to 400) and an optional small PNG/JPEG/WebP data image. Pictures are cropped/resized by the client. Custom name/artwork survive provider session renewal and watcher-card publication. Identity fields are visible on profile lookup; watcher-card visibility remains independent. Recovery keys never appear in public profile responses.

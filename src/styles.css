@@ -3989,3 +3989,17 @@ body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){d
 
 .modal-card.dk-modal.import-modal { padding: 28px; }
 .import-modal .dk-foot { margin-top: 18px; }
+
+.ani-account-panel { padding:30px; display:flex; flex-direction:column; gap:16px; }
+.ani-account-panel>p { margin:0; line-height:1.6; }
+.ani-account-panel input:not([type=file]),.ani-account-panel textarea { width:100%; }
+.ani-account-panel .dk-foot { flex-wrap:wrap; }
+.ani-picture-row { display:flex; align-items:center; gap:20px; }
+.ani-picture-row>div { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.ani-picture-row small { flex-basis:100%; color:var(--muted); }
+.acct-social { padding:20px; border:1px solid var(--border); border-radius:16px; margin-bottom:20px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; }
+.acct-social p { margin:6px 0 0; max-width:520px; color:var(--muted); font-size:13px; line-height:1.6; }
+.acct-import-area { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:12px; }
+.acct-import-area small,.acct-local-note { color:var(--muted); font-size:12px; }
+.pf-bio { white-space:pre-wrap; overflow-wrap:anywhere; max-width:600px; color:var(--muted); line-height:1.6; }
+.wf-existing { font-size:13px; color:var(--muted); }

@@ -84,7 +84,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
   const out = Tracker.name==='AniDeck' ? 'localProfile' : Tracker.svc === AniList ? 'anilistLogout' : 'kitsuLogout';
   const card = (id, title, sub, body, cls = '') => `<section class="pf2-card ${cls} pf-in" id="${id}"><header><div><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ''}</div></header>${body}</section>`;
   const acts = self
-    ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}${Tracker.name==='AniDeck'?'Account settings':'Sign out'}</button>`
+    ? `<button class="btn ghost ad2-btn" data-act="aniEdit">${icon('edit')}Edit profile</button><button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}${Tracker.name==='AniDeck'?'Account settings':'Sign out'}</button>`
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
   return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
     <section class="pf2-hero pf-in" style="--d:0ms">
@@ -93,7 +93,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
           <span class="avatar xl" id="pf-avatar">${icon('user', 'pf-ph')}${self && Tracker.avatar ? `<img src="${esc(Tracker.avatar)}" alt="">` : ''}</span><span class="pf2-lvl" id="pf2-lvl">Lv 1</span></div>
         <div class="pf2-who"><span class="pf2-rank" id="pf2-rank">${self ? 'Fresh recruit' : '&nbsp;'}</span><h1 id="pf-name">${esc(self ? Tracker.userName || '' : handle ? `@${handle}` : '')}</h1>
           ${self ? '' : `<span class="pf2-handle" id="pf2-handle">@${esc(handle)}</span>`}
-          <div class="pf2-xp"><i><b id="pf2-xp"></b></i><small id="pf2-xp-t">&nbsp;</small></div></div>
+          <p id="pf-bio" class="pf-bio" hidden></p><div class="pf2-xp"><i><b id="pf2-xp"></b></i><small id="pf2-xp-t">&nbsp;</small></div></div>
       </div>
       <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p>
         <div class="pf2-hero-acts">${acts}</div></div>
@@ -409,7 +409,7 @@ function joinDialog({onboarding=false,onDone}={}) {
       <label class="wf-opt"><input type="radio" name="wf-vis" value="public"><span class="wf-option-copy"><span class="wf-option-icon" aria-hidden="true">${icon('search')}</span><b>Anyone with your handle</b><small>AniDeck users who look you up.</small><em>Make your taste discoverable</em></span><span class="wf-radio" aria-hidden="true"></span></label>
     </div></fieldset>
     <details class="wf-sharing-note"><summary>${icon('info')}What will I share?${icon('chev')}</summary><p>Your watcher card, including watch time, genres, scores, milestones and what you’re watching, plus your list’s titles and scores for comparisons. Your visibility choice controls who can see it.</p><p>${Tracker.name==='AniDeck'?'An encrypted recovery key on this device secures your AniDeck profile. Save it from Settings → Account to recover your friends on another device.':'AniList or Kitsu verifies your identity. Your tracker access token isn’t stored by the AniDeck service.'} Friends and messages live in AniDeck.</p></details>
-    <p class="dk-error" id="wf-err" role="alert" hidden></p>
+    <p class="wf-existing">Already have an AniDeck profile? <button type="button" class="link-btn" id="wf-key-login">Sign in with your key</button></p><p class="dk-error" id="wf-err" role="alert" hidden></p>
     <footer class="dk-foot"><span class="wf-footer-note">Your profile. Your circle.</span><button type="button" class="btn ghost ad2-btn" id="wf-cancel">${onboarding?'Skip for now':'Maybe later'}</button><button class="btn primary ad2-btn" id="wf-go">Create profile ${icon('chev')}</button></footer>
   </form>`, 'dk-modal wf-modal wf-onboard-modal');
   const form = $('#wf-join'), input = $('#wf-handle'), button = $('#wf-go'), error = $('#wf-err'), help = $('#wf-handle-help');
@@ -424,6 +424,7 @@ function joinDialog({onboarding=false,onDone}={}) {
     return ok;
   };
   $('#wf-x').onclick = $('#wf-cancel').onclick = () => { if (!submitting){App.closeModal();onDone?.();} };
+  $('#wf-key-login').onclick=()=>{if(!submitting)AniAccount.signIn({onDone,back:()=>joinDialog({onboarding,onDone})});};
   input.oninput = () => { error.hidden = true; validate(); };
   form.onsubmit = async (event) => {
     event.preventDefault(); if (submitting || !validate()) { input.focus(); return; }
@@ -503,6 +504,8 @@ Object.assign(Views, {
     if (stale && hero) hero.insertAdjacentHTML('beforeend', `<div class="pf2-busy">${icon('info')}<span>${esc(Tracker.name)} is busy right now${kept ? ', so these are your last saved stats' : ', so some stats couldn’t load'}.</span><button class="link-btn" data-act="pfRetry">Try again</button></div>`);
     const rarity = Cloud.enabled() ? await Cloud.milestones().catch(() => null) : null;
     if (App.stale(rid)) return;
+    let identity=null;try{identity=await Cloud.loadMe();}catch{}if(App.stale(rid))return;
+    if(identity){card.name=identity.name||card.name;card.avatar=identity.avatar||'';const bio=$('#pf-bio');bio.textContent=identity.bio||'';bio.hidden=!identity.bio;const image=$('#pf-avatar img');if(image)image.remove();}
     paintProfile(card, { self: true, rarity });
     if (!stale) Cloud.publish(card);
   },
@@ -515,6 +518,7 @@ Object.assign(Views, {
     try { r = await Cloud.user(handle); } catch (e) { if (!App.stale(rid)) fail(e.data?.error || e.message); return; }
     if (App.stale(rid)) return;
     const u = r.user, btn = $('#wf-friend-btn');
+    const bio=$('#pf-bio');bio.textContent=u.bio||'';bio.hidden=!u.bio;
     $('#pf-name').textContent = u.name || `@${u.handle}`;
     if (u.avatar && !$('#pf-avatar img')) $('#pf-avatar').insertAdjacentHTML('beforeend', `<img src="${esc(u.avatar)}" alt="">`);
     if (btn) {

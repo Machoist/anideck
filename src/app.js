@@ -222,10 +222,7 @@ const App = {
 
   async continueLocally(){const button=$('#login-guest');button.disabled=true;try{await LocalTracker.enable();await this.useTracker('local');await this.enter();}catch(error){toast('Couldn’t start your local profile: '+error.message,'bad');}finally{button.disabled=false;}},
 
-  localRecovery(){
-    this.modal(`<h2>Your AniDeck recovery key</h2><p class="muted">This key restores your AniDeck Friends profile and messages on another device. Keep it private. Your local watchlist stays on this device.</p><input id="local-key" type="password" readonly value="${esc(LocalTracker.token)}" aria-label="Recovery key"><div class="row gap"><button class="btn" id="local-reveal">Show key</button><button class="btn" id="local-copy">Copy key</button><button class="btn ghost" id="local-restore">Restore a profile…</button><button class="btn primary" id="local-done">Done</button></div>`);
-    $('#local-reveal').onclick=()=>{$('#local-key').type=$('#local-key').type==='password'?'text':'password';};$('#local-copy').onclick=()=>navigator.clipboard.writeText(LocalTracker.token).then(()=>toast('Recovery key copied'));$('#local-done').onclick=()=>this.closeModal();
-    $('#local-restore').onclick=()=>{this.modal(`<h2>Restore your AniDeck profile</h2><p class="muted">Your current local watchlist stays here. Your Friends profile switches to the recovery key you enter.</p><form id="local-restore-form"><label>Recovery key<input id="local-restore-key" type="password" required autocomplete="off"></label><p id="local-restore-error" class="error" hidden></p><button class="btn primary">Restore profile</button><button type="button" class="btn ghost" id="local-cancel">Cancel</button></form>`);$('#local-cancel').onclick=()=>this.closeModal();$('#local-restore-form').onsubmit=async event=>{event.preventDefault();try{await LocalTracker.recover($('#local-restore-key').value);await Cloud.useLocalIdentity();Friends.stop();Cloud.session=null;Cloud.me=undefined;this.profileCache=null;this.closeModal();this.refresh();toast('AniDeck profile restored');}catch(error){$('#local-restore-error').textContent=error.message;$('#local-restore-error').hidden=false;}};};
+  localRecovery(){return AniAccount.access();
   },
 
   jellyfinLogin() {
@@ -529,13 +526,14 @@ const App = {
   updateWho() {
     // Bottom-left profile button, like AniView: your list account (Kitsu or AniList) when signed in.
     const tracked = Tracker.loggedIn();
-    const name = tracked ? Tracker.userName : Jellyfin.userName;
-    const img = tracked ? Tracker.avatar : Jellyfin.connected() ? `${Jellyfin.server}/Users/${Jellyfin.userId}/Images/Primary?quality=90&fillHeight=80` : '';
+    const social=typeof Cloud!=='undefined'&&Cloud.who===Cloud.ident()?Cloud.me:null;
+    const name = social?.name||(tracked ? Tracker.userName : Jellyfin.userName);
+    const img = social ? social.avatar||'' : tracked ? Tracker.avatar : Jellyfin.connected() ? `${Jellyfin.server}/Users/${Jellyfin.userId}/Images/Primary?quality=90&fillHeight=80` : '';
     const initial = esc((name || '?').slice(0, 1).toUpperCase());
     $('#conn-btn').className = `profile-btn ${this.view === 'profile' ? 'active' : ''}`;
     $('#conn-btn').innerHTML = `<span class="avatar">${initial}${img ? `<img src="${esc(img)}" alt="">` : ''}</span>
-      <span class="conn-text"><b>${esc(name || 'Not signed in')}</b><span>${tracked ? Tracker.name : 'Jellyfin'}</span></span>`;
-    $('#conn-btn').title = `${name || 'Not signed in'} · ${tracked ? Tracker.name : 'Jellyfin'}`; // the top bar shows just the avatar
+      <span class="conn-text"><b>${esc(name || 'Not signed in')}</b><span>${social?'AniDeck':tracked ? Tracker.name : 'Jellyfin'}</span></span>`;
+    $('#conn-btn').title = `${name || 'Not signed in'} · ${social?'AniDeck':tracked ? Tracker.name : 'Jellyfin'}`; // the top bar shows just the avatar
   },
 
 
@@ -1645,17 +1643,18 @@ function trackerRows() {
   const list = [['anilist', 'AniList', AniList, 'anilistLogout'], ['kitsu', 'Kitsu', Kitsu, 'kitsuLogout']];
   const using = Tracker.loggedIn() ? Tracker.svc : null;
   const usingName = Tracker.name;
-  const localRow=`<div class="acct-row"><span class="avatar">${icon('deck')}</span><div class="grow"><b>On this device</b><div class="desc">${using===LocalTracker?'Your active list · Saved locally':'Keep a separate AniDeck list without an account'}</div></div>${using===LocalTracker?'<button class="btn ghost sm" data-act="localRecovery">Recovery key</button>':'<button class="btn ghost sm" data-act="switchTracker" data-tracker="local">Use local list</button>'}</div>`;
+  const localRow=`<div class="acct-row"><span class="avatar">${icon('deck')}</span><div class="grow"><b>On this device</b><div class="desc">${using===LocalTracker?'Your active list · Saved locally':'Keep a separate AniDeck list without an account'}</div></div>${using===LocalTracker?'<span class="acct-local-note">Stored on this device</span>':'<button class="btn ghost sm" data-act="switchTracker" data-tracker="local">Use local list</button>'}</div>`;
   return localRow+list.map(([id, name, svc, outAct]) => {
-    const importer=svc.loggedIn()&&LocalTracker.coll.length?`<button class="link-btn acct-import" data-act="localImport" data-tracker="${id}">Import local watchlist…</button>`:'';
+    const importReason=!LocalTracker.coll.length?'Your local list is empty. Add titles using On this device first.':!svc.loggedIn()?'Connect '+name+' to import your local titles.':'';
+    const importer=`<div class="acct-import-area"><button class="btn ghost sm" data-act="localImport" data-tracker="${id}" ${importReason?'disabled':''}>Import local list to ${name}</button>${importReason?`<small>${esc(importReason)}</small>`:`<small>${LocalTracker.coll.length} local titles · Review before importing</small>`}</div>`;
     if (svc === using) {
       return `<div class="acct-row"><span class="avatar">${icon('user', 'pf-ph')}${svc.avatar ? `<img src="${esc(svc.avatar)}" alt="">` : ''}</span>
-      <div class="grow"><b>${esc(svc.userName || name)}</b><div class="desc">Your list and progress sync here</div>${importer}</div>
+      <div class="grow"><b>${name}${svc.userName?' · '+esc(svc.userName):''}</b><div class="desc">Your list and progress sync here</div>${importer}</div>
       <button class="btn ghost sm danger-outline" data-act="${outAct}">Sign out</button></div>`;
     }
     return `<div class="acct-row"><span class="avatar">${icon('user', 'pf-ph')}</span>
       <div class="grow"><b>${name}</b><div class="desc">${using ? `Switching keeps you signed in to ${usingName}` : `Sign in to keep your list on ${name}`}</div>${importer}</div>
-      <button class="btn ghost sm" data-act="switchTracker" data-tracker="${id}">${using ? 'Switch' : 'Sign in'}</button></div>`;
+      <button class="btn ghost sm" data-act="switchTracker" data-tracker="${id}">${svc.loggedIn()?'Use this list':'Connect'}</button></div>`;
   }).join('');
 }
 
@@ -1701,7 +1700,9 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.2', items:[
+  { v:'1.0.0', revision:'2026-10-26.3', items:[
+    'Customize your AniDeck picture, display name and bio; sign in on another device with your private key.',
+    'Visible import controls explain connection and local-list requirements in Account settings.',
     'Optional profile setup, AniDeck discussions, safe local-list imports and a separate Jellyfin library.',
     'New title navigation, expandable hover stories and automatic queue recovery.',
     'Start without an account, keep a local watchlist and optionally create an independent AniDeck Friends profile.',
@@ -4862,7 +4863,7 @@ const Views = {
     const opt = (list, val) => list.map(([v, l]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${l}</option>`).join('');
     return `<div class="settings-layout"><nav class="set-nav" aria-label="Settings sections"><div class="set-identity"><img class="set-wordmark" src="brand/wordmark.svg" alt="AniDeck"><small>Your next watch, on deck.</small></div><h1>Settings</h1><div id="set-menu"></div><p class="set-autosave">Your preferences save automatically.</p></nav><div class="settings">
       <div class="set-card set-account"><h3>Account</h3><p class="set-section-intro">Your identity, your list, your library. Connect a tracker to keep your anime in sync; Jellyfin is optional.</p>
-        <div class="acct-list">${trackerRows()}
+        <div class="acct-social"><div><b>Your AniDeck profile</b><p>Make it yours, or sign in on another device with your private key. Your local watchlist stays on this device.</p></div><div class="row gap"><button class="btn ghost sm" data-act="aniEdit">Edit profile</button><button class="btn ghost sm" data-act="localRecovery">Sign-in & recovery</button></div></div><div class="acct-list">${trackerRows()}
         <div class="acct-row"><span class="avatar">${icon('grid')}</span>
           <div class="grow"><b>Jellyfin library</b><div class="desc">${Jellyfin.connected() ? `${esc(Jellyfin.userName)} · ${esc(Jellyfin.server)}` : 'Optional · connect your own media server and library'}</div></div>
           <button class="btn ghost sm" data-act="${Jellyfin.connected() ? 'jellyLogout' : 'jellyLogin'}">${Jellyfin.connected() ? 'Disconnect' : 'Connect library'}</button></div></div>

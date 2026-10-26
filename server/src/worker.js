@@ -1,6 +1,7 @@
 import {ProviderSignInError} from './provider-auth.js';
 import {verifyIdentity} from './identity.js';
 import {discussionRoute} from './discussion.js';
+import {profileDetails, updateProfile} from './profile-details.js';
 import {localIdentity} from './local-identity.js';
 import { socialRoute, isBlocked } from './social.js';
 // AniDeck cloud: opt-in watcher cards shared only between AniDeck users.
@@ -52,7 +53,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, ''), m = req.method;
     try {
-      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions'] });
+      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions','profile-customization'] });
 
       // Exchange provider credentials or a device recovery key for a signed AniDeck session.
       if (path === '/v1/session' && m === 'POST') {
@@ -61,7 +62,7 @@ export default {
         const who = provider==='anideck'?await localIdentity(token):await verifyIdentity(env,provider,token);
         if(!who)return fail(401,'Invalid AniDeck recovery key.');
         const existing = await one(env, 'SELECT * FROM users WHERE id = ?', who.id);
-        if (existing&&provider!=='anideck') await env.DB.prepare('UPDATE users SET name = ?, avatar = ? WHERE id = ?').bind(who.name, who.avatar, who.id).run();
+        if (existing&&provider!=='anideck'&&!await one(env,'SELECT owner FROM profile_details WHERE owner=?',who.id)) await env.DB.prepare('UPDATE users SET name = ?, avatar = ? WHERE id = ?').bind(who.name, who.avatar, who.id).run();
         return json({ session: await signSession(env, who.id), joined: !!existing?.handle, me: existing ? { ...pub(existing), friendCode: existing.friend_code } : null, suggested: (who.name || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20) });
       }
 
@@ -70,7 +71,7 @@ export default {
 
       if (path === '/v1/me' && m === 'GET') {
         const u = await one(env, 'SELECT * FROM users WHERE id = ?', uid);
-        return json({ accountId:uid,me: u?.handle ? { ...pub(u), friendCode: u.friend_code } : null });
+        return json({ accountId:uid,me: u?.handle ? { ...await profileDetails(env,pub(u),uid), friendCode: u.friend_code } : null });
       }
       // Join or update: handle, who can see the card, the card itself.
       if (path === '/v1/me' && m === 'PUT') {
@@ -89,7 +90,7 @@ export default {
           await env.DB.prepare('UPDATE users SET handle = ? WHERE id = ?').bind(body.handle, uid).run();
         }
         if (body.visibility) await env.DB.prepare('UPDATE users SET visibility = ? WHERE id = ?').bind(body.visibility === 'public' ? 'public' : 'friends', uid).run();
-        if (body.name || body.avatar) await env.DB.prepare('UPDATE users SET name = COALESCE(?, name), avatar = COALESCE(?, avatar) WHERE id = ?').bind(body.name ? String(body.name).slice(0, 80) : null, body.avatar ? String(body.avatar).slice(0, 500) : null, uid).run();
+        if ((body.name || body.avatar)&&!await one(env,'SELECT owner FROM profile_details WHERE owner=?',uid)) await env.DB.prepare('UPDATE users SET name = COALESCE(?, name), avatar = COALESCE(?, avatar) WHERE id = ?').bind(body.name ? String(body.name).slice(0, 80) : null, body.avatar ? String(body.avatar).slice(0, 500) : null, uid).run();
         if (body.card) {
           const text = JSON.stringify(body.card);
           if (new TextEncoder().encode(text).length > MAX_CARD) return fail(413, 'That card is too large.');
@@ -120,6 +121,7 @@ export default {
       const meRow = await one(env, 'SELECT * FROM users WHERE id = ?', uid);
       if (!meRow?.handle) return fail(403, 'Join AniDeck profiles first.');
 
+      if(path==='/v1/me/profile'&&m==='PUT')return updateProfile(req,env,uid,meRow,JSON_HEADERS);
       const discussion=await discussionRoute(req,env,uid,meRow);if(discussion)return discussion;
       const social=await socialRoute(req,env,uid,meRow);if(social)return social;
 
@@ -170,7 +172,7 @@ export default {
         if (!t?.handle || await isBlocked(env,uid,t.id)) return fail(404, 'No AniDeck profile with that handle.');
         const f = t.id === uid ? { status: 'accepted' } : await friendship(env, uid, t.id);
         const canSee = t.id === uid || t.visibility === 'public' || f?.status === 'accepted';
-        return json({ user: pub(t, canSee), friend: f?.status || null, requested: f?.status === 'pending' ? (f.a === uid ? 'out' : 'in') : null, locked: !canSee });
+        return json({ user: await profileDetails(env,pub(t, canSee),t.id), friend: f?.status || null, requested: f?.status === 'pending' ? (f.a === uid ? 'out' : 'in') : null, locked: !canSee });
       }
       return fail(404, 'Not found.');
     } catch (e) {

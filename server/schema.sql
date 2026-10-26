@@ -45,3 +45,9 @@ CREATE TABLE IF NOT EXISTS watch_invites (
  message_id TEXT PRIMARY KEY, state TEXT NOT NULL DEFAULT 'pending', proposed_at INTEGER NOT NULL,
  responded_by TEXT NOT NULL, updated_at INTEGER NOT NULL, response_id TEXT
 );
+
+-- Public AniDeck profile details; existence marks explicitly customized identity.
+CREATE TABLE IF NOT EXISTS profile_details (
+ owner TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ bio TEXT NOT NULL DEFAULT ''
+);
