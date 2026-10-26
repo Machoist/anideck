@@ -15,3 +15,7 @@ test('a legacy session for a different account is never adopted',async()=>{
  ctx.httpUncached=async(url)=>url.endsWith('/v1/me')?{accountId:'anilist:2',me:{handle:'other'}}:{session:'fresh-session',me:{handle:'alice'}};
  await cloud.ensure();assert.equal(cloud.session,'fresh-session');assert.equal(cloud.me.handle,'alice');
 });
+
+test('simultaneous expired requests share one forced session refresh',async()=>{
+ const {cloud,ctx,writes}=fixture();let finish,calls=0;ctx.httpUncached=()=>{calls++;return new Promise(resolve=>finish=resolve);};const a=cloud.ensure(true),b=cloud.ensure(true);await new Promise(setImmediate);assert.equal(calls,1);finish({session:'refreshed',me:{handle:'alice'}});await Promise.all([a,b]);assert.equal(writes.length,1);assert.equal(cloud.session,'refreshed');
+});

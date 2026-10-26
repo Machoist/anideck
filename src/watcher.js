@@ -263,8 +263,8 @@ const Cloud = {
     const id=this.ident(),svc=Tracker.svc,provider=svc===AniList?'anilist':'kitsu';
     if(this.who!==id){this.session=null;this.me=undefined;this.publishedAt=0;this.who=id;}
     if(!force&&this.session)return true;
-    if(!force&&this.authPending?.id===id)return this.authPending.promise;
-    const task={id,promise:null};
+    if(this.authPending?.id===id&&(!force||this.authPending.force))return this.authPending.promise;
+    const task={id,force,promise:null};
     task.promise=(async()=>{
       const saved=await window.native.getSecret('anideckCloud').catch(()=>null);
       if(this.ident()!==id||!this.enabled())return false;
@@ -294,7 +294,7 @@ const Cloud = {
     return this.withSession(async () => { const r = await this.call('/v1/me', { method: 'PUT', json: { handle, visibility, name: Tracker.userName, avatar: Tracker.avatar || '' } }); this.me = r.me; this.publishedAt = 0; return r.me; });
   },
   async update(fields) { return this.withSession(async () => { const r = await this.call('/v1/me', { method: 'PUT', json: fields }); this.me = r.me; return r.me; }); },
-  async leave() { return this.withSession(async () => { await this.call('/v1/me', { method: 'DELETE' }); this.me = null; }); },
+  async leave() { if(typeof Friends!=='undefined')Friends.snapshot=null;return this.withSession(async () => { await this.call('/v1/me', { method: 'DELETE' }); this.me = null; }); },
   // Your card goes up when you open your profile, at most every 10 minutes.
   async publish(card) {
     if (!this.me || Date.now() - this.publishedAt < 10 * 60000) return;
@@ -304,7 +304,7 @@ const Cloud = {
   friends() { return this.withSession(() => this.call('/v1/friends')); },
   add(to) { return this.withSession(() => this.call('/v1/friends', { method: 'POST', json: { to } })); },
   accept(handle) { return this.withSession(() => this.call(`/v1/friends/${encodeURIComponent(handle)}/accept`, { method: 'POST' })); },
-  remove(handle) { return this.withSession(() => this.call(`/v1/friends/${encodeURIComponent(handle)}`, { method: 'DELETE' })); },
+  remove(handle) { if(typeof Friends!=='undefined')Friends.snapshot=null;return this.withSession(() => this.call(`/v1/friends/${encodeURIComponent(handle)}`, { method: 'DELETE' })); },
   user(handle) { return this.withSession(() => this.call(`/v1/users/${encodeURIComponent(handle)}`)); },
   async milestones() {
     if (this.rarity && Date.now() - this.rarityAt < 10 * 60000) return this.rarity;

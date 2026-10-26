@@ -12,26 +12,38 @@ const Friends={
  request(path,options){return Cloud.withSession(()=>Cloud.call(path,options));},
  avatar(u){return `<span class="af-avatar">${esc((u.name||u.handle||'?').slice(0,1))}${u.avatar?`<img src="${esc(u.avatar)}" alt="" loading="lazy">`:''}</span>`;},
  person(u,actions=''){return `<article class="af-person"><button class="af-identity" data-act="wfOpen" data-handle="${esc(u.handle)}">${this.avatar(u)}<span><b>${esc(u.name||u.handle)}</b><small>@${esc(u.handle)}</small></span></button><div class="af-person-actions">${actions}</div></article>`;},
+ snapshot:null,
+ remember(){if(this.me&&this.meWho===Cloud.ident())this.snapshot={who:this.meWho,base:Cloud.base(),at:Date.now(),me:this.me,social:this.social,rows:this.rows};},
+ async initialData(){
+  const [profile,health,social,inbox]=await Promise.allSettled([Cloud.loadMe(),this.capability(),Cloud.friends(),this.request('/v1/conversations')]);
+  if(profile.status==='rejected')throw profile.reason;const me=profile.value;if(!me)return {me};
+  if(health.status==='rejected')throw health.reason;const features=health.value;if(!features.includes('messages'))return {me,features};
+  if(social.status==='rejected')throw social.reason;if(inbox.status==='rejected')throw inbox.reason;
+  return {me,features,friends:social.value,inbox:inbox.value};
+ },
  async after(params,rid){
   this.stop();this.me=null;this.meWho=null;const actions=document.querySelector('.af-page-actions');if(actions)actions.hidden=true;const who=Cloud.ident(),box=$('#af-content');if(!box)return;
-  const fail=error=>{if(this.valid(rid,who)){const reauth=error.data?.code==='provider_reauth',unavailable=error.data?.code==='provider_unavailable';box.innerHTML=`<div class="af-empty"><h2>${reauth?'Reconnect to AniDeck Friends':unavailable?'Sign-in verification is temporarily unavailable':'Friends couldn’t load'}</h2><p>${esc(error.data?.error||error.message)}</p><p>AniList or Kitsu confirms your identity. Your friends, profile, and messages belong to AniDeck.</p>${reauth?`<button class="btn primary" data-act="friendsReconnect">Reconnect ${esc(Tracker.name)}</button>`:''}<button class="btn" data-act="friendsOpen">Try again</button></div>`;}};
+  const fail=error=>{if(this.valid(rid,who)){this.snapshot=null;this.me=null;this.meWho=null;this.generation++;if(actions)actions.hidden=true;const reauth=error.data?.code==='provider_reauth',unavailable=error.data?.code==='provider_unavailable';box.innerHTML=`<div class="af-empty"><h2>${reauth?'Reconnect to AniDeck Friends':unavailable?'Sign-in verification is temporarily unavailable':'Friends couldn’t load'}</h2><p>${esc(error.data?.error||error.message)}</p><p>AniList or Kitsu confirms your identity. Your friends, profile, and messages belong to AniDeck.</p>${reauth?`<button class="btn primary" data-act="friendsReconnect">Reconnect ${esc(Tracker.name)}</button>`:''}<button class="btn" data-act="friendsOpen">Try again</button></div>`;}};
   if(!Cloud.enabled()){box.innerHTML='<div class="af-empty"><h2>Bring your anime friends along</h2><p>Sign in to AniList or Kitsu in Settings → Account to use AniDeck profiles.</p><button class="btn primary" data-act="goAccount">Account settings</button></div>';return;}
+  const cached=this.snapshot,warm=cached&&cached.who===who&&cached.base===Cloud.base()&&Cloud.me!==null&&Date.now()-cached.at<30000;
+  if(warm){this.me=cached.me;this.meWho=who;this.social=cached.social;this.rows=cached.rows;this.listMode='all';if(actions)actions.hidden=false;this.renderRoster(box,cached.me,cached.social);}
   try{
-   const me=await Cloud.loadMe();if(!this.valid(rid,who))return;
-   if(!me){box.innerHTML='<div class="af-empty"><h2>Your people, on deck.</h2><p>Choose a handle, share your friend code, and compare what you’re watching. Sharing is optional and friends-only by default.</p><button class="btn primary" data-act="wfJoin">Create my AniDeck profile</button></div>';return;}
-   const features=await this.capability();if(!this.valid(rid,who))return;
-   if(!features.includes('messages')){box.innerHTML='<div class="af-empty"><h2>Friends are getting an upgrade</h2><p>The AniDeck cloud needs its messaging update before this screen is available. Your existing friends and profile are still available.</p><button class="btn primary" data-act="profileNav">Open my profile</button></div>';return;}
-   const [friends,inbox]=await Promise.all([Cloud.friends(),this.request('/v1/conversations')]);if(!this.valid(rid,who))return;
-   if(actions)actions.hidden=false;this.rows=inbox.conversations||[];this.me=me;this.meWho=who;this.social=friends;this.listMode='all';this.requestsAt=Date.now();
+   const version=this.rosterVersion,{me,features,friends,inbox}=await this.initialData();if(!this.valid(rid,who)||version!==this.rosterVersion)return;
+   if(!me){this.snapshot=null;this.me=null;this.meWho=null;if(actions)actions.hidden=true;box.innerHTML='<div class="af-empty"><h2>Your people, on deck.</h2><p>Choose a handle, share your friend code, and compare what you’re watching. Sharing is optional and friends-only by default.</p><button class="btn primary" data-act="wfJoin">Create my AniDeck profile</button></div>';return;}
+   if(!features.includes('messages')){this.snapshot=null;this.me=null;this.meWho=null;if(actions)actions.hidden=true;box.innerHTML='<div class="af-empty"><h2>Friends are getting an upgrade</h2><p>The AniDeck cloud needs its messaging update before this screen is available. Your existing friends and profile are still available.</p><button class="btn primary" data-act="profileNav">Open my profile</button></div>';return;}
+   if(actions)actions.hidden=false;this.rows=inbox.conversations||[];this.me=me;this.meWho=who;this.social=friends;if(!warm)this.listMode='all';this.requestsAt=Date.now();
+   this.remember();if(!warm)this.renderRoster(box,me,friends);else{this.reconcileThread();this.paintList();this.paintRequestBadge();}
+   if(params.handle)await this.openThread(params.handle,rid,who);
+   this.schedule(rid,who);
+  }catch(error){fail(error);}
+ },
+ renderRoster(box,me,friends){
    box.innerHTML=`<div class="af-layout af-messenger"><aside class="af-sidebar af-roster"><header class="af-roster-head"><div><span class="ad-eyebrow">YOUR CIRCLE</span><h2>Friends <span id="af-friend-count">${friends.friends.length}</span></h2></div></header>
     <label class="af-filter-wrap" id="af-filter-wrap"><span class="sr-only">Search friends</span>${icon('search')}<input id="af-filter" type="search" placeholder="Search your friends" autocomplete="off"></label>
     <div class="af-list-tabs" role="group" aria-label="Filter friends"><button data-act="friendsFilter" data-mode="all" aria-pressed="true">All friends</button><button data-act="friendsFilter" data-mode="unread" aria-pressed="false">Unread <span id="af-unread-count" hidden></span></button></div><div id="af-conversations" aria-label="Friend list"></div>
     <footer class="af-self"><button class="af-self-profile" data-act="profileNav">${this.avatar(me)}<span><b>@${esc(me.handle)}</b><small>Your profile</small></span></button><button class="af-icon-action" data-act="wfSettings" aria-label="Profile privacy" title="Profile privacy">${icon('settings')}</button></footer></aside>
     <section class="af-chat" id="af-chat"><header class="af-welcome-head"><span>${icon('chat')}Direct messages</span><small>Your conversations, on deck</small></header><div class="af-dm-welcome"><span class="af-dm-art" aria-hidden="true">${icon('deck')}<i>${icon('chat')}</i></span><span class="ad-eyebrow">A SPACE FOR YOUR PEOPLE</span><h2>${this.rows.length?'Pick a friend.<br>Start something good.':'Your next great conversation<br>starts with a friend.'}</h2><p>${this.rows.length?'Choose someone from your list to talk about the latest episode, trade recommendations, or plan your next watch.':'Add someone by handle or share your friend code. Once you both accept, your conversation starts here.'}</p></div><footer class="af-welcome-privacy">Only accepted friends can message you.<br><span>AniDeck cloud · Not end-to-end encrypted</span></footer></section></div>`;
    $('#af-filter').oninput=()=>this.paintList();this.paintList();this.paintRequestBadge();
-   if(params.handle)await this.openThread(params.handle,rid,who);
-   this.schedule(rid,who);
-  }catch(error){fail(error);}
  },
  paintRequestBadge(){if(typeof FriendSignals!=='undefined')FriendSignals.consumeRequests(this.social);const badge=$('#af-request-count');if(badge){badge.textContent=this.social.incoming?.length||'';badge.hidden=!this.social.incoming?.length;}},
  paintList(){
@@ -51,7 +63,7 @@ const Friends={
  },
  async refreshRoster(rid=App.renderId,who=Cloud.ident()){
   const version=this.rosterVersion;const [social,inbox]=await Promise.all([Cloud.friends(),this.request('/v1/conversations')]);if(!this.valid(rid,who)||version!==this.rosterVersion)return;
-  this.social=social;this.rows=inbox.conversations||[];this.reconcileThread();this.requestsAt=Date.now();this.paintList();this.paintRequestBadge();
+  this.social=social;this.rows=inbox.conversations||[];this.reconcileThread();this.requestsAt=Date.now();this.paintList();this.paintRequestBadge();this.remember();
  },
  async addDialog(){
   const who=Cloud.ident(),rid=App.renderId,me=this.meWho===who?this.me:await Cloud.loadMe();if(!me||!this.valid(rid,who))return;this.me=me;this.meWho=who;
@@ -131,7 +143,7 @@ const Friends={
   try{if(!document.hidden){const generation=this.generation,handle=this.handle,version=this.rosterVersion,thread=handle&&!this.sending&&!this.threadLoading,refresh=Date.now()-this.requestsAt>4000;
    const [inbox,data,social]=await Promise.all([this.request('/v1/conversations'),thread?this.request('/v1/messages/'+encodeURIComponent(handle)):null,refresh?Cloud.friends():null]);
    if(!this.valid(rid,who)||version!==this.rosterVersion)return;this.pollFailed=false;this.rows=inbox.conversations||[];this.reconcileThread();this.paintList();
-   if(social){this.social=social;this.requestsAt=Date.now();this.paintRequestBadge();}
+   if(social){this.social=social;this.requestsAt=Date.now();this.paintRequestBadge();}this.remember();
    if(data&&generation===this.generation&&handle===this.handle&&!this.sending){const known=new Map(this.messages.map(m=>[m.id,m]));let changed=false;for(const m of data.messages){if(!known.has(m.id)||JSON.stringify(known.get(m.id))!==JSON.stringify(m))changed=true;known.set(m.id,m);}if(changed){this.messages=[...known.values()].sort((a,b)=>a.at-b.at);this.paintMessages();await this.markRead();}}
   }}catch(error){this.pollFailed=true;const box=$('#af-message-error');if(this.valid(rid,who)&&box)box.textContent='Connection interrupted. Retrying…';}
   finally{if(this.valid(rid,who)&&App.view==='friends')this.schedule(rid,who);}
@@ -167,7 +179,6 @@ const Friends={
   try{
    const me=await Cloud.loadMe();if(!this.valid(rid,who))return;
    if(!me){box.innerHTML='<div class="empty">See what your AniDeck friends think of this title.<br><br><button class="btn primary" data-act="friendsOpen">Set up AniDeck friends</button></div>';return;}
-   const features=await this.capability();if(!this.valid(rid,who))return;
    if(!features.includes('media-friends')){box.innerHTML='<div class="empty">Title activity needs the AniDeck cloud update. Your friends are available on your profile.</div>';return;}
    const ctx=App.showCtx||{},al=App.showAl||{},match=ctx.match||{};
    const ids=[al.id&&'al:'+al.id,match.id&&String(match.id),ctx.id].filter(Boolean),keys=[al.title?.english,al.title?.romaji,match.title,ctx.series?.Name].filter(Boolean);
@@ -202,7 +213,7 @@ Views.friendsAfter=(params,rid)=>Friends.after(params,rid);
     if(el?.disabled||!confirm(`Block @${d.handle}? This removes the friendship and prevents messages and profile access.`))return;
     const who=Cloud.ident(),rid=this.renderId,panel=el?.closest('.af-tool-panel');if(el)el.disabled=true;
     try{await Friends.request('/v1/blocks',{method:'POST',json:{to:d.handle}});if(!Friends.valid(rid,who))return;
-     Friends.rosterVersion++;Friends.rows=Friends.rows.filter(user=>user.handle!==d.handle);
+     Friends.snapshot=null;Friends.rosterVersion++;Friends.rows=Friends.rows.filter(user=>user.handle!==d.handle);
      for(const key of ['friends','incoming','outgoing'])Friends.social[key]=(Friends.social[key]||[]).filter(user=>user.handle!==d.handle);
      Friends.paintList();Friends.paintRequestBadge();
      if(Friends.handle===d.handle){Friends.stop();Friends.messages=[];Friends.cursor=null;const chat=$('#af-chat');if(chat)chat.innerHTML='<div class="af-empty"><h2>Profile blocked</h2><p>Choose another friend to continue chatting.</p></div>';document.querySelector('.af-messenger')?.classList.remove('af-thread-open');}
