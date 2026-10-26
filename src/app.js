@@ -2111,10 +2111,10 @@ function episodeCard(ep) {
   </button>`;
 }
 
-function animeCard(a, extra = '') {
+function animeCard(a, extra = '', entry = null) {
   const inLib = App.libIndex?.find(a);
   const badge = (inLib ? '<span class="badge in">In library</span>' : '') + (a.rating ? `<span class="badge right rating">★ ${a.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(a.id)}" hidden></span>`);
-  return `<article class="card ta-card" tabindex="0" role="link" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
+  return `<article class="card ta-card" tabindex="0" role="link" ${entry?`data-list-status="${esc(entry.status||'current')}" data-list-progress="${Number(entry.progress)||0}"`: ''} data-total="${Number(a.episodes)||0}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
     <div class="poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}<span class="ta-overlay"><button type="button" class="ta-play" data-ta="play" aria-label="Play next episode" data-tip="Play next episode">${icon('play','fill')}</button><button type="button" class="ta-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></span></div>
     <div class="card-title">${esc(a.title)}</div>
     <div class="card-sub">${esc(extra || [a.subtype, a.year].filter(Boolean).join(' · '))}</div>
@@ -2951,7 +2951,7 @@ const mzCount = () => (App.settings.trendingCount === 5 ? 5 : 9); // #1 plus the
 function mosaicRow(list) {
   if (list.length < 3) return '';
   const [lead, ...rest] = list;
-  const attrs = (a) => `data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles || []))}"`;
+  const attrs = (a) => `data-total="${Number(a.episodes)||0}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles || []))}"`;
   const lib = App.libIndex?.find(lead);
   const meta = [lead.rating ? `★ ${lead.rating}%` : '', lead.subtype, lead.year, lead.episodes ? `${lead.episodes} eps` : ''].filter(Boolean).join(' · ');
   return `<div class="section-head"><h2>Trending now</h2><button class="see-all" data-act="seeAll" data-target="${esc(JSON.stringify(['browse', { src: 'anime', f: { status: 'current', sort: 'popular' } }]))}">See all${icon('chev')}</button></div>
@@ -3524,7 +3524,7 @@ const Views = {
     const today = mineThisWeek.filter((x) => x.at >= +dayStart && x.at < +dayStart + 86400000).sort((a, b) => a.at - b.at);
     const cs = Kitsu.currentSeason();
     const airing = (a) => /current|releasing|airing/.test(a?.status || '');
-    const progressCard = (w) => animeCard(w.anime, `Ep ${w.progress}${w.anime.episodes ? ` / ${w.anime.episodes}` : ''}`);
+    const progressCard = (w) => animeCard(w.anime, `Ep ${w.progress}${w.anime.episodes ? ` / ${w.anime.episodes}` : ''}`, {...w,status:w.status||'current'});
     const splitWatching = sections.includes('watchingAiring');
     const shows = (list) => uniqueShows(list).map((a) => animeCard(a));
     const rows = {
@@ -4465,7 +4465,7 @@ const Views = {
     const card = (e) => {
       const lib = App.libIndex?.find(e.anime);
       return `<div class="ml-card ${selected.has(e.anime.id) ? 'sel' : ''}" data-aid="${esc(e.anime.id)}">
-        <button class="card" data-act="anime" data-id="${esc(e.anime.id)}" data-mal="${esc(e.anime.malId || '')}" data-titles="${titlesAttr(e)}">
+        <button class="card" data-list-status="${esc(e.status)}" data-list-progress="${Number(e.progress)||0}" data-total="${Number(e.anime.episodes)||0}" data-act="anime" data-id="${esc(e.anime.id)}" data-mal="${esc(e.anime.malId || '')}" data-titles="${titlesAttr(e)}">
           <div class="poster">${e.anime.poster ? `<img loading="lazy" src="${esc(e.anime.poster)}" alt="">` : '<div class="ph">◆</div>'}
             ${e.anime.rating ? `<span class="badge right rating">★ ${e.anime.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(e.anime.id)}" hidden></span>`}${lib ? '<span class="badge in" style="top:auto;bottom:10px">In library</span>' : ''}
             ${e.status !== 'completed' && pct(e) ? `<div class="bar"><div style="width:${pct(e)}%"></div></div>` : ''}</div>
