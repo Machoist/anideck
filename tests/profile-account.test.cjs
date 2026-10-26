@@ -3,3 +3,21 @@ function fixture(){const mutations=[],local={token:'old-key',coll:[{title:'kept'
 test('key sign-in verifies an existing profile before changing credentials and preserves local entries',async()=>{const f=fixture();await f.api.verifyAndSignIn('adk_'+'1'.repeat(64));assert.equal(f.cloud.me.handle,'new');assert.equal(f.cloud.session,'verified-session');assert.deepEqual(f.local.coll,[{title:'kept'}]);assert.deepEqual(f.mutations,['recover','stop','saved']);});
 test('invalid, unknown and failed key checks leave the current profile untouched',async()=>{for(const mode of ['bad','unknown','offline','switched']){const f=fixture();if(mode==='unknown')f.ctx.httpUncached=async()=>({session:'token',me:null});if(mode==='offline')f.ctx.httpUncached=async()=>{throw Error('offline')};if(mode==='switched')f.ctx.httpUncached=async()=>{f.cloud.identity='anideck:other';return {session:'token',me:{handle:'other'}}};await assert.rejects(f.api.verifyAndSignIn(mode==='bad'?'wrong':'adk_'+'2'.repeat(64)));assert.equal(f.local.token,'old-key');assert.equal(f.mutations.length,0);assert.equal(f.cloud.me.handle,'old');}});
 test('Account always explains both import destinations even when disconnected or local list is empty',()=>{const source=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),a=source.indexOf('function trackerRows()'),b=source.indexOf('function accountRows()',a);const service={loggedIn:()=>false},ctx={Tracker:{loggedIn:()=>true,svc:{},name:'AniDeck'},LocalTracker:{coll:[]},AniList:service,Kitsu:service,icon:()=>'',esc:x=>x};const html=vm.runInNewContext(source.slice(a,b)+'trackerRows()',ctx);assert(html.includes('Import local list to AniList'));assert(html.includes('Import local list to Kitsu'));assert(html.includes('Your local list is empty'));assert(html.includes('disabled'));});
+
+test('closing key sign-in during verification leaves the current profile and credentials unchanged',async()=>{
+ const f=fixture();let finish,active=true;f.ctx.httpUncached=()=>new Promise(resolve=>finish=resolve);
+ const pending=f.api.verifyAndSignIn('adk_'+'3'.repeat(64),{active:()=>active});active=false;finish({session:'verified',me:{handle:'new'}});
+ await assert.rejects(pending,/cancelled/);assert.equal(f.local.token,'old-key');assert.equal(f.cloud.me.handle,'old');assert.equal(f.mutations.length,0);
+});
+
+test('overlapping recovery requests cannot race to replace credentials; another attempt works afterward',async()=>{
+ const f=fixture();let finish;f.ctx.httpUncached=()=>new Promise(resolve=>finish=resolve);
+ const first=f.api.verifyAndSignIn('adk_'+'3'.repeat(64));await assert.rejects(f.api.verifyAndSignIn('adk_'+'4'.repeat(64)),/already in progress/);
+ finish({session:'verified',me:{handle:'new'}});await first;assert.equal(f.local.token,'adk_'+'3'.repeat(64));
+ f.ctx.httpUncached=async()=>({session:'next',me:{handle:'next'}});await f.api.verifyAndSignIn('adk_'+'4'.repeat(64));assert.equal(f.cloud.me.handle,'next');
+});
+
+test('successful key sign-in clears old account cards, conversations and publish cooldown',async()=>{
+ const f=fixture();Object.assign(f.ctx.App,{myCard:{name:'old'},myCardWho:'old'});Object.assign(f.ctx.Friends,{rows:[1],messages:[1],me:{handle:'old'},meWho:'old',cursor:'old'});f.cloud.publishedAt=Date.now();
+ await f.api.verifyAndSignIn('adk_'+'5'.repeat(64));assert.equal(f.ctx.App.myCard,null);assert.equal(f.ctx.App.myCardWho,null);assert.equal(f.ctx.Friends.rows.length,0);assert.equal(f.ctx.Friends.messages.length,0);assert.equal(f.ctx.Friends.me,null);assert.equal(f.cloud.publishedAt,0);
+});

@@ -543,9 +543,9 @@ Object.assign(Views, {
     if (App.stale(rid)) return;
     paintProfile(u.card, { self: false, rarity });
     // compare with yours (from the last time your profile loaded, or now)
-    const mine = App.myCard || (await myCard(rid).catch(() => null))?.card;
+    const mine = (App.myCardWho===Cloud.ident()?App.myCard:null) || (await myCard(rid).catch(() => null))?.card;
     if (App.stale(rid) || !mine) return;
-    App.myCard = mine;
+    App.myCard = mine; App.myCardWho = Cloud.ident();
     const cmp = $('#pf2-compare');
     if (cmp) { cmp.hidden = false; cmp.innerHTML = compareCards(mine, u.card, u.name || `@${u.handle}`); }
   },

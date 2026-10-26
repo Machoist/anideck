@@ -1,21 +1,26 @@
 /* AniDeck identity is separate from the active watchlist tracker. */
 'use strict';
 const AniAccount={
- async verifyAndSignIn(raw){
+ async verifyAndSignIn(raw,{active=()=>true}={}){
   const token=raw.trim();if(!/^adk_[a-f0-9]{64}$/.test(token))throw Error('Enter the complete AniDeck key, starting with adk_.');
+  if(this.signingIn)throw Error('A sign-in is already in progress. Try again when it finishes.');
+  this.signingIn=true;try{
+  if(!active())throw Error('Sign-in cancelled.');
   const original=Cloud.ident(),data=await httpUncached(Cloud.base()+'/v1/session',{method:'POST',json:{provider:'anideck',token},timeout:12000});
   if(!data.session||!data.me?.handle)throw Error('No AniDeck profile was found for this key. Check the key and try again.');
+  if(!active())throw Error('Sign-in cancelled.');
   if(Cloud.ident()!==original)throw Error('The profile changed. Open sign-in again.');
   await LocalTracker.recover(token);await Cloud.useLocalIdentity();
-  Friends.stop();Friends.snapshot=null;Cloud.session=data.session;Cloud.who=Cloud.ident();Cloud.me=data.me;
+  Friends.stop();Object.assign(Friends,{snapshot:null,me:null,meWho:null,rows:[],messages:[],cursor:null,social:{friends:[],incoming:[],outgoing:[]}});Cloud.session=data.session;Cloud.who=Cloud.ident();Cloud.me=data.me;Cloud.publishedAt=0;
   await window.native.setSecret('anideckCloud',{who:Cloud.who,session:data.session});
-  LocalTracker.userName=data.me.name||data.me.handle;await LocalTracker.persist();App.profileCache=null;App.updateWho?.();
+  LocalTracker.userName=data.me.name||data.me.handle;await LocalTracker.persist();App.profileCache=null;App.myCard=null;App.myCardWho=null;App.updateWho?.();
   return data.me;
+  }finally{this.signingIn=false;}
  },
  signIn({onDone,back}={}){
   App.modal(`<form class="ani-account-panel" id="ani-key-form"><header class="dk-head"><div><span class="ad-eyebrow">WELCOME BACK</span><h2>Bring your circle with you</h2></div><button type="button" class="icon-btn" id="ani-key-close" aria-label="Close">${icon('close')}</button></header><p>Use the private key from your other device’s Settings → Account → Sign-in & recovery.</p><label class="dk-label" for="ani-key">Your AniDeck key</label><input id="ani-key" type="password" autocomplete="off" spellcheck="false" placeholder="adk_…" required><p class="dk-help">Your profile, friends and messages return. The local watchlist does not sync. This switches the profile signed in here; save its key first if you need it.</p><details><summary>Created your profile with AniList or Kitsu?</summary><p>Connect that same provider account in Settings → Account on a fresh device. Those profiles use provider sign-in rather than an AniDeck key.</p></details><p id="ani-key-error" class="error" role="alert" hidden></p><footer class="dk-foot"><button type="button" class="btn ghost" id="ani-key-cancel">Back</button><button class="btn primary" id="ani-key-submit">Sign in</button></footer></form>`,'dk-modal');
   const form=$('#ani-key-form');let busy=false;const close=()=>{if(!busy){App.closeModal();back?.();}};$('#ani-key-close').onclick=$('#ani-key-cancel').onclick=close;
-  form.onsubmit=async event=>{event.preventDefault();if(busy)return;busy=true;form.querySelectorAll('button,input').forEach(e=>e.disabled=true);const raw=$('#ani-key').value;try{const me=await this.verifyAndSignIn(raw);if(!form.isConnected)return;App.closeModal();onDone?.();App.refresh();toast('Signed in as @'+me.handle);}catch(error){if(form.isConnected){$('#ani-key-error').textContent=error.data?.error||error.message;$('#ani-key-error').hidden=false;}}finally{busy=false;if(form.isConnected)form.querySelectorAll('button,input').forEach(e=>e.disabled=false);}};
+  form.onsubmit=async event=>{event.preventDefault();if(busy)return;busy=true;form.querySelectorAll('button,input').forEach(e=>e.disabled=true);const raw=$('#ani-key').value;try{const me=await this.verifyAndSignIn(raw,{active:()=>form.isConnected});if(!form.isConnected)return;App.closeModal();onDone?.();App.refresh();toast('Signed in as @'+me.handle);}catch(error){if(form.isConnected){$('#ani-key-error').textContent=error.data?.error||error.message;$('#ani-key-error').hidden=false;}}finally{busy=false;if(form.isConnected)form.querySelectorAll('button,input').forEach(e=>e.disabled=false);}};
  },
  async access(){
   let me;try{me=await Cloud.loadMe();}catch(error){return toast(error.data?.error||error.message,'bad');}
