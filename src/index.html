@@ -39,19 +39,7 @@
       <p class="muted">Start watching your way. Keep your list on this device, or connect a tracker to sync it.</p>
       <div class="login-providers"><button type="button" class="btn primary wide" id="login-anilist">Continue with AniList</button><button type="button" class="btn ghost wide" id="login-kitsu">Continue with Kitsu</button></div>
       <button type="button" class="btn ghost wide login-guest" id="login-guest">Continue without an account</button><p class="login-note muted">Your progress saves on this device. Friends profiles are optional.</p>
-      <details class="login-jellyfin"><summary>Connect a Jellyfin library instead <span>Optional</span></summary><form id="login-form" autocomplete="on"><p class="small muted">Use your Jellyfin server account to access your own media library.</p>
-      <label>Server address
-        <input id="login-server" type="text" placeholder="https://jellyfin.example.com" required>
-      </label>
-      <label>Username
-        <input id="login-user" type="text" autocomplete="username" required>
-      </label>
-      <label>Password
-        <input id="login-pass" type="password" autocomplete="current-password">
-      </label>
-      <p id="login-error" class="error" hidden></p>
-      <button class="btn primary wide" type="submit" id="login-btn">Sign in</button>
-    </form></details></div>
+</div>
   </section>
 
   <!-- App -->
@@ -162,5 +150,7 @@
   <script src="friends.js"></script>
   <script src="friends-plus.js"></script>
   <script src="title-actions.js"></script>
+  <script src="discussions.js"></script>
+  <script src="local-import.js"></script>
 </body>
 </html>

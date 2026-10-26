@@ -840,6 +840,8 @@ const Player = {
     const ep = this.ctx.episode;
     if (!this.ctx.remoteOnly && Jellyfin.connected()) Jellyfin.markPlayed(ep.Id).catch(() => {});
     ep.UserData = { ...(ep.UserData || {}), Played: true };
+    // Library film/TV playback must never enter anime stats, lists, or social profiles.
+    if(!this.ctx.remoteOnly&&!App.isAnime(this.ctx.series?.Id))return;
     // Local watch log for the profile's activity chart.
     try {
       const d = new Date(), k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

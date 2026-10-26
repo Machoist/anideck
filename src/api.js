@@ -1,7 +1,7 @@
 /* AniDeck - API layer: Jellyfin, Kitsu, AniSkip, requests.
    All JSON calls go through the main process (window.native.request). */
 'use strict';
-// Anime-only edition: hides regular movies/TV and everything Trakt. Flip to false to bring them back.
+// Global discovery uses anime catalogs. The separate Jellyfin library supports all private media.
 const ANIME_ONLY = true;
 // Thin line icons used across the app.
 const ICON_PATHS = {
@@ -539,10 +539,12 @@ const Kitsu = {
     return d ? { id: d.id, progress: d.attributes.progress || 0, status: d.attributes.status, reconsuming: !!d.attributes.reconsuming, rating: d.attributes.ratingTwenty ? d.attributes.ratingTwenty / 2 : null } : null;
   },
   // Saves status, progress and score together (score is 1-10, stored by Kitsu as 2-20).
-  async saveEntry(animeId, { status, progress, reconsuming }) {
+  async saveEntry(animeId, { status, progress, reconsuming, rating }) {
     if (!this.loggedIn()) throw new Error('Not signed in to Kitsu');
-    const attributes = { status, progress: Math.max(0, Number(progress) || 0), reconsuming: !!reconsuming };
+    const account=this.userId;
+    const attributes = { status, progress: Math.max(0, Number(progress) || 0), reconsuming: !!reconsuming,...(Number(rating)>0?{ratingTwenty:Math.max(2,Math.min(20,Math.round(Number(rating)*2)))}:{}) };
     const existing = await this.entry(animeId);
+    if(this.userId!==account||!this.loggedIn())throw Error('Kitsu account changed. Start again.');
     if (existing) {
       await this.call(`/edge/library-entries/${existing.id}`, { method: 'PATCH', json: { data: { id: existing.id, type: 'libraryEntries', attributes } } });
       return;
@@ -795,14 +797,16 @@ const AniList = {
     return e ? this.fromEntry(e) : null;
   },
   async write(id, vars) {
+    const account=this.userId;
     const mediaId = await this.mediaId(id);
-    const d = await this.gql('mutation($mediaId:Int,$status:MediaListStatus,$progress:Int){ SaveMediaListEntry(mediaId:$mediaId, status:$status, progress:$progress){ id status progress score(format:POINT_10) repeat updatedAt } }', { mediaId, ...vars });
+    if(this.userId!==account||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    const d = await this.gql(`mutation($mediaId:Int,$status:MediaListStatus,$progress:Int${vars.scoreRaw===undefined?'':',$scoreRaw:Int'}){ SaveMediaListEntry(mediaId:$mediaId, status:$status, progress:$progress${vars.scoreRaw===undefined?'':',scoreRaw:$scoreRaw'}){ id status progress score(format:POINT_10) repeat updatedAt } }`, { mediaId, ...vars });
     this.coll = null;
     return this.fromEntry(d.SaveMediaListEntry);
   },
-  async saveEntry(id, { status, progress, reconsuming }) {
+  async saveEntry(id, { status, progress, reconsuming, rating }) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
-    return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0) });
+    return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0),...(Number(rating)>0?{scoreRaw:Math.max(1,Math.min(100,Math.round(Number(rating)*10)))}:{}) });
   },
   async setStatus(id, status) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
@@ -981,9 +985,9 @@ const LocalTracker = {
   loggedIn(){return this.enabled;},
   persist(entries=this.coll){return window.native.set('localTracker',{v:1,enabled:this.enabled,name:this.userName,entries});},
   async recover(token){token=token.trim();if(!/^adk_[a-f0-9]{64}$/.test(token))throw Error('Enter a complete AniDeck recovery key.');await window.native.setSecret('anideckIdentity',token);this.token=token;await this.identify();},
-  async resolve(id){id=String(id);const hit=this.coll.find(e=>String(e.anime.id)===id||(e.anime.aliases||[]).includes(id));if(hit)return String(hit.anime.id);if(!id.startsWith('al:')){const mapped=await AniList.mediaId(id).catch(()=>null);if(mapped)return 'al:'+mapped;}return id;},
+  async resolve(id){id=String(id);const hit=this.coll.find(e=>String(e.anime.id)===id||(e.anime.aliases||[]).includes(id));if(hit)return String(hit.anime.id);const playing=typeof Player!=='undefined'?Player.ctx:null;if(String(playing?.match?.id)===id)return id;if(!id.startsWith('al:')){const mapped=await AniList.mediaId(id).catch(()=>null);if(mapped)return 'al:'+mapped;}return id;},
   async entry(id){id=await this.resolve(id);return this.coll.find(e=>String(e.anime.id)===id)||null;},
-  async metadata(id){const current=typeof App!=='undefined'?App.showAl:null;if(current&&String(id)==='al:'+current.id)return {id:String(id),title:current.title,poster:current.cover,episodes:current.episodes,genres:current.genres,rating:current.score,duration:current.duration,status:current.status,titles:[current.title],year:current.year,subtype:current.format};
+  async metadata(id){const playing=typeof Player!=='undefined'?Player.ctx:null,match=playing?.match;if(match&&String(match.id)===String(id)&&match.title){const detail=typeof App!=='undefined'&&App.showAl&&(String(id)==='al:'+App.showAl.id||String(App.showCtx?.match?.id)===String(id))?App.showAl:null;return {id:String(id),title:detail?.title||match.title,titles:[match.title],poster:match.poster||detail?.cover||playing.poster||'',episodes:match.episodes||detail?.episodes||0,genres:detail?.genres||match.genres||[],status:detail?.status||match.status||'',duration:detail?.duration||24};}const current=typeof App!=='undefined'?App.showAl:null;if(current&&String(id)==='al:'+current.id)return {id:String(id),title:current.title,poster:current.cover,episodes:current.episodes,genres:current.genres,rating:current.score,duration:current.duration,status:current.status,titles:[current.title],year:current.year,subtype:current.format};
     if(String(id).startsWith('al:')){const a=await AniList.details(id);return {id:String(id),title:a.title,poster:a.cover,episodes:a.episodes,genres:a.genres,rating:a.score,duration:a.duration,status:a.status,titles:[a.title],year:a.year,subtype:a.format};}return Kitsu.anime(id);},
   mutate(fn){const run=this.queue.then(async()=>{const entries=JSON.parse(JSON.stringify(this.coll));const result=await fn(entries);await this.persist(entries);this.coll=entries;return result;});this.queue=run.catch(()=>{});return run;},
   async saveEntry(id,values){if(!this.enabled)throw Error('Continue without an account first.');const original=String(id);id=await this.resolve(id);if(!/^(al:)?[1-9][0-9]*$/.test(id))throw Error('Choose a valid anime title.');

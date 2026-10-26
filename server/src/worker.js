@@ -1,5 +1,6 @@
 import {ProviderSignInError} from './provider-auth.js';
 import {verifyIdentity} from './identity.js';
+import {discussionRoute} from './discussion.js';
 import {localIdentity} from './local-identity.js';
 import { socialRoute, isBlocked } from './social.js';
 // AniDeck cloud: opt-in watcher cards shared only between AniDeck users.
@@ -51,7 +52,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, ''), m = req.method;
     try {
-      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts'] });
+      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions'] });
 
       // Exchange provider credentials or a device recovery key for a signed AniDeck session.
       if (path === '/v1/session' && m === 'POST') {
@@ -119,6 +120,7 @@ export default {
       const meRow = await one(env, 'SELECT * FROM users WHERE id = ?', uid);
       if (!meRow?.handle) return fail(403, 'Join AniDeck profiles first.');
 
+      const discussion=await discussionRoute(req,env,uid,meRow);if(discussion)return discussion;
       const social=await socialRoute(req,env,uid,meRow);if(social)return social;
 
       // Friends: accepted, plus requests in and out.

@@ -251,16 +251,21 @@ function compareCards(mine, theirs, name) {
 /* ---------------- AniDeck cloud ---------------- */
 const Cloud = {
   session: null, who: '', me: undefined, publishedAt: 0, rarity: null, rarityAt: 0,
+  identity:null,
+  async init(){if(this.identity)return;const saved=await window.native.get('anideckSocialOwner').catch(()=>null),session=await window.native.getSecret('anideckCloud').catch(()=>null);const valid=id=>/^(anilist|kitsu):[1-9][0-9]*$/.test(id||'')||/^anideck:[a-f0-9]{64}$/.test(id||'');const choice=valid(saved)?saved:valid(session?.who)?session.who:this.ident();if(valid(choice)){this.identity=choice;await window.native.set('anideckSocialOwner',choice);}},
+  service(){const provider=this.identity?.split(':')[0];return provider==='anideck'?LocalTracker:provider==='anilist'?AniList:provider==='kitsu'?Kitsu:Tracker.svc;},
+  provider(){return this.identity?.split(':')[0]||(Tracker.name==='AniDeck'?'anideck':Tracker.svc===AniList?'anilist':'kitsu');},
+  async useLocalIdentity(){this.identity='anideck:'+LocalTracker.userId;this.session=null;this.me=undefined;this.who='';await window.native.set('anideckSocialOwner',this.identity);},
   base() { return String(App.config?.cloudUrl || '').replace(/\/+$/, ''); },
-  enabled() { return !!this.base() && Tracker.loggedIn(); },
-  ident() { return `${Tracker.name==='AniDeck'?'anideck':Tracker.svc === AniList ? 'anilist' : 'kitsu'}:${Tracker.svc.userId || Tracker.userName}`; },
+  enabled() { return !!this.base() && (!!this.identity||Tracker.loggedIn()); },
+  ident() { if(this.identity)return this.identity;return `${Tracker.name==='AniDeck'?'anideck':Tracker.svc === AniList ? 'anilist' : 'kitsu'}:${Tracker.svc.userId || Tracker.userName}`; },
   async call(path, { method = 'GET', json } = {}) {
     return httpUncached(`${this.base()}${path}`, { method, json, timeout: 12000, headers: this.session ? { Authorization: `Bearer ${this.session}` } : {} });
   },
   // An AniDeck session for the tracker in use (kept with your other sign-ins), made from its access token if needed.
   async ensure(force = false) {
     if (!this.enabled()) return false;
-    const id=this.ident(),svc=Tracker.svc,provider=Tracker.name==='AniDeck'?'anideck':svc===AniList?'anilist':'kitsu';
+    const id=this.ident(),svc=this.service(),provider=this.provider();
     if(this.who!==id){this.session=null;this.me=undefined;this.publishedAt=0;this.who=id;}
     if(!force&&this.session)return true;
     if(this.authPending?.id===id&&(!force||this.authPending.force))return this.authPending.promise;
@@ -277,7 +282,7 @@ const Cloud = {
           if(previous.accountId===id){this.session=saved.session;this.me=previous.me||null;await window.native.setSecret('anideckCloud',{who:id,session:saved.session});return true;}
         }catch(error){if(error.status!==401)throw error;}
       }
-      if(!svc.token)return false;
+      if(!svc.token||id!==provider+':'+svc.userId){const error=Error('Reconnect '+(provider==='anilist'?'AniList':provider==='kitsu'?'Kitsu':'your AniDeck recovery key')+' to restore this AniDeck profile.');error.data={code:'provider_reauth'};throw error;}
       const r=await httpUncached(this.base()+'/v1/session',{method:'POST',json:{provider,token:svc.token},timeout:12000});
       if(this.ident()!==id||!this.enabled())return false;
       this.session=r.session;this.me=r.me||null;this.suggested=r.suggested||'';
@@ -299,7 +304,7 @@ const Cloud = {
   async publish(card) {
     if (!this.me || Date.now() - this.publishedAt < 10 * 60000) return;
     this.publishedAt = Date.now();
-    await this.withSession(() => this.call('/v1/me', { method: 'PUT', json: { card, name: card.name, avatar: card.avatar } })).catch(() => { this.publishedAt = 0; });
+    await this.withSession(() => this.call('/v1/me', { method: 'PUT', json: { card, name: this.me.name||card.name, avatar: this.me.avatar||card.avatar } })).catch(() => { this.publishedAt = 0; });
   },
   friends() { return this.withSession(() => this.call('/v1/friends')); },
   add(to) { return this.withSession(() => this.call('/v1/friends', { method: 'POST', json: { to } })); },
@@ -382,7 +387,15 @@ async function paintSocial(rid) {
   paintCircleActivity(rid,App.myCardWho===who?App.myCard:me?.card);
 }
 
-function joinDialog() {
+async function offerProfileIntro(){
+ const key='anideckProfileIntro';if(await window.native.get(key))return false;
+ await window.native.set(key,true);if(!Cloud.enabled())return false;
+ let me;try{me=await Cloud.loadMe();}catch{me=null;}
+ if(me||!document.getElementById('modal').hidden)return false;
+ joinDialog({onboarding:true});return true;
+}
+
+function joinDialog({onboarding=false,onDone}={}) {
   const base = (Cloud.suggested || Tracker.userName || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
   App.modal(`<form class="wf-join wf-onboard" id="wf-join" novalidate>
     <header class="dk-head"><div class="wf-welcome"><span class="wf-profile-mark" aria-hidden="true">${icon('deck')}</span><div><span class="ad-eyebrow">YOUR ANIDECK IDENTITY</span><h2>Create your profile</h2></div></div><button type="button" class="icon-btn" id="wf-x" aria-label="Close">${icon('close')}</button></header>
@@ -397,7 +410,7 @@ function joinDialog() {
     </div></fieldset>
     <details class="wf-sharing-note"><summary>${icon('info')}What will I share?${icon('chev')}</summary><p>Your watcher card, including watch time, genres, scores, milestones and what you’re watching, plus your list’s titles and scores for comparisons. Your visibility choice controls who can see it.</p><p>${Tracker.name==='AniDeck'?'An encrypted recovery key on this device secures your AniDeck profile. Save it from Settings → Account to recover your friends on another device.':'AniList or Kitsu verifies your identity. Your tracker access token isn’t stored by the AniDeck service.'} Friends and messages live in AniDeck.</p></details>
     <p class="dk-error" id="wf-err" role="alert" hidden></p>
-    <footer class="dk-foot"><span class="wf-footer-note">Your profile. Your circle.</span><button type="button" class="btn ghost ad2-btn" id="wf-cancel">Maybe later</button><button class="btn primary ad2-btn" id="wf-go">Create profile ${icon('chev')}</button></footer>
+    <footer class="dk-foot"><span class="wf-footer-note">Your profile. Your circle.</span><button type="button" class="btn ghost ad2-btn" id="wf-cancel">${onboarding?'Skip for now':'Maybe later'}</button><button class="btn primary ad2-btn" id="wf-go">Create profile ${icon('chev')}</button></footer>
   </form>`, 'dk-modal wf-modal wf-onboard-modal');
   const form = $('#wf-join'), input = $('#wf-handle'), button = $('#wf-go'), error = $('#wf-err'), help = $('#wf-handle-help');
   let submitting = false;
@@ -410,13 +423,13 @@ function joinDialog() {
     button.disabled = submitting || !ok;
     return ok;
   };
-  $('#wf-x').onclick = $('#wf-cancel').onclick = () => { if (!submitting) App.closeModal(); };
+  $('#wf-x').onclick = $('#wf-cancel').onclick = () => { if (!submitting){App.closeModal();onDone?.();} };
   input.oninput = () => { error.hidden = true; validate(); };
   form.onsubmit = async (event) => {
     event.preventDefault(); if (submitting || !validate()) { input.focus(); return; }
     submitting = true; button.disabled = true; input.readOnly = true; form.setAttribute('aria-busy','true');
     button.textContent = 'Creating profile…'; $('#wf-x').disabled = $('#wf-cancel').disabled = true;
-    try { await Cloud.join(input.value.trim(), form.querySelector('[name="wf-vis"]:checked')?.value || 'friends'); if (!form.isConnected) return; App.closeModal(); App.profileCache = App.profileCache && { ...App.profileCache }; App.refresh(); }
+    try { await Cloud.join(input.value.trim(), form.querySelector('[name="wf-vis"]:checked')?.value || 'friends'); if (!form.isConnected) return; App.closeModal(); onDone?.(); App.profileCache = App.profileCache && { ...App.profileCache }; App.refresh(); }
     catch (err) { if (!form.isConnected) return; error.textContent = err.data?.error || err.message; error.hidden = false; }
     finally { submitting = false; if (form.isConnected) { input.readOnly = false; form.removeAttribute('aria-busy'); button.innerHTML = 'Create profile ' + icon('chev'); $('#wf-x').disabled = $('#wf-cancel').disabled = false; validate(); } }
   };

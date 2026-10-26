@@ -19,3 +19,5 @@ test('a legacy session for a different account is never adopted',async()=>{
 test('simultaneous expired requests share one forced session refresh',async()=>{
  const {cloud,ctx,writes}=fixture();let finish,calls=0;ctx.httpUncached=()=>{calls++;return new Promise(resolve=>finish=resolve);};const a=cloud.ensure(true),b=cloud.ensure(true);await new Promise(setImmediate);assert.equal(calls,1);finish({session:'refreshed',me:{handle:'alice'}});await Promise.all([a,b]);assert.equal(writes.length,1);assert.equal(cloud.session,'refreshed');
 });
+
+test('choosing a different watchlist tracker keeps the explicitly selected social identity',async()=>{const {cloud,ctx}=fixture();const local={userId:'a'.repeat(64),token:'adk_'+'1'.repeat(64)};ctx.LocalTracker=local;ctx.Kitsu={};ctx.window.native.get=async()=>null;ctx.window.native.set=async()=>{};await cloud.init();assert.equal(cloud.ident(),'anilist:1');ctx.Tracker.svc=local;ctx.Tracker.name='AniDeck';assert.equal(cloud.ident(),'anilist:1');assert.equal(cloud.service(),ctx.AniList);});

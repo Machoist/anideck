@@ -2,7 +2,7 @@
 'use strict';
 const TitleActions={
  menu:null,sequence:0,
- selector:'#main .card[data-act="anime"],#main .card[data-act="series"],#main .card[data-act="movie"],#main .mz-tile[data-act="anime"],#main .rel-card[data-act="anime"],#main .sch-card[data-act="anime"],#main .wk2-card[data-act="anime"]',
+ selector:'#main .card[data-act="anime"],#main .mz-tile[data-act="anime"],#main .rel-card[data-act="anime"],#main .sch-card[data-act="anime"],#main .wk2-card[data-act="anime"]',
  valid(data,rid){return !App.stale(rid)&&Tracker.svc===data.service&&data.service?.userId===data.userId;},
  title(data,card){return data.al?.title||data.k?.title||data.lib?.Name||card.querySelector('.card-title,.mz-tile-text b')?.textContent||'Anime';},
  target(data,entry){const status=String(data.al?.status||data.k?.status||'').replaceAll('_',' ').toLowerCase(),next=data.al?.next,total=Number(data.al?.episodes||data.k?.episodes)||0,progress=Number(entry?.progress)||0;

@@ -51,3 +51,12 @@ New databases use schema.sql, which includes all messaging tables. GET /v1/healt
 Messages are stored as plain text in D1, protected by signed sessions and accepted-friend checks; they are not end-to-end encrypted. Blocking removes the friendship and prevents profile access and messaging in either direction. Leaving profiles deletes the account's messages, reads, blocks and friendships. Public profile visibility never permits non-friends to send messages.
 
 Routes: GET /v1/conversations; GET/POST /v1/messages/:handle; POST /v1/messages/:handle/read; GET/POST /v1/blocks; DELETE /v1/blocks/:handle; GET /v1/media/:id/friends. Messages are limited to 2,000 characters and 30 sends per minute. Client IDs make retries idempotent.
+
+
+## Standalone profiles and title discussions
+
+After schema.sql and social-v2.sql, apply social-v3.sql and social-v4.sql before deploying the current Worker. Migrations are idempotent; new databases also need these upgrades. social-v3 adds invitation event protection; social-v4 adds title comments and likes.
+
+Standalone sessions accept provider `anideck` with a private recovery key; no AniList or Kitsu account is required. The server derives its identity from a domain-separated hash and does not store the raw recovery key.
+
+Registered profiles can read and post at `/v1/discussion/al:<mediaId>`. These conversations are public to AniDeck profiles, stored as plain text, and are separate from friends-only watcher cards and DMs. Authors can edit/delete their own comments; blocking filters both directions. Replies, spoilers, pagination and idempotent likes are supported. Posting is limited to 2,000 characters and ten new comments per minute. Health advertises `discussions`.

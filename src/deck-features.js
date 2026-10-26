@@ -3,7 +3,7 @@
 const DeckStore={
  state:DeckCore.initial(),key:'',queue:Promise.resolve(),
  scope(){return Tracker.loggedIn()?`${Tracker.name}:${Tracker.svc.userId||Tracker.userName}`:`Jellyfin:${Jellyfin.userId||'local'}`;},
- async load(){await this.queue.catch(()=>{});const key='anideck-features:'+this.scope();if(key===this.key)return;this.state=DeckCore.normalize(await window.native.get(key));this.key=key;DeckUI.cache=null;DeckUI.entriesCache=null;DeckUI.pool=[];DeckUI.poolLoaded=false;DeckUI.poolPartial=false;DeckUI.poolError='';DeckUI.backlog=[];DeckUI.quickEntries=[];},
+ async load(){await this.queue.catch(()=>{});const key='anideck-features:'+this.scope();if(key===this.key)return;let data=await window.native.get(key);if(!data&&Tracker.name==='AniDeck'&&Jellyfin.connected()){const legacy=await window.native.get('anideck-features:Jellyfin:'+Jellyfin.userId);if(legacy&&key==='anideck-features:'+this.scope()){data=legacy;await window.native.set(key,data);}}if(key!=='anideck-features:'+this.scope())return this.load();this.state=DeckCore.normalize(data);this.key=key;DeckUI.cache=null;DeckUI.entriesCache=null;DeckUI.pool=[];DeckUI.poolLoaded=false;DeckUI.poolPartial=false;DeckUI.poolError='';DeckUI.backlog=[];DeckUI.quickEntries=[];},
  commit(action){const key=this.key;const work=this.queue.catch(()=>{}).then(async()=>{if(key!==this.key)throw new Error('Your account changed. Try again.');const next=DeckCore.change(this.state,action);await window.native.set(key,next);this.state=next;return next;});this.queue=work;return work;},
 };
 const DeckUI={

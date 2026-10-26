@@ -177,11 +177,11 @@ const Friends={
   const who=Cloud.ident(),box=$('#show-social');if(!box)return;
   if(!Cloud.enabled()){box.innerHTML='<div class="empty">Sign in to AniList or Kitsu to connect with AniDeck friends.</div>';return;}
   try{
-   const me=await Cloud.loadMe();if(!this.valid(rid,who))return;
+   const [me,features]=await Promise.all([Cloud.loadMe(),this.capability()]);if(!this.valid(rid,who))return;
    if(!me){box.innerHTML='<div class="empty">See what your AniDeck friends think of this title.<br><br><button class="btn primary" data-act="friendsOpen">Set up AniDeck friends</button></div>';return;}
    if(!features.includes('media-friends')){box.innerHTML='<div class="empty">Title activity needs the AniDeck cloud update. Your friends are available on your profile.</div>';return;}
    const ctx=App.showCtx||{},al=App.showAl||{},match=ctx.match||{};
-   const ids=[al.id&&'al:'+al.id,match.id&&String(match.id),ctx.id].filter(Boolean),keys=[al.title?.english,al.title?.romaji,match.title,ctx.series?.Name].filter(Boolean);
+   const ids=[al.id&&'al:'+al.id,match.id&&String(match.id),ctx.id].filter(Boolean),keys=[typeof al.title==='string'?al.title:al.title?.english,al.title?.romaji,match.title,ctx.series?.Name].filter(Boolean);
    if(!ids.length){box.innerHTML='<div class="empty">Open this title’s details to find friends’ activity.</div>';return;}
    const data=await this.request('/v1/media/'+encodeURIComponent(ids[0])+'/friends?ids='+encodeURIComponent(ids.join(','))+'&keys='+encodeURIComponent(keys.join(',')));if(!this.valid(rid,who))return;
    box.innerHTML=`<div class="social-head"><span class="muted small">Your accepted AniDeck friends</span><span class="spacer"></span><button class="btn ghost sm" data-act="friendsOpen">Friends & messages</button></div><div class="af-title-friends">${data.friends.map(u=>this.person(u,`<span class="af-note">${esc(STATUS_LABELS[u.status]||u.status)} · ${u.progress}${u.episodes?'/'+u.episodes:''} episodes${u.score?' · ★ '+u.score:''}</span><button class="btn sm" data-act="friendsMessage" data-handle="${esc(u.handle)}">Message</button>`)).join('')||'<div class="empty">None of your AniDeck friends have shared this title yet.</div>'}</div>`;
@@ -205,7 +205,7 @@ Views.friendsAfter=(params,rid)=>Friends.after(params,rid);
    if(name==='friendsRequestAccept')return Friends.requestAction('accept',d.handle,el);
    if(name==='friendsRequestDecline')return Friends.requestAction('decline',d.handle,el);
    if(name==='friendsRequestCancel')return Friends.requestAction('cancel',d.handle,el);
-   if(name==='friendsReconnect'){const anilist=Tracker.svc===AniList;Cloud.session=null;Cloud.me=undefined;Cloud.authPending=null;await window.native.setSecret('anideckCloud',null);return anilist?this.anilistLogin():this.kitsuLogin();}
+   if(name==='friendsReconnect'){const anilist=Cloud.provider()==='anilist';if(Cloud.provider()==='anideck')return this.localRecovery();Cloud.session=null;Cloud.me=undefined;Cloud.authPending=null;await window.native.setSecret('anideckCloud',null);return anilist?this.anilistLogin():this.kitsuLogin();}
    if(name==='friendsMessage'){if(this.view==='friends')return Friends.openThread(d.handle);return this.nav('friends',{handle:d.handle});}
    if(name==='friendsBlocked')return Friends.blocked();
    if(name==='friendsModalClose')return this.closeModal();

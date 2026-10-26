@@ -29,11 +29,22 @@ AniDeck brings anime discovery, watching, tracking, and friends together in one 
 Once the Windows app is available:
 
 1. **Choose how to track.** Continue without an account to save progress on this device, or connect AniList or Kitsu to sync your list.
-2. **Arrange your deck.** Choose the Home widgets and collections you want close by.
-3. **Find your people.** Open Friends, choose a handle, and add someone by handle or friend code.
-4. **Start watching.** Pick a title, choose an available source, and continue where you left off.
+2. **Make it social, optionally.** The next step offers an AniDeck profile. Choose a handle or select Skip for now; playback and local tracking remain available.
+3. **Arrange your deck.** Choose the Home widgets and collections you want close by.
+4. **Find your people.** Open Friends, choose a handle, and add someone by handle or friend code.
+5. **Start watching.** Pick a title, choose an available source, and continue where you left off.
 
 The installed app will not require Node.js, terminal commands, or your own backend.
+
+### Your lists and library
+
+Settings → Account offers a preview before importing your device watchlist into AniList or Kitsu. Choose titles to import; existing destination entries and your local list are preserved.
+
+Connect Jellyfin only in Settings → Account. Its dedicated library supports your private media, including non-anime. It stays separate from global anime search, Home recommendations and Friends activity.
+
+### Discussion
+
+An AniDeck profile enables public AniDeck title conversations without an external tracker. Public AniList threads can be read without signing in; replying and liking require AniList. When both accounts are available, Discussion offers a source switch.
 
 ### Watching on TV
 

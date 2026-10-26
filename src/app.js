@@ -58,7 +58,7 @@ const DEFAULT_SETTINGS = {
   traktTrack: true, traktAnime: false,
   accent: 'lavender', uiScale: 1, posterSize: 'medium', titleLang: 'en', reduceMotion: false,
   keys: {}, tvMode: false, startFullscreen: false, gamepad: true,
-  shuffleFrom: 'library', // the topbar's random-pick button: 'planning' | 'popular' | 'library' (see SHUFFLE_FROM)
+  shuffleFrom: 'planning', // the topbar's random-pick button: 'planning' | 'popular' | 'library' (see SHUFFLE_FROM)
   homeSections: null,     // [{ id, on }] order + visibility of home rows; null = HOME_SECTIONS defaults
   hideNsfw: true,
   alArt: true,            // library anime use AniList covers (Settings → Appearance)
@@ -107,7 +107,7 @@ const HOME_SECTIONS = [
   ['g:Fantasy', 'Fantasy', 'Popular fantasy anime', false],
   ['g:Romance', 'Romance', 'Popular romance anime', false],
   ['g:Sci-Fi', 'Sci-Fi', 'Popular science fiction anime', false],
-  ['newin', 'New in your libraries', 'Recently added to Jellyfin', true],
+
 ];
 const HOME_DEFAULTS = () => HOME_SECTIONS.map(([id, , , on]) => ({ id, on }));
 function homeOrder() {
@@ -212,26 +212,12 @@ const App = {
   /* ---------------- login ---------------- */
   async showLogin() {
     $('#shell').hidden = true;
-    $('#login').hidden = false;
-    $('#login-server').value = Jellyfin.server || this.config.jellyfinUrl || '';
-    $('#login-user').value = Jellyfin.userName || '';
+    $('#login').hidden = false;this.needsProfileIntro=true;
     $('#login-anilist').onclick = () => this.anilistLogin();
     $('#login-kitsu').onclick = () => this.kitsuLogin();
     $('#login-guest').onclick = () => this.continueLocally();
     $('#login-anilist').focus();
-    $('#login-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const btn = $('#login-btn'), err = $('#login-error');
-      btn.disabled = true; btn.textContent = 'Signing in…'; err.hidden = true;
-      try {
-        await Jellyfin.login($('#login-server').value, $('#login-user').value, $('#login-pass').value);
-        $('#login-pass').value = '';
-        await this.enter();
-      } catch (ex) {
-        err.textContent = ex.status === 401 ? 'Wrong username or password.' : ex.message;
-        err.hidden = false;
-      } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
-    };
+
   },
 
   async continueLocally(){const button=$('#login-guest');button.disabled=true;try{await LocalTracker.enable();await this.useTracker('local');await this.enter();}catch(error){toast('Couldn’t start your local profile: '+error.message,'bad');}finally{button.disabled=false;}},
@@ -239,7 +225,7 @@ const App = {
   localRecovery(){
     this.modal(`<h2>Your AniDeck recovery key</h2><p class="muted">This key restores your AniDeck Friends profile and messages on another device. Keep it private. Your local watchlist stays on this device.</p><input id="local-key" type="password" readonly value="${esc(LocalTracker.token)}" aria-label="Recovery key"><div class="row gap"><button class="btn" id="local-reveal">Show key</button><button class="btn" id="local-copy">Copy key</button><button class="btn ghost" id="local-restore">Restore a profile…</button><button class="btn primary" id="local-done">Done</button></div>`);
     $('#local-reveal').onclick=()=>{$('#local-key').type=$('#local-key').type==='password'?'text':'password';};$('#local-copy').onclick=()=>navigator.clipboard.writeText(LocalTracker.token).then(()=>toast('Recovery key copied'));$('#local-done').onclick=()=>this.closeModal();
-    $('#local-restore').onclick=()=>{this.modal(`<h2>Restore your AniDeck profile</h2><p class="muted">Your current local watchlist stays here. Your Friends profile switches to the recovery key you enter.</p><form id="local-restore-form"><label>Recovery key<input id="local-restore-key" type="password" required autocomplete="off"></label><p id="local-restore-error" class="error" hidden></p><button class="btn primary">Restore profile</button><button type="button" class="btn ghost" id="local-cancel">Cancel</button></form>`);$('#local-cancel').onclick=()=>this.closeModal();$('#local-restore-form').onsubmit=async event=>{event.preventDefault();try{await LocalTracker.recover($('#local-restore-key').value);Friends.stop();Cloud.session=null;Cloud.me=undefined;this.profileCache=null;this.closeModal();this.refresh();toast('AniDeck profile restored');}catch(error){$('#local-restore-error').textContent=error.message;$('#local-restore-error').hidden=false;}};};
+    $('#local-restore').onclick=()=>{this.modal(`<h2>Restore your AniDeck profile</h2><p class="muted">Your current local watchlist stays here. Your Friends profile switches to the recovery key you enter.</p><form id="local-restore-form"><label>Recovery key<input id="local-restore-key" type="password" required autocomplete="off"></label><p id="local-restore-error" class="error" hidden></p><button class="btn primary">Restore profile</button><button type="button" class="btn ghost" id="local-cancel">Cancel</button></form>`);$('#local-cancel').onclick=()=>this.closeModal();$('#local-restore-form').onsubmit=async event=>{event.preventDefault();try{await LocalTracker.recover($('#local-restore-key').value);await Cloud.useLocalIdentity();Friends.stop();Cloud.session=null;Cloud.me=undefined;this.profileCache=null;this.closeModal();this.refresh();toast('AniDeck profile restored');}catch(error){$('#local-restore-error').textContent=error.message;$('#local-restore-error').hidden=false;}};};
   },
 
   jellyfinLogin() {
@@ -250,7 +236,7 @@ const App = {
       button.disabled = true; error.hidden = true;
       try {
         await Jellyfin.login($('#j-server').value, $('#j-user').value, $('#j-pass').value);
-        this.closeModal(); await this.refreshLibrary(); this.updateWho(); await this.nav('home');
+        this.closeModal(); this.updateWho(); this.buildNav(); await this.nav('library');
         toast('Jellyfin library connected', 'good');
       } catch (e) { error.textContent = e.status === 401 ? 'Incorrect Jellyfin username or password.' : e.message; error.hidden = false; button.disabled = false; }
     };
@@ -265,17 +251,20 @@ const App = {
   },
 
   async enter() {
+    if(!Tracker.loggedIn()){await LocalTracker.enable();await this.useTracker('local');}
+    if(typeof Cloud!=='undefined')await Cloud.init();
     splash(`Welcome back, ${(Tracker.loggedIn() ? Tracker.userName : Jellyfin.userName) || 'friend'}`);
     if (!Jellyfin.connected()) activeStreamingServer = 'anikoto';
     $('#login').hidden = true;
     $('#shell').hidden = false;
     this.updateWho();
-    await this.refreshLibrary();
+    if(!Jellyfin.connected())await this.refreshLibrary();else this.buildNav();
     await this.nav('home');
     // Wait for the home page to draw (max ~6s) so the app opens fully formed.
     for (let i = 0; i < 60 && !$('#main .home-rows, #main .empty, #main .page'); i++) await new Promise((r) => setTimeout(r, 100));
     hideSplash();
     Notifier.start();
+    if(this.needsProfileIntro&&typeof offerProfileIntro==='function'){this.needsProfileIntro=false;await offerProfileIntro();}
     maybeShowWhatsNew();
   },
 
@@ -329,7 +318,7 @@ const App = {
     const button=$('#tb-refresh');if(button.disabled)return;
     button.disabled=true;button.setAttribute('aria-busy','true');
     try{
-      await this.refreshLibrary();
+      if(['library','show','movie'].includes(this.view))await this.refreshLibrary();
       Promise.resolve(Notifier.check()).catch(error=>console.warn('Notifications:',error.message));
       await this.refresh();
     }catch(error){toast('Couldn’t refresh. Please try again.','bad');console.warn('Refresh:',error.message);}
@@ -410,10 +399,7 @@ const App = {
       if (q.length < 2) return closeSug();
       const my = ++sugSeq;
       const nq = norm(q);
-      const local = this.allItems.filter((it) => norm(it.Name).includes(nq) || norm(it.OriginalTitle).includes(nq)).slice(0, 3).map((it) => ({
-        kind: this.isAnime(it.Id) ? 'anime' : it.Type === 'Movie' ? 'movie' : 'show', id: it.Id, title: it.Name, year: it.ProductionYear, lib: it,
-        poster: it.ImageTags?.Primary ? Jellyfin.img(it.Id, 'Primary', { fillHeight: 120 }) : '', genres: it.Genres || [], rating: it.CommunityRating ? Math.round(it.CommunityRating * 10) : null,
-        subtype: it.Type === 'Movie' ? 'Movie' : 'TV' }));
+      const local = []; // Library search lives only inside Your Jellyfin library.
       renderSug(q, local, true);
       const [anime, tv] = await Promise.all([
         Kitsu.searchWithGenres(q, 8).then(sfw).catch(() => Kitsu.search(q, 8).then(sfw).catch(() => [])),
@@ -608,6 +594,7 @@ const App = {
       for (const s of seasons.flat()) if (s.SeriesId && s.ChildCount !== 0) (this.seasonsBySeries[s.SeriesId] ||= []).push(s);
       for (const list of Object.values(this.seasonsBySeries)) list.sort((a, b) => (a.IndexNumber ?? 99) - (b.IndexNumber ?? 99));
     } catch (e) { toast(`Couldn't load library: ${e.message}`, 'bad'); }
+    this.libraryLoadedAt=Date.now();
     this.matches = await Matcher.all();
     this.classify();
     this.buildNav();
@@ -641,6 +628,7 @@ const App = {
         const kitsu = this.kitsuSays(it.Id);
         let anime;
         if (ov !== undefined) anime = ov;
+        else if(this.settings.autoNotAnime?.[it.Id])anime=false;
         else if (ANIME_ONLY) {
           const reg = this.registered(it);
           anime = reg !== undefined ? reg : !!sig; // not checked yet: only show it if Jellyfin's info already says anime
@@ -653,13 +641,8 @@ const App = {
         if (!seen.has(it.Id)) { seen.add(it.Id); this.allItems.push(it); }
       }
     });
-    if (ANIME_ONLY) {
-      // Anime-only edition: everything else is hidden (not deleted) until it's switched back on.
-      this.allItems = this.allItems.filter((it) => this.animeIds.has(it.Id));
-      for (const k of Object.keys(this.items)) this.items[k] = this.items[k].filter((it) => this.animeIds.has(it.Id));
-    }
     this.series = this.allItems.filter((it) => this.animeIds.has(it.Id));
-    this.libIndex = buildLibraryIndex(this.series, this.matches);
+    this.libIndex = buildLibraryIndex([], {}); // Never route global anime features into library content.
   },
 
   // Looks up animated shows/movies (and anything with anime ids) on Kitsu once, so anime that lives in a
@@ -717,7 +700,7 @@ const App = {
     this.settings.autoNotAnime = { ...(this.settings.autoNotAnime || {}), [id]: true };
     await this.saveSettings();
     await this.refreshLibrary();
-    toast(ANIME_ONLY ? `${item.Name} isn’t on Kitsu, so it’s hidden as not anime` : `${item.Name} isn’t on Kitsu, so it’s treated as a regular ${item.Type === 'Movie' ? 'movie' : 'show'} (Trakt)`);
+    toast(`${item.Name} stays in your Jellyfin library and won’t update anime tracking.`);
     return true;
   },
 
@@ -879,7 +862,7 @@ const App = {
   /* ---------------- actions ---------------- */
   async act(name, d, el) {
     switch (name) {
-      case 'retry': return this.refresh();
+      case 'retry': if(this.view==='home')QueueRecovery.tries=0;return this.refresh();
       case 'back': return this.back();
       case 'series': return this.openItem(d.id, d.season);
       case 'movie': return this.nav('movie', { id: d.id });
@@ -943,6 +926,7 @@ const App = {
         return null;
       }
 
+      case 'queuePlay': return this.playQueue(d);
       case 'playRemote': {
         return this.playRemoteEpisode({
           title: d.title,
@@ -1027,7 +1011,7 @@ const App = {
       case 'switchTracker': return this.switchTracker(d.tracker);
       case 'jellyLogin': return this.jellyfinLogin();
       case 'jellyLogout': return this.disconnectJellyfin();
-      case 'clearMatches': this.settings.autoNotAnime = {}; await this.saveSettings(); await Matcher.clearAll(); await this.refreshLibrary(); this.matches = {}; this.libIndex = buildLibraryIndex(this.series, {}); return toast('Kitsu matches reset', 'good');
+      case 'clearMatches': this.settings.autoNotAnime = {}; await this.saveSettings(); await Matcher.clearAll(); await this.refreshLibrary(); this.matches = {}; this.libIndex = buildLibraryIndex([], {}); return toast('Kitsu matches reset', 'good');
       case 'refresh': await this.refreshLibrary(); toast('Library refreshed', 'good'); return this.refresh();
       case 'syncSeason': return this.syncSeason(d.series, Number(d.season));
       case 'goSettings': return this.nav('settings');
@@ -1036,8 +1020,7 @@ const App = {
         const val = d.val === '1';
         this.settings.animeOverride = { ...(this.settings.animeOverride || {}), [d.id]: val };
         await this.saveSettings(); await this.refreshLibrary();
-        if (ANIME_ONLY && !val) { toast('Hidden: not anime', 'good'); this.history = []; return this.nav('home'); }
-        toast(val ? 'Marked as anime: tracked on Kitsu' : 'Marked as not anime: tracked on Trakt', 'good');
+        toast(val?'Marked as anime: episode tracking is available':'Jellyfin progress only. Excluded from anime tracking.','good');
         return this.refresh();
       }
       case 'browseGenre': return this.nav('browse', { src: d.src || 'anime', f: { genre: d.genre } });
@@ -1049,7 +1032,7 @@ const App = {
 
   // Shuffle: opens something random from your library (unwatched first).
   // On a Library tab it sticks to that tab; elsewhere it's a 50/50 mix of anime and everything else.
-  shuffleSource() { const source=this.settings.shuffleFrom||'library';return source==='library'&&typeof Jellyfin!=='undefined'&&!Jellyfin.connected()?(Tracker.loggedIn()?'planning':'popular'):source; },
+  shuffleSource() { const source=this.settings.shuffleFrom||'planning';return source==='library'?(Tracker.loggedIn()?'planning':'popular'):source; },
 
   shuffleKey() {
     return [this.shuffleSource(),Tracker.name,Tracker.svc?.userId||Tracker.userName||'',Tracker.loggedIn(),!!this.settings.hideNsfw].join(':');
@@ -1138,14 +1121,6 @@ const App = {
       const season = { Id: ep.SeasonId, IndexNumber: ep.ParentIndexNumber ?? 1 };
       const audio = this.settings.showAudio?.[sid] || (this.settings.audioLang === 'eng' ? 'dub' : 'sub');
 
-      // Open the player now; its remote loading path resolves the stream behind the spinner.
-      if (typeof activeStreamingServer !== 'undefined' && activeStreamingServer !== 'jellyfin' && window.native?.resolveStream) {
-        Player.open({ episode: ep, series, season, episodes, match: null,
-          provider: activeStreamingServer, audio }, () => {
-          if (['show', 'home'].includes(this.view)) this.refresh();
-        });
-        return;
-      }
       Player.open({
         episode: ep,
         series,
@@ -1159,6 +1134,7 @@ const App = {
       });
       if (season.IndexNumber !== 0 && this.isAnime(series.Id)) {
         Matcher.auto(series, season, episodes.filter((e) => e.IndexNumber > 0).length).then(async (match) => {
+          if(Player.ctx?.episode?.Id!==ep.Id||Player.ctx?.series?.Id!==series.Id)return;
           if (!match && season.IndexNumber <= 1) await this.confirmAnime(series, match);
           Player.setMatch(match);
         }).catch(() => {});
@@ -1355,7 +1331,7 @@ const App = {
 
   /* ---------------- modals ---------------- */
   // `cls` styles one kind of dialog (e.g. 'spoiler-pop'); every open starts from the plain card.
-  modal(html, cls = '') { const c = $('#modal-card'); c.className = `modal-card ${cls}`.trim(); c.innerHTML = html; $('#modal').hidden = false; },
+  modal(html, cls = '') { if(typeof HoverPreview!=='undefined')HoverPreview.hide();const c = $('#modal-card'); c.className = `modal-card ${cls}`.trim(); c.innerHTML = html; $('#modal').hidden = false; },
   closeModal() { $('#modal').hidden = true; $('#modal-card').innerHTML = ''; },
 
   kitsuLogin() {
@@ -1398,6 +1374,7 @@ const App = {
 
   // Which tracker your list goes to. Both can stay signed in, so switching back never asks you to sign in again.
   async useTracker(which) {
+    if(typeof Cloud!=='undefined')await Cloud.init();
     this.settings.activeTracker = which;
     await this.saveSettings();
   },
@@ -1563,7 +1540,7 @@ const App = {
             const a = res[+b.dataset.i];
             await Matcher.set(seriesId, seasonNumber, a, true);
             if (this.settings.autoNotAnime?.[seriesId]) { delete this.settings.autoNotAnime[seriesId]; await this.saveSettings(); await this.refreshLibrary(); }
-            this.matches = await Matcher.all(); this.libIndex = buildLibraryIndex(this.series, this.matches);
+            this.matches = await Matcher.all(); this.libIndex = buildLibraryIndex([], {}); // Never route global anime features into library content.
             if (series?.Type === 'Movie' && Tracker.loggedIn() && series.UserData?.Played) Tracker.setProgress(a.id, 1, a.episodes || 1).catch(() => {});
             this.closeModal(); toast(`Matched to ${a.title}`, 'good');
             this.refresh();
@@ -1581,6 +1558,16 @@ const App = {
     run();
   },
 
+
+ async playQueue(d){
+    const service=Tracker.svc,who=service?.userId,rid=this.renderId;
+    const valid=()=>service===Tracker.svc&&who===service?.userId&&rid===this.renderId;
+    try{const entry=await Tracker.entry(d.kitsu);if(!valid())return;const episode=Number(entry?.progress||0)+1,total=Number(d.total)||0;
+      if(total&&episode>total)return toast('All episodes are logged. Open details to choose a rewatch.');
+      if(episode!==Number(d.ep)){const metadata=await AniList.details(d.kitsu);if(!valid())return;if(!metadata)throw Error('Couldn’t verify the next episode.');if(metadata.episodes&&episode>Number(metadata.episodes))return toast('All episodes are logged. Open details to choose a rewatch.');const next=metadata.next;if(/upcoming|not yet released/i.test(metadata.status||'')||(next?.at>Date.now()&&episode>=next.episode))return toast('You’re caught up. The next episode hasn’t aired yet.');}
+      return await this.playRemoteEpisode({title:d.title,episodeNum:episode,kitsuId:d.kitsu,poster:d.poster,movie:d.movie==='1',total});
+    }catch(error){if(valid())toast('Couldn’t check your latest progress. '+error.message,'bad');}
+  },
 
  async playRemoteEpisode({ title, episodeNum, kitsuId, poster, movie: movieHint = false, total: totalHint = 0 }) {
     const provider = remotePlaybackProvider();
@@ -1660,13 +1647,14 @@ function trackerRows() {
   const usingName = Tracker.name;
   const localRow=`<div class="acct-row"><span class="avatar">${icon('deck')}</span><div class="grow"><b>On this device</b><div class="desc">${using===LocalTracker?'Your active list · Saved locally':'Keep a separate AniDeck list without an account'}</div></div>${using===LocalTracker?'<button class="btn ghost sm" data-act="localRecovery">Recovery key</button>':'<button class="btn ghost sm" data-act="switchTracker" data-tracker="local">Use local list</button>'}</div>`;
   return localRow+list.map(([id, name, svc, outAct]) => {
+    const importer=svc.loggedIn()&&LocalTracker.coll.length?`<button class="link-btn acct-import" data-act="localImport" data-tracker="${id}">Import local watchlist…</button>`:'';
     if (svc === using) {
       return `<div class="acct-row"><span class="avatar">${icon('user', 'pf-ph')}${svc.avatar ? `<img src="${esc(svc.avatar)}" alt="">` : ''}</span>
-      <div class="grow"><b>${esc(svc.userName || name)}</b><div class="desc">Your list and progress sync here</div></div>
+      <div class="grow"><b>${esc(svc.userName || name)}</b><div class="desc">Your list and progress sync here</div>${importer}</div>
       <button class="btn ghost sm danger-outline" data-act="${outAct}">Sign out</button></div>`;
     }
     return `<div class="acct-row"><span class="avatar">${icon('user', 'pf-ph')}</span>
-      <div class="grow"><b>${name}</b><div class="desc">${using ? `Switching keeps you signed in to ${usingName}` : `Sign in to keep your list on ${name}`}</div></div>
+      <div class="grow"><b>${name}</b><div class="desc">${using ? `Switching keeps you signed in to ${usingName}` : `Sign in to keep your list on ${name}`}</div>${importer}</div>
       <button class="btn ghost sm" data-act="switchTracker" data-tracker="${id}">${using ? 'Switch' : 'Sign in'}</button></div>`;
   }).join('');
 }
@@ -1713,7 +1701,9 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.1', items:[
+  { v:'1.0.0', revision:'2026-10-26.2', items:[
+    'Optional profile setup, AniDeck discussions, safe local-list imports and a separate Jellyfin library.',
+    'New title navigation, expandable hover stories and automatic queue recovery.',
     'Start without an account, keep a local watchlist and optionally create an independent AniDeck Friends profile.',
     'A new deck-and-play app icon, replaying loading animation, and navigation that respects your interface size.',
     'A refreshed Home with custom decks, widgets, a release-aware watch queue and useful title previews.',
@@ -1856,10 +1846,10 @@ const TV = {
 const SHUFFLE_FROM = [
   ['planning', 'Your Planning list, or something popular if it’s empty', 'Planning list'],
   ['popular', 'Popular shows you haven’t seen', 'Popular shows you haven’t seen'],
-  ['library', 'Your Jellyfin library', 'Your Jellyfin library'],
+
 ];
 function shuffleLabel(v, short = false) {
-  const source=(v==='watching'?'planning':v||'library');const effective=source==='library'&&!Jellyfin.connected()?'planning':source;
+  const source=(v==='watching'?'planning':v||'library');const effective=source==='library'?'planning':source;
   const hit = SHUFFLE_FROM.find(([k]) => k === effective) || SHUFFLE_FROM[0];
   return short ? hit[2] : hit[1];
 }
@@ -1935,13 +1925,14 @@ const Notifier = {
     this.render();
     this.check();
     clearInterval(this.timer);
-    this.timer = setInterval(async () => { await App.refreshLibrary(); this.check(); }, 15 * 60 * 1000);
+    this.timer = setInterval(async () => { if(['library','show','movie'].includes(App.view))await App.refreshLibrary(); this.check(); }, 15 * 60 * 1000);
   },
 
   async save() { await window.native.set('notifications', this.list.slice(0, 60)); },
   unread() { return this.list.filter((n) => !n.read&&(!n.owner||n.owner===Cloud.ident())).length; },
 
   async check() {
+    if(!['library','show','movie'].includes(App.view))return;
     const fresh = [];
     const known = new Set(this.list.map((n) => n.key));
     let since = await window.native.get('notifSince');
@@ -2438,7 +2429,7 @@ async function mySchedule(items, filter = true) {
   const pick = (e) => e.status === 'current' || (recent(e.updatedAt) && !['planned', 'dropped'].includes(e.status));
   const [entries, played] = await Promise.all([
     Tracker.loggedIn() ? Tracker.list('',0,500).then(r=>r.entries).catch(()=>[]) : [],
-    Jellyfin.recentlyPlayed().catch(() => []),
+    [], // Private viewing never seeds anime recommendations.
   ]);
   const progById = new Map(), progByKey = new Map();
   for (const e of entries) {
@@ -2716,12 +2707,30 @@ const QueueArt = {
   set(it, u) { if (!this.map || !u) return; this.map[this.key(it)] = { u, at: Date.now() }; clearTimeout(this.timer); this.timer = setTimeout(() => window.native.set('queueArt', this.map), 1000); },
 };
 let queueWatchingCache = null;
+function queueScope(){return [Tracker.name,Tracker.svc?.userId||Tracker.userName||'',Tracker.loggedIn()].join(':');}
 async function queueWatching() {
-  const key=[Tracker.name,Tracker.svc?.userId||Tracker.userName||'',Tracker.loggedIn()].join(':');
+  const key=queueScope(),current=()=>queueScope()===key;
   if(!Tracker.loggedIn()){queueWatchingCache=null;return [];}
-  try{const list=await Tracker.watching().catch(async()=>{const r=await Tracker.list('current',0,20);return r.entries||[];});queueWatchingCache={key,at:Date.now(),list};return list;}
-  catch(error){if(queueWatchingCache?.key===key&&Date.now()-queueWatchingCache.at<300000)return queueWatchingCache.list;throw error;}
+  const savedKey='anime-queue:'+key;
+  try{
+    let list;try{list=await Tracker.watching();}catch(first){if(first.status===401||first.status===403)throw first;try{list=(await Tracker.list('current',0,20)).entries||[];}catch(second){if([401,403,429].includes(second.status)||typeof setTimeout==='undefined')throw second;await new Promise(resolve=>setTimeout(resolve,450));if(!current())throw Error('Account changed');list=await Tracker.watching();}}
+    if(!current())throw Error('Account changed');
+    queueWatchingCache={key,at:Date.now(),list,stale:false};
+    if(typeof window!=='undefined'&&window.native?.set)window.native.set(savedKey,queueWatchingCache).catch(()=>{});
+    return list;
+  }catch(error){
+    if(!current()||[401,403].includes(error.status))throw error;
+    if(queueWatchingCache?.key===key&&Date.now()-queueWatchingCache.at<300000){queueWatchingCache.stale=true;return queueWatchingCache.list;}
+    if(typeof window!=='undefined'&&window.native?.get){const saved=await window.native.get(savedKey).catch(()=>null);if(current()&&saved?.key===key&&Array.isArray(saved.list)&&Date.now()-saved.at<86400000){queueWatchingCache={...saved,stale:true};return saved.list;}}
+    throw error;
+  }
 }
+const QueueRecovery={timer:null,scope:'',tries:0,
+ schedule(rid){clearTimeout(this.timer);const key=queueScope();if(key!==this.scope){this.scope=key;this.tries=0;}const failed=document.querySelector('[data-queue-failed]'),stale=queueWatchingCache?.key===key&&queueWatchingCache.stale;
+  if(!failed&&!stale){this.tries=0;return;}if(this.tries>=3)return;
+  this.timer=setTimeout(()=>{if(App.stale(rid)||App.view!=='home'||queueScope()!==key||!document.getElementById('modal').hidden||!document.getElementById('player').hidden)return;this.tries++;App.nav('home',{},false,true);},[1800,4500,10000][this.tries]);
+ }
+};
 async function verifyQueueAiring(watching, airing) {
   const verified=watching.map(w=>({...w}));let next=0;
   const needsCheck=a=>a&&!airing?.(a)&&!/^(finished|completed)$/i.test(a.status||'');
@@ -2777,7 +2786,7 @@ function buildQueue(resume, up, watching, airing = null) {
   return q.filter(it=>it.wait==null).slice(0,QUEUE_MAX);
 }
 function ynHero(it) {
-  const play = it.kind === 'remote' ? `data-act="playRemote" data-title="${esc(it.title)}" data-ep="${it.num}" data-kitsu="${esc(it.kitsu)}" data-poster="${esc(it.poster || '')}" data-movie="${it.movie?'1':'0'}" data-total="${it.total||0}"`
+  const play = it.kind === 'remote' ? `data-act="queuePlay" data-title="${esc(it.title)}" data-ep="${it.num}" data-kitsu="${esc(it.kitsu)}" data-poster="${esc(it.poster || '')}" data-movie="${it.movie?'1':'0'}" data-total="${it.total||0}"`
     : it.kind === 'movie' ? `data-act="playMovie" data-id="${esc(it.id)}"` : `data-act="play" data-id="${esc(it.id)}" data-series="${esc(it.series)}"`;
   const open = it.kind === 'remote' ? `data-act="anime" data-id="${esc(it.kitsu)}"` : it.kind === 'movie' ? `data-act="movie" data-id="${esc(it.id)}"` : `data-act="series" data-id="${esc(it.series)}" data-season="${esc(it.season)}"`;
   const art = it.resolvedBackdrop || it.backdrop || it.banner || ''; // Real landscape sources only; never promote a poster into the hero.
@@ -2795,14 +2804,14 @@ function ynHero(it) {
     </div>`;
 }
 function emptyQueueHero(failed) {
-  const loggedIn=Tracker.loggedIn();
-  return `<section class="yn yn-empty" aria-label="Your queue"><div class="yn-empty-copy"><span class="yn-eyebrow">YOUR QUEUE</span><h1>${failed?'Let’s bring your queue back.':'You’re all caught up.'}</h1><p>${failed?'Your watching list couldn’t load. Try again to restore your next episodes.':loggedIn?'Your queue shows episodes ready to watch. Upcoming episodes are in Schedule and On the horizon.':'Connect AniList or Kitsu to bring your watching list here.'}</p><div class="row gap">${failed?'<button class="btn primary" data-act="retry">Try again</button>':`<button class="btn primary" data-act="ad-route" data-view="${loggedIn?'mylist':'settings'}">${loggedIn?'Open my list':'Connect a tracker'}</button>`}</div></div></section>`;
+  const loggedIn=Tracker.loggedIn(),exhausted=typeof QueueRecovery!=='undefined'&&QueueRecovery.tries>=3;
+  return `<section class="yn yn-empty" ${failed?'data-queue-failed="true"':''} aria-label="Your queue"><div class="yn-empty-copy"><span class="yn-eyebrow">YOUR QUEUE</span><h1>${failed?(exhausted?'Your tracker is unavailable.':'Getting your queue ready…'):'You’re all caught up.'}</h1><p>${failed?(exhausted?'You can keep browsing, or try your tracker again below.':'Your tracker didn’t respond. AniDeck is reconnecting automatically; you can keep browsing.'):loggedIn?'Your queue shows episodes ready to watch. Upcoming episodes are in Schedule and On the horizon.':'Start a local watchlist or connect a tracker to build your queue.'}</p><div class="row gap">${failed?'<button class="btn primary" data-act="retry">Try again</button>':`<button class="btn primary" data-act="ad-route" data-view="${loggedIn?'mylist':'settings'}">${loggedIn?'Open my list':'Connect a tracker'}</button>`}</div></div></section>`;
 }
 function yourNextHero(queue, failed = false) {
   if (!queue.length) return emptyQueueHero(failed);
   return `<section class="yn" id="yn" data-queue="${esc(JSON.stringify(queue))}">
     <div class="yn-hero" id="yn-hero">${ynHero(queue[0])}</div>
-    <aside class="yn-queue" aria-label="Your queue"><div class="yn-qhead">Your queue <span>${queue.length}</span></div><div class="yn-qlist at-top">
+    <aside class="yn-queue" aria-label="Your queue"><div class="yn-qhead">Your queue <span>${queue.length}</span></div>${queueWatchingCache?.stale?'<small class="yn-cached-note">Saved queue · Reconnecting to your tracker</small>':''}<div class="yn-qlist at-top">
       ${queue.map((it, i) => `<button class="yn-item ${i ? '' : 'on'}" data-yn="${i}" aria-pressed="${!i}"><span class="yn-thumb">${it.thumb ? `<img class="${it.kind==='remote'&&!it.resolvedBackdrop?'portrait':''}" src="${esc(it.thumb)}" alt="" loading="lazy">` : ''}${it.pct ? `<i style="width:${Math.round(it.pct)}%"></i>` : ''}</span>
         <span class="yn-meta"><b>${esc(it.title)}</b><small>${esc(it.ep)}</small><em class="${it.wait != null ? 'wait' : ''}" ${it.wait > 0 ? `data-until="${it.wait}"` : ''}>${esc(it.wait > 0 ? untilText(it.wait) : it.badge)}</em></span></button>`).join('')}
     </div></aside></section>`;
@@ -3037,11 +3046,12 @@ const HoverPreview = {
       if(e.target.closest?.('[data-ta]')){this.hide();return;}
       if(e.target.closest?.('.hover-pop')){clearTimeout(this.hideTimer);return;}
       const card=e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id], #main .mz-tile[data-id]');
+      if(card&&['series','movie'].includes(card.dataset.act))return this.hide();
       if(card===this.card){clearTimeout(this.hideTimer);return;}
       clearTimeout(this.timer);if(!card){this.hideSoon();return;}this.hide();
       this.card=card;this.timer=setTimeout(()=>this.show(card),650);
     });
-    document.addEventListener('scroll',()=>this.hide(),true);
+    document.addEventListener('scroll',event=>{if(!event.target.closest?.('.hover-pop'))this.hide();},true);
     document.addEventListener('mousedown',e=>{if(!e.target.closest?.('.hover-pop'))this.hide();});
     document.addEventListener('keydown',e=>{if(e.key==='Escape')this.hide();});
   },
@@ -3062,6 +3072,7 @@ const HoverPreview = {
     return {d,lib,id,al,k,trackerId,entry,entryKnown,service,userId};
   },
   text(value){return String(value||'').replace(/<br\s*\/?\s*>/gi,' ').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(SOURCE_NOTE,'').replace(/\s+/g,' ').trim();},
+  position(card,pop){const r=card.getBoundingClientRect(),box=pop.getBoundingClientRect(),zoom=Number(getComputedStyle(document.body).zoom)||1;pop.style.left=Math.max(12,Math.min(innerWidth-box.width-12,r.left+r.width/2-box.width/2))/zoom+'px';pop.style.top=Math.max(12,Math.min(innerHeight-box.height-12,r.top-24))/zoom+'px';},
   async show(card){
     const rid=App.renderId,data=await this.load(card),{d,lib,al,k,entry}=data;
     if(!App.settings.hoverPreview||this.card!==card||!card.isConnected||App.stale(rid)||Tracker.svc!==data.service||data.service?.userId!==data.userId)return;
@@ -3073,11 +3084,10 @@ const HoverPreview = {
     const next=al?.next?.at>Date.now()?`Episode ${al.next.episode} airs ${new Date(al.next.at).toLocaleDateString([],{month:'short',day:'numeric'})}`:'';
     const canPlan=Tracker.loggedIn()&&data.trackerId&&data.entryKnown&&!entry;
     this.pop?.remove();const pop=document.createElement('section');pop.className='hover-pop';pop.setAttribute('aria-label','Quick look: '+title);
-    pop.innerHTML=`<div class="hp-body"><span class="hp-eyebrow">QUICK LOOK</span><b class="hp-title">${esc(title)}</b>${meta?`<div class="hp-meta">${esc(meta)}</div>`:''}${genres.length?`<div class="hp-genres">${genres.map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}<p class="hp-about">${esc(about||'A synopsis isn’t available for this title yet.')}</p>${al?.studios?.length?`<small class="hp-studio">${esc(al.studios.slice(0,2).join(' · '))}</small>`:''}${entry||next?`<div class="hp-context">${entry?`<span>${icon('check')}<b>${esc(status)}</b>${Number(entry.progress)>0?' · '+Number(entry.progress)+' watched':''}</span>`:''}${next?`<span>${icon('clock')}${esc(next)}</span>`:''}</div>`:''}<div class="hp-actions"><button class="btn primary hp-watch">${icon('play','fill')}Play next episode</button><button class="btn ghost hp-open">Details</button></div>${canPlan?`<button class="btn ghost hp-plan">${icon('plus')}Add to Planning</button><p class="hp-feedback" role="status" hidden></p>`:''}</div>`;
+    pop.innerHTML=`<div class="hp-body"><span class="hp-eyebrow">QUICK LOOK</span><b class="hp-title">${esc(title)}</b>${meta?`<div class="hp-meta">${esc(meta)}</div>`:''}${genres.length?`<div class="hp-genres">${genres.map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}<div class="hp-story"><span class="hp-story-label">THE STORY</span><p class="hp-about">${esc(about||'A synopsis isn’t available for this title yet.')}</p>${about.length>220?'<button class="hp-read-more" aria-expanded="false">Read full synopsis</button>':''}</div>${al?.studios?.length?`<small class="hp-studio">${esc(al.studios.slice(0,2).join(' · '))}</small>`:''}${entry||next?`<div class="hp-context">${entry?`<span>${icon('check')}<b>${esc(status)}</b>${Number(entry.progress)>0?' · '+Number(entry.progress)+' watched':''}</span>`:''}${next?`<span>${icon('clock')}${esc(next)}</span>`:''}</div>`:''}<div class="hp-actions"><button class="btn primary hp-watch">${icon('play','fill')}Play next episode</button><button class="btn ghost hp-open">Details</button></div>${canPlan?`<button class="btn ghost hp-plan">${icon('plus')}Add to Planning</button><p class="hp-feedback" role="status" hidden></p>`:''}</div>`;
     showTint(pop,al?.color);document.body.appendChild(pop);this.pop=pop;
-    const r=card.getBoundingClientRect(),w=pop.offsetWidth,h=pop.offsetHeight;
-    pop.style.left=`${Math.max(12,Math.min(innerWidth-w-12,r.left+r.width/2-w/2))}px`;
-    pop.style.top=`${Math.max(12,Math.min(innerHeight-h-12,r.top-24))}px`;
+    this.position(card,pop);
+    const more=pop.querySelector('.hp-read-more');if(more)more.onclick=()=>{const expanded=pop.classList.toggle('hp-expanded');more.setAttribute('aria-expanded',String(expanded));more.textContent=expanded?'Show less':'Read full synopsis';this.position(card,pop);};
     pop.querySelector('.hp-watch').onclick=()=>{if(typeof TitleActions!=='undefined')TitleActions.watch(data,card);};pop.querySelector('.hp-open').onclick=()=>{this.hide();App.act(d.act,d,card);};
     const button=pop.querySelector('.hp-plan');if(button)button.onclick=async()=>{
       if(button.disabled)return;button.disabled=true;button.textContent='Adding…';
@@ -3258,8 +3268,13 @@ function commentNode(c) {
   </div>`;
 }
 
+function titleSections(tab,action){
+  return `<nav class="title-sections" aria-label="Explore this title">${[['episodes','Episodes','Choose your next episode','play'],['discussion','Discussion','Conversations & thoughts','chat'],['friends','Friends','Your circle’s progress','user']].map(([id,label,hint,glyph])=>`<button class="title-section ${tab===id?'active':''}" data-act="${action}" data-tab="${id}" aria-current="${tab===id?'page':'false'}"><span class="title-section-mark">${icon(glyph)}</span><span><b>${label}</b><small>${hint}</small></span>${icon('chev')}</button>`).join('')}</nav>`;
+}
+
 // The Discussion and Friends tabs on the show page.
 async function fillSocial(tab, rid) {
+  if(tab==='discussion'&&typeof Discussions!=='undefined')return Discussions.show(rid);
   if(tab==='friends'&&typeof Friends!=='undefined')return Friends.titleActivity(rid);
   const box = () => (App.stale(rid) ? null : $('#show-social'));
   const { id: seriesId, n, match } = App.showCtx || {};
@@ -3487,9 +3502,9 @@ const Views = {
     const genreIds = sections.filter((x) => x.startsWith('g:'));
     const airingP = want('yournext') ? listAiring().catch(() => null) : Promise.resolve(null); // which queue episodes are out yet
     const [resume, nextUp, latestByLib, watching, trending, seasonal, popular, planning, topRated, allTime, upcoming, recent, mineThisWeek, ...genreLists] = await Promise.all([
-      Jellyfin.connected() && want('continue', 'upnext', 'yournext') ? Jellyfin.resume().catch(queueFailure) : [],
-      Jellyfin.connected() && want('upnext', 'yournext') ? Jellyfin.nextUp().catch(queueFailure) : [],
-      Promise.all(App.libraries.map((l) => (want('newin', 'featured') ? Jellyfin.latest(l.Id).catch(none) : []))),
+      [],
+      [],
+      [],
       want('watching', 'watchingAiring', 'yournext') ? (want('yournext') ? queueWatching() : Tracker.watching()).catch(queueFailure) : [],
       want('featured', 'trending', 'mosaic') ? Kitsu.trending().catch(none) : [],
       want('featured', 'season') ? Kitsu.seasonal().catch(none) : [],
@@ -3573,10 +3588,10 @@ const Views = {
     genreIds.forEach((g, i) => { rows[g] = () => rail(g.slice(2), shows(genreLists[i]), { more: ['browse', { src: 'anime', f: { genre: g.slice(2) } }] }); });
     let lowerShelves=false;
     for(const id of sections){if(id==='mosaic'||id==='trending')lowerShelves=true;const row=rows[id]?.()||'';html+=lowerShelves?homeShelf(row,id):row;}
-    if (Jellyfin.connected() && !resume.length && !up.length && !latestByLib.flat().length) html += `<div class="empty">Your library looks empty. Make sure your Jellyfin account can see your libraries.</div>`;
     return html + '</div>';
   },
   async homeAfter(_p, rid) {
+    QueueRecovery.schedule(rid);
     // Each part on its own, so one failing can't leave the rest (Trending's art, the carousel…) undone.
     for (const step of [() => bindYourNext(rid), () => bindWeek(), () => enhanceMosaic(rid).catch((e) => console.warn('Trending:', e.message))]) {
       try { step(); } catch (e) { console.warn('Home:', e.message); }
@@ -3689,13 +3704,14 @@ const Views = {
   },
 
   async library({ cat }) {
+    if(Jellyfin.connected()&&(!App.libraryLoadedAt||Date.now()-App.libraryLoadedAt>120000))await App.refreshLibrary();
     if (!Jellyfin.connected()) return `<div class="page"><h1>Your Jellyfin library</h1><div class="empty">Connect a Jellyfin server to browse your own media here.<br>You can browse and stream anime without one.<br><br><button class="btn primary" data-act="jellyLogin">Connect Jellyfin library</button></div></div>`;
-    const cats = ANIME_ONLY ? [['anime', 'Anime']] : [['tv', 'TV Shows'], ['movies', 'Movies'], ['anime', 'Anime']];
+    const cats = [['tv','TV shows'],['movies','Movies'],['anime','Anime']];
     const counts = Object.fromEntries(cats.map(([c]) => [c, App.allItems.filter((x) => App.category(x) === c).reduce((n, x) => n + App.entriesFor(x).length, 0)]));
     if (!cat || !counts[cat]) cat = cats.find(([c]) => counts[c])?.[0] || cats[0][0];
     App.params.cat = cat;
     return `<div class="page">
-      <div class="page-head"><h1>Library</h1><span class="spacer"></span>
+      <div class="page-head"><h1>Your Jellyfin library</h1><span class="spacer"></span>
         <select id="lib-sort" style="width:180px"><option value="name">A–Z</option><option value="added">Recently added</option><option value="year">Newest first</option><option value="unwatched">Unwatched</option></select>
         <input type="search" id="lib-filter" placeholder="Filter…" style="width:240px"></div>
       <div class="tabs" ${cats.length < 2 ? 'hidden' : ''}>${cats.filter(([c]) => counts[c]).map(([c, l]) => `<button class="tab ${c === cat ? 'active' : ''}" data-act="libTab" data-cat="${c}">${l}<span class="tab-count"> ${counts[c]}</span></button>`).join('')}</div>
@@ -3730,11 +3746,11 @@ const Views = {
     const episodes = await Jellyfin.episodes(id, cur.Id);
     if (App.stale(rid)) return '';
     const n = cur.IndexNumber ?? 1;
-    const anime = App.isAnime(id);
+    const anime = App.isAnime(id);if(!anime)tab='episodes';
     let match = n === 0 || !anime ? null : await Matcher.auto(series, cur, episodes.filter((e) => e.IndexNumber > 0).length);
     // Only the first season decides (later seasons can legitimately be missing on Kitsu).
     if (anime && !match && n <= 1 && await App.confirmAnime(series, match)) return Views.show({ id, season, range, tab }, rid);
-    App.matches = await Matcher.all(); App.libIndex = buildLibraryIndex(App.series, App.matches);
+    App.matches = await Matcher.all(); App.libIndex = buildLibraryIndex([], {});
     App.showCtx = { id, n, match };
     App.showEps = episodes; // for "Watched up to here"
     App.showAl = null;
@@ -3775,7 +3791,7 @@ const Views = {
     const menu = `<button data-act="markSeason" data-series="${esc(id)}" data-season-id="${esc(cur.Id)}" data-season="${n}" data-played="${allWatched ? 0 : 1}">${allWatched ? 'Mark season unwatched' : 'Mark season watched'}</button>`
       + `<button data-act="selectAllEps">Select episodes…</button>`
       + (anime && n > 0 ? `<button data-act="fixMatch" data-series="${esc(id)}" data-season="${n}">${match ? 'Wrong show? Change Kitsu match' : 'Find it on Kitsu'}</button>` : '')
-      + (ANIME_ONLY ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Not anime, hide it</button>` : '');
+      + (ANIME_ONLY ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Use Jellyfin progress only</button>` : '');
     const wrongShow = anime && n > 0
       ? `<button class="wrong-show" data-act="fixMatch" data-series="${esc(id)}" data-season="${n}" title="${match ? `Matched to ${esc(match.title)} on Kitsu` : 'Not matched on Kitsu yet'}">⇄ ${match ? 'Wrong show?' : 'Find on Kitsu'}</button>` : '';
     const tracker = anime
@@ -3795,7 +3811,7 @@ const Views = {
       editable, kitsuId: match?.id, total, title: match?.title || '', num: progressNum, of: knownTotal, pct: progressPct, note,
       label: anime && entry ? (entry.reconsuming ? 'Rewatching' : STATUS_LABELS[entry.status] || entry.status) : editable ? 'Add to your list' : anime && match ? 'Not on your list' : 'Watched',
     });
-    const playSub = `<span class="hero-srv">${esc(shortServerName(activeStreamingServer))}</span> · ${resumeEp ? `from ${fmtTime(resumeEp.UserData.PlaybackPositionTicks / TICKS)}` : esc(n === 0 ? 'Specials' : `Season ${n}`)}`;
+    const playSub = `<span class="hero-srv">Jellyfin</span> · ${resumeEp ? `from ${fmtTime(resumeEp.UserData.PlaybackPositionTicks / TICKS)}` : esc(n === 0 ? 'Specials' : `Season ${n}`)}`;
     const details = [
       ['Format', kfull?.subtype || (anime ? 'TV' : 'TV show')], ['Episodes', total], ['Status', statusText],
       ['Season', al?.season || (kfull?.startDate ? seasonLabel(kfull.startDate) : (cur.PremiereDate || series.PremiereDate) ? seasonLabel(cur.PremiereDate || series.PremiereDate) : '')],
@@ -3847,7 +3863,7 @@ const Views = {
     // ---- main column: Episodes / Discussion / Friends
     const audioMode = App.settings.showAudio?.[id] || (App.settings.audioLang === 'eng' ? 'dub' : 'sub');
     const actionBar = `<div class="ep-actionbar">
-        <div class="chip-wrap"><button class="server-pill" data-act="toggleMenu" title="Where episodes play from">${getServerLabel(activeStreamingServer, true)}<span class="caret">▾</span></button>${renderWatchOnMenu(activeStreamingServer, true)}</div>
+        <span class="server-pill" title="Playback from your private library">${getServerLabel('jellyfin',true)}</span>
         ${wrongShow}
         <span class="spacer"></span>
         <div class="seg" role="group" aria-label="Audio">${[['sub', 'Sub'], ['dub', 'Dub']].map(([v, l]) => `<button class="${audioMode === v ? 'on' : ''}" data-act="subDub" data-mode="${v}" data-series="${esc(id)}" title="${v === 'sub' ? 'Japanese audio with subtitles' : 'English audio'}">${l}</button>`).join('')}</div>
@@ -3886,7 +3902,7 @@ const Views = {
           ${nearCards || match ? `<div id="related-box" ${nearCards ? '' : 'hidden'}><h3>Related</h3><div class="rel-list">${nearCards}</div></div>` : ''}
         </aside>
         <section class="detail-main">
-          <div class="tabs show-tabs">${mainTabs.map(([v, l]) => `<button class="tab ${tab === v ? 'active' : ''}" data-act="showTab" data-tab="${v}">${l}</button>`).join('')}</div>
+          ${anime?titleSections(tab,'showTab'):'<div class="library-context-note">Your Jellyfin library · Playback and progress stay in your library</div>'}
           ${tab === 'episodes' ? episodesTab : `<div id="show-social" class="social-box"><div class="social-sk">${commentSkeleton(4)}</div></div>`}
         </section>
       </div>`;
@@ -3919,7 +3935,7 @@ const Views = {
     let anime = App.isAnime(id);
     const match = anime ? await Matcher.auto(m, null, 1) : null;
     if (anime && !match && await App.confirmAnime(m, match)) anime = false;
-    App.matches = await Matcher.all(); App.libIndex = buildLibraryIndex(App.series, App.matches);
+    App.matches = await Matcher.all(); App.libIndex = buildLibraryIndex([], {});
     const [entry, kfull, al] = await Promise.all([
       match && Tracker.loggedIn() ? Tracker.entry(match.id).catch(() => null) : null,
       match ? Kitsu.animeFull(match.id).catch(() => null) : null,
@@ -3938,7 +3954,7 @@ const Views = {
       anime ? `<button data-act="fixMatch" data-series="${esc(id)}" data-season="1">${match ? 'Fix Kitsu match' : 'Find on Kitsu'}</button>` : '',
       !anime && Trakt.loggedIn() ? `<button data-act="traktSync" data-series="${esc(id)}" data-season="1">Send to Trakt</button>` : '',
       `<button data-act="toggleWatched" data-id="${esc(id)}" data-played="${played ? 1 : 0}">${played ? 'Mark unwatched' : 'Mark watched'}</button>`,
-      ANIME_ONLY ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Not anime, hide it</button>` : anime ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Not anime (track on Trakt)</button>` : `<button data-act="setAnime" data-id="${esc(id)}" data-val="1">This is anime (track on Kitsu)</button>`,
+      ANIME_ONLY ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Use Jellyfin progress only</button>` : anime ? `<button data-act="setAnime" data-id="${esc(id)}" data-val="0">Use Jellyfin progress only</button>` : `<button data-act="setAnime" data-id="${esc(id)}" data-val="1">This is anime (enable episode tracking)</button>`,
     ].filter(Boolean).join('');
     const tracker = anime
       ? (match ? (Tracker.loggedIn() ? statusPicker(match.id, entry?.status, entry?.reconsuming) : '<button class="btn ghost" data-act="goAccount">Sign in to track</button>') : '')
@@ -4133,7 +4149,7 @@ const Views = {
           <div id="related-box" hidden><h3>Related</h3><div class="rel-list"></div></div>
         </aside>
         <section class="detail-main">
-          <div class="tabs show-tabs">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? 'active' : ''}" data-act="animeTab" data-tab="${v}">${l}</button>`).join('')}</div>
+          ${titleSections(tab,'animeTab')}
           ${tab === 'episodes' ? (notOut ? comingSoon : `${actionBar}${renderServerErrorBanner()}${epSortLink()}${rangeChips}<div class="ep-list" ${lastServerError ? 'style="display:none"' : ''}>${epRows}</div>`)
             : `<div id="show-social" class="social-box"><div class="social-sk">${commentSkeleton(4)}</div></div>`}
         </section>
@@ -4603,7 +4619,7 @@ const Views = {
   },
 
   async browse({ src = 'anime' }) {
-    const f = (App.params.f ||= {});
+    const f = (App.params.f ||= {});delete f.inLibrary;
     const labelFor = { anime: 'anime', show: 'TV shows', movie: 'movies' };
     const animeGenres = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Isekai', 'Josei', 'Magic', 'Mecha', 'Military', 'Music', 'Mystery', 'Psychological', 'Romance', 'School', 'Science Fiction', 'Seinen', 'Shoujo', 'Shounen', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'];
     const traktGenres = ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Music', 'Mystery', 'Romance', 'Science Fiction', 'Thriller', 'War', 'Western'];
@@ -4723,7 +4739,6 @@ const Views = {
         ${chip('year', 'Year', [['', 'Any year'], ...[2026, 2025, 2024, 2023, 2022, 2021, 2020].map((y) => [y, String(y)]), ['2010s', '2010s'], ['2000s', '2000s'], ['1990s', '1990s'], ['old', 'Before 1990']])}
         ${chip('status', 'Status', [['', 'Any status'], ['airing', 'Airing'], ['finished', 'Finished'], ['upcoming', 'Upcoming']])}
         <button class="chip ${f.hideWatched ? 'on' : ''}" data-toggle="hideWatched">Hide what I've watched</button>
-        <button class="chip ${f.inLibrary ? 'on' : ''}" data-toggle="inLibrary">In my library</button>
         <span class="chip-sep"></span>
         ${chip('sort', 'Sort · Best match', [['', 'Sort · Best match'], ['rating', 'Sort · Rating'], ['new', 'Sort · Newest'], ['old', 'Sort · Oldest'], ['az', 'Sort · A–Z']])}
       </div>
@@ -4733,7 +4748,7 @@ const Views = {
   async searchAfter({ q }, rid) {
     q = (q || '').trim();
     if (q.length < 2) return;
-    const f = (App.params.f ||= {});
+    const f = (App.params.f ||= {});delete f.inLibrary;
     // Gather results: Kitsu (anime), Trakt (movies & TV), plus matching items already in your library.
     let anime = [], tv = [];
     await Promise.all([
@@ -4758,11 +4773,7 @@ const Views = {
       items.push({ key: x.id, kind: x.kind, title: x.title, year: Number(x.year) || 0, rating: x.rating, poster: x.poster, genres: (x.genres || []).map(cap), status: statusOf(x.status || ''), lib, requested: reqs.has(x.id), order: i * 2 + 1, open: lib ? ['series', lib.Id] : ['media', x.id] });
     });
     const nq = norm(q);
-    App.allItems.filter((it) => !seenLib.has(it.Id) && (norm(it.Name).includes(nq) || norm(it.OriginalTitle).includes(nq))).flatMap((it) => App.entriesFor(it)).forEach((e, i) => {
-      const it = e.item, img = e.seasonItem?.ImageTags?.Primary ? e.seasonItem.Id : it.ImageTags?.Primary ? it.Id : null;
-      items.push({ key: `${it.Id}:${e.season ?? ''}`, subtype: it.Type === 'Movie' ? 'movie' : 'TV', kind: App.isAnime(it.Id) ? 'anime' : it.Type === 'Movie' ? 'movie' : 'show', title: entryTitle(e), year: entryYear(e), rating: it.CommunityRating ? Math.round(it.CommunityRating * 10) : null,
-        poster: img ? Jellyfin.img(img, 'Primary', { fillHeight: 420 }) : '', genres: it.Genres || [], status: '', lib: it, requested: false, order: -100 + i, open: ['series', it.Id, e.seasonItem ? e.season : null] });
-    });
+
 
     // Genre chip is built from what came back.
     const genres = [...new Set(items.flatMap((x) => x.genres))].sort();
@@ -4882,7 +4893,7 @@ const Views = {
       <div class="set-card"><h3>Keyboard</h3>
         <div class="desc">Click a shortcut, then press the key you want. Esc always leaves the player.</div>
         ${KEY_ACTIONS.map(([a, label]) => `<div class="set-row"><div>${esc(label)}</div><button class="keycap" data-key="${a}">${esc(keyLabel(keyFor(a)))}</button></div>`).join('')}
-        <div><button class="btn ghost sm" id="keys-reset">Reset to defaults</button></div>
+        <div class="set-shortcut-reset"><div><b>Start with the original shortcuts</b><p>Restore AniDeck’s default keys. Your other preferences stay as they are.</p></div><button class="btn ghost" id="keys-reset">${icon('refresh')}Restore shortcuts</button></div>
       </div>
 
       <div class="set-card"><h3>Home screen</h3>
