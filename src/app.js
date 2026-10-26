@@ -3086,7 +3086,7 @@ const HoverPreview = {
     if(!App.settings.hoverPreview||this.card!==card||!card.isConnected||App.stale(rid)||Tracker.svc!==data.service||data.service?.userId!==data.userId)return;
     const title=al?.title||k?.title||lib?.Name||card.querySelector('.card-title')?.textContent||'';
     const genres=(al?.genres?.length?al.genres:k?.genres?.length?k.genres:lib?.Genres||[]).slice(0,3);
-    const about=this.text(al?.synopsis||k?.synopsis||lib?.Overview);
+    const about=this.text(TitleSynopsis.choose(al?.synopsis,k?.synopsis)||lib?.Overview);
     const meta=[al?.format||k?.subtype,al?.year||k?.year||lib?.ProductionYear,al?.status||k?.status,al?.duration?al.duration+' min per '+(String(al.format).toLowerCase()==='movie'?'movie':'episode'):''].filter(Boolean).join(' · ');
     const status=entry?({current:'Watching',planned:'Planning',completed:'Completed',on_hold:'On hold',dropped:'Dropped'})[entry.status]||'On your list':'';
     const next=al?.next?.at>Date.now()?`Episode ${al.next.episode} airs ${new Date(al.next.at).toLocaleDateString([],{month:'short',day:'numeric'})}`:'';
@@ -4067,6 +4067,7 @@ const Views = {
     App.showAl = al; // animeAfter() also uses AniList's streaming episodes
     // Episode names and thumbnails start downloading now; animeAfter() fills them in (same cached request).
     Kitsu.episodes(a.id, lastEp - firstEp + 1, firstEp - 1).catch(() => []);
+    const synopsis = TitleSynopsis.choose(a.synopsis, al?.synopsis);
     const statusText = al?.status || a.status || '';
     const genres = (al?.genres?.length ? al.genres : a.genres || []).slice(0, 8);
     const rating = al?.score || a.rating;
@@ -4151,7 +4152,7 @@ const Views = {
       <div class="detail-body">
         <aside class="detail-side">
           ${progressCardHtml}
-          ${a.synopsis ? `<h3>About</h3><div class="about-wrap ${a.synopsis.length > 320 ? 'clamped' : ''}"><p class="about">${esc(a.synopsis)}</p>${a.synopsis.length > 320 ? '<button class="about-more" data-act="aboutToggle">Show more</button>' : ''}</div>` : ''}
+          ${synopsis ? `<h3>About</h3><div class="about-wrap ${synopsis.length > 320 ? 'clamped' : ''}"><p class="about">${esc(synopsis)}</p>${synopsis.length > 320 ? '<button class="about-more" data-act="aboutToggle">Show more</button>' : ''}</div>` : ''}
           <h3>Details</h3>
           <dl class="details">${details.map(([k, v]) => `<dt>${esc(k)}</dt><dd data-k="${esc(k)}">${esc(v)}</dd>`).join('')}</dl>
           <div id="related-box" hidden><h3>Related</h3><div class="rel-list"></div></div>
