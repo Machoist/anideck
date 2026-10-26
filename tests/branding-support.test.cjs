@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const root=path.join(__dirname,'..'),appSource=fs.readFileSync(path.join(root,'src/app.js'),'utf8'),main=fs.readFileSync(path.join(root,'main.js'),'utf8');
 test('AniDeck reuses an existing profile and browser sessions before the app starts',()=>{
  const start=main.indexOf('const legacyProfile ='),end=main.indexOf('const CONFIG_FILE',start),calls=[];
- const context={path:path.win32,app:{getPath:()=> 'C:\\Profile',setPath:(...args)=>calls.push(args)},fs:{existsSync:()=>true}};
+ const context={smokeTest:false,path:path.win32,app:{getPath:()=> 'C:\\Profile',setPath:(...args)=>calls.push(args)},fs:{existsSync:()=>true}};
  vm.runInNewContext(main.slice(start,end),context);assert.deepEqual(calls,[['userData','C:\\Profile\\AniShelf'],['sessionData','C:\\Profile\\AniShelf']]);
  calls.length=0;context.fs.existsSync=()=>false;vm.runInNewContext(main.slice(start,end),{...context});assert.equal(calls.length,0);
 });

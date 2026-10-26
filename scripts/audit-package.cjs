@@ -1,7 +1,12 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),asar=require('@electron/asar');
 const {assertRuntimePath}=require('./release-guard.cjs');
-function audit(appOutDir){
- const resources=path.join(appOutDir,'resources'),archive=path.join(resources,'app.asar');
+function resourcesDir(appOutDir,productFilename='AniDeck'){
+ const bundle=appOutDir.endsWith('.app')?appOutDir:path.join(appOutDir,productFilename+'.app');
+ const mac=path.join(bundle,'Contents','Resources');
+ return fs.existsSync(mac)?mac:path.join(appOutDir,'resources');
+}
+function audit(appOutDir,productFilename='AniDeck'){
+ const resources=resourcesDir(appOutDir,productFilename),archive=path.join(resources,'app.asar');
  const entries=asar.listPackage(archive).map(name=>name.replaceAll('\\','/'));
  for(const name of ['/config.json','/config.release.json','/store.json','/secrets.json','/tests','/server','/.git','/work'])assert(!entries.some(entry=>entry===name||entry.startsWith(name+'/')),'Private/development path packaged: '+name);
  for(const name of entries.filter(name=>name.startsWith('/src/')))assertRuntimePath(name);
@@ -17,5 +22,5 @@ function audit(appOutDir){
  assert.deepEqual(config,JSON.parse(fs.readFileSync(path.join(__dirname,'../config.release.json'),'utf8')),'Packaged configuration differs from public defaults');
  return true;
 }
-module.exports=async context=>audit(context.appOutDir);module.exports.audit=audit;
+module.exports=async context=>audit(context.appOutDir,context.packager?.appInfo?.productFilename);module.exports.audit=audit;module.exports.resourcesDir=resourcesDir;
 if(require.main===module){audit(path.resolve(process.argv[2]||'dist/win-unpacked'));console.log('Packaged archive audit passed: public configuration only; private/development paths excluded; runtime assets included.');}

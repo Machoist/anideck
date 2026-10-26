@@ -8,15 +8,20 @@ const { app, BrowserWindow, ipcMain, shell, safeStorage, Menu, net, session, dia
 // requests that identify as Node or Electron.
 const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 app.userAgentFallback = CHROME_UA;
-app.setAppUserModelId('com.machoist.anishelf'); // needed for Windows notifications
+if (process.platform === 'win32') app.setAppUserModelId('com.machoist.anishelf'); // needed for Windows notifications
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
 // Rebranding must not orphan existing settings, encrypted tokens or browser sessions.
 // The original installation used %APPDATA%/AniShelf; new installations use AniDeck.
+const smokeTest = !!require('./package.json').testBuild && process.argv.includes('--anideck-smoke-test');
 const legacyProfile = path.join(app.getPath('appData'), 'AniShelf');
-if (fs.existsSync(legacyProfile)) {
+if (smokeTest) {
+  const isolatedProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'anideck-smoke-'));
+  app.setPath('userData', isolatedProfile);
+  app.setPath('sessionData', isolatedProfile);
+} else if (fs.existsSync(legacyProfile)) {
   app.setPath('userData', legacyProfile);
   app.setPath('sessionData', legacyProfile);
 }
@@ -131,6 +136,14 @@ function createWindow() {
     callback({});
   });
 
+  if (smokeTest) win.webContents.once('did-finish-load', async () => {
+    try {
+      const result = await win.webContents.executeJavaScript(`(async()=>({version:await window.native.version(),testBuild:(await window.native.config()).testBuild,main:!!document.querySelector('#main')}))()`);
+      if (!result.main || !result.testBuild || result.version !== app.getVersion()) throw Error('Packaged preload or renderer smoke check failed');
+      console.log('AniDeck native smoke check passed');
+      app.exit(0);
+    } catch (error) { console.error(error); app.exit(1); }
+  });
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
 } // <-- This closes createWindow() properly
 
@@ -363,8 +376,13 @@ ipcMain.handle('website:open', async (_e, animeId) => {
     return false;
   }
 });
+function applicationMenuTemplate(platform) {
+  if (platform !== 'darwin') return null;
+  return [{role:'appMenu'},{role:'editMenu'},{label:'View',submenu:[{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{type:'separator'},{role:'togglefullscreen'}]},{role:'windowMenu'}];
+}
 app.whenReady().then(() => {
-  Menu.setApplicationMenu(null);
+  const menu = applicationMenuTemplate(process.platform);
+  Menu.setApplicationMenu(menu ? Menu.buildFromTemplate(menu) : null);
   createWindow();
   setupUpdater();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

@@ -11,7 +11,7 @@
 
 AniDeck brings anime discovery, watching, tracking, and friends together in one Windows app. Build a home screen around your watching habits, keep your lists in sync, and find your next watch with your circle.
 
-> **In development.** A public installer has not been released yet. Downloads will appear on the [Releases page](https://github.com/Machoist/anideck/releases) when ready.
+> **In development.** A public installer has not been released yet. Downloads will appear on the [Releases page](https://github.com/Machoist/anideck/releases) when ready. Experimental [Mac test builds](docs/MAC-TESTING.md) are being prepared for Intel and Apple Silicon.
 
 ## On your deck
 

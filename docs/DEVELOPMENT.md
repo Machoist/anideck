@@ -5,7 +5,7 @@ These instructions are for contributors and self-hosters. People using the Windo
 ## Build from source
 
 
-Requires Node.js 24 and npm. Windows is the currently tested desktop target.
+Requires Node.js 24 and npm. Windows is the established desktop target. Experimental Intel and Apple Silicon Mac test builds are configured; see [Mac testing](MAC-TESTING.md).
 
 ```sh
 npm ci
@@ -25,3 +25,7 @@ Pushes to `main` run checks and create an unpublished test installer in GitHub A
 
 AniDeck continues the maintainer's earlier AniShelf project. This repository begins with a fresh snapshot; earlier commit history remains in the original repository. Existing author information and third-party notices are retained. Vendored hls.js retains its license notice; dependency licenses remain with their respective packages.
 
+
+## Mac test builds
+
+Pushes to main also run the Mac test build workflow for Intel and Apple Silicon. It uploads test ZIPs as Actions artifacts and does not publish a release. Native build/launch and real-device results must pass before treating macOS as verified. See [Mac testing](MAC-TESTING.md).

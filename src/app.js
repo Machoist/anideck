@@ -446,9 +446,10 @@ const App = {
     $('#tb-bell').onclick = (e) => { e.stopPropagation();const bell=e.currentTarget;if(!this.settings.reduceMotion){bell.classList.remove('ring');void bell.offsetWidth;bell.classList.add('ring');}Notifier.toggle(); };
     $('#tb-bell').addEventListener('animationend',()=>$('#tb-bell').classList.remove('ring'));
     document.addEventListener('click', (e) => { if (!e.target.closest('.bell-wrap')) Notifier.close(); });
+    if (/Mac/i.test(navigator.platform)) $('#tb-search kbd').textContent = '⌘ F';
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'f' && !$('#shell').hidden && $('#player').hidden) { e.preventDefault(); $('#tb-q').focus(); $('#tb-q').select(); }
-      else if (!e.ctrlKey && !e.altKey && !e.target.matches('input, textarea, select') && $('#modal').hidden && !$('#shell').hidden && $('#player').hidden && actionForKey(e) === 'search') { e.preventDefault(); $('#tb-q').focus(); $('#tb-q').select(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !$('#shell').hidden && $('#player').hidden) { e.preventDefault(); $('#tb-q').focus(); $('#tb-q').select(); }
+      else if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.target.matches('input, textarea, select') && $('#modal').hidden && !$('#shell').hidden && $('#player').hidden && actionForKey(e) === 'search') { e.preventDefault(); $('#tb-q').focus(); $('#tb-q').select(); }
     });
 
     // Animate titles as they're added: a whole page, an infinite-scroll batch, or a redrawn list.

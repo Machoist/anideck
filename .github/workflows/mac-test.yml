@@ -1,0 +1,47 @@
+name: Mac test build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mac-test:
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            folder: mac-arm64
+          - runner: macos-15-intel
+            arch: x64
+            folder: mac
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build ad-hoc signed test app (not published)
+        run: npm run dist:mac:test -- --${{ matrix.arch }} --config.extraMetadata.testBuild="mac-${{ matrix.arch }}-${{ github.run_number }}-${{ github.sha }}"
+      - name: Audit packaged runtime and public config
+        run: node scripts/audit-package.cjs "dist/${{ matrix.folder }}"
+      - name: Verify bundle signature
+        run: codesign --verify --deep --strict --verbose=2 "dist/${{ matrix.folder }}/AniDeck.app"
+      - name: Launch isolated native smoke check
+        run: node scripts/mac-smoke.cjs "dist/${{ matrix.folder }}/AniDeck.app"
+      - name: Upload Mac test app
+        uses: actions/upload-artifact@v4
+        with:
+          name: AniDeck-mac-${{ matrix.arch }}-test
+          path: dist/*-mac-${{ matrix.arch }}.zip
+          if-no-files-found: error
+          retention-days: 14
