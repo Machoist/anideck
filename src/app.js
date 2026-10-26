@@ -196,6 +196,7 @@ const App = {
     if (this.settings.gamepad !== false) TV.startGamepad();
     if (this.settings.startFullscreen || this.settings.tvMode) window.native.setFullscreen?.(true);
     const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init()]);
+    if(typeof Matcher!=='undefined'&&Matcher.initScope)await Matcher.initScope().catch(()=>{});
     preconnectImageHosts();
     await LocalTracker.init();
     await Art.load();
@@ -577,26 +578,31 @@ const App = {
   },
 
   async refreshLibrary() {
+    const generation=this.libraryGeneration=(this.libraryGeneration||0)+1;
+    const scope=JSON.stringify([Jellyfin.server,Jellyfin.userId,Jellyfin.token]);
+    const current=()=>this.libraryGeneration===generation&&Jellyfin.connected()&&JSON.stringify([Jellyfin.server,Jellyfin.userId,Jellyfin.token])===scope;
     if (!Jellyfin.connected()) {
-      this.libraries = []; this.rawLists = []; this.seasonsBySeries = {}; this.matches = {};
+      this.libraries = []; this.rawLists = []; this.seasonsBySeries = {}; this.matches = {};this.libraryLoadedAt=0;this.libraryScope=null;
       this.classify(); this.buildNav(); return;
     }
+    if(this.libraryScope!==scope){
+      this.libraryScope=scope;this.libraries=[];this.rawLists=[];this.seasonsBySeries={};this.matches={};this.libraryLoadedAt=0;
+      this.classify();this.buildNav();
+    }
     try {
-      this.libraries = await Jellyfin.libraries();
+      const libraries = await Jellyfin.libraries();if(!current())return;
       const [lists, seasons] = await Promise.all([
-        Promise.all(this.libraries.map((l) => Jellyfin.libraryItems(l.Id).catch(() => []))),
-        Promise.all(this.libraries.map((l) => Jellyfin.librarySeasons(l.Id).catch(() => []))),
-      ]);
-      this.rawLists = lists;
-      this.seasonsBySeries = {};
-      for (const s of seasons.flat()) if (s.SeriesId && s.ChildCount !== 0) (this.seasonsBySeries[s.SeriesId] ||= []).push(s);
-      for (const list of Object.values(this.seasonsBySeries)) list.sort((a, b) => (a.IndexNumber ?? 99) - (b.IndexNumber ?? 99));
-    } catch (e) { toast(`Couldn't load library: ${e.message}`, 'bad'); }
+        Promise.all(libraries.map((l) => Jellyfin.libraryItems(l.Id).catch(() => []))),
+        Promise.all(libraries.map((l) => Jellyfin.librarySeasons(l.Id).catch(() => []))),
+      ]);if(!current())return;
+      const matches=await Matcher.all();if(!current())return;
+      const bySeries={};
+      for (const season of seasons.flat()) if (season.SeriesId && season.ChildCount !== 0) (bySeries[season.SeriesId] ||= []).push(season);
+      for (const list of Object.values(bySeries)) list.sort((a, b) => (a.IndexNumber ?? 99) - (b.IndexNumber ?? 99));
+      this.libraries=libraries;this.rawLists=lists;this.seasonsBySeries=bySeries;this.matches=matches;
+    } catch (e) { if(!current())return;toast(`Couldn't load library: ${e.message}`, 'bad');return; }
     this.libraryLoadedAt=Date.now();
-    this.matches = await Matcher.all();
-    this.classify();
-    this.buildNav();
-    this.verifyWithKitsu(); // background: asks Kitsu about cartoons it isn't sure of yet
+    this.classify();this.buildNav();this.verifyWithKitsu();
   },
 
   // What Kitsu said about an item, from saved matches: true (it's on Kitsu), false (not), undefined (not asked yet).
@@ -605,6 +611,10 @@ const App = {
   registered(it) {
     const ids = Object.keys(it.ProviderIds || {}).map((k) => k.toLowerCase());
     if (ids.some((k) => ['kitsu', 'myanimelist', 'mal'].includes(k))) return true;
+    const match=this.matches?.[`${it.Id}:1`];
+    if(match?.manual)return !match.none;
+    // An old fuzzy match alone must not turn an ordinary private title into anime.
+    if(!animeSignal(it)&&!this.animeLibIds?.has(it.Id))return undefined;
     if (this.kitsuSays(it.Id)) return true;
     return this.settings.registry?.[it.Id];
   },
@@ -646,14 +656,17 @@ const App = {
   // Looks up animated shows/movies (and anything with anime ids) on Kitsu once, so anime that lives in a
   // regular TV or movie library still shows up. Answers are saved, so this only runs for new items.
   async verifyWithKitsu() {
-    if (this.verifying) return;
-    this.verifying = true;
+    const generation=this.libraryGeneration,scope=JSON.stringify([Jellyfin.server,Jellyfin.userId,Jellyfin.token]);
+    const current=()=>generation===this.libraryGeneration&&Jellyfin.connected()&&JSON.stringify([Jellyfin.server,Jellyfin.userId,Jellyfin.token])===scope;
+    if(!current()||(this.verifying?.scope===scope&&this.verifying?.generation===generation))return;
+    const task={scope,generation};this.verifying=task;
     try {
       const queue = [], queued = new Set();
       (this.libraries || []).forEach((lib, i) => {
         if (!ANIME_ONLY && this.libraryMode(lib) === 'anime') return;
         for (const it of this.rawLists?.[i] || []) {
           if (queued.has(it.Id) || this.settings.animeOverride?.[it.Id] !== undefined) continue;
+          if(!animeSignal(it)&&this.libraryMode(lib)!=='anime')continue; // Ordinary private titles stay private.
           if (ANIME_ONLY ? this.registered(it) !== undefined : (this.kitsuSays(it.Id) !== undefined || (!this.animated(it) && !animeSignal(it)))) continue;
           queued.add(it.Id); queue.push(it);
         }
@@ -664,26 +677,29 @@ const App = {
       const before = new Set(this.animeIds);
       let done = 0;
       for (const it of queue) {
-        await Matcher.auto(it, null, null).catch(() => null);
+        if(!current())return;
+        await Matcher.auto(it, null, null,{active:current}).catch(() => null);
+        if(!current())return;
         if (!Matcher.lastOk) break; // Kitsu not answering; try again next start
-        this.matches = await Matcher.all();
+        const matches=await Matcher.all();if(!current())return;this.matches=matches;
         if (ANIME_ONLY && !this.kitsuSays(it.Id)) {
           const onMal = await MAL.has(it.Name, Number(it.ProductionYear) || 0, it.Type === 'Movie');
+          if(!current())return;
           if (onMal === null) continue; // couldn't reach MyAnimeList; ask again next time
           this.settings.registry = { ...(this.settings.registry || {}), [it.Id]: onMal };
         }
-        if (++done % 15 === 0) { await this.saveSettings(); this.classify(); }
+        if (++done % 15 === 0) { await this.saveSettings();if(!current())return;this.classify(); }
         await new Promise((r) => setTimeout(r, 120));
       }
-      if (done) {
-        await this.saveSettings();
+      if (done&&current()) {
+        await this.saveSettings();if(!current())return;
         this.classify();
         const added = [...this.animeIds].filter((id) => !before.has(id)).length;
         const removed = [...before].filter((id) => !this.animeIds.has(id)).length;
         if (added) toast(`Found ${added} more anime in your library`, 'good');
         if ((added || removed) && $('#player').hidden && ['library', 'home'].includes(this.view)) this.refresh();
       }
-    } finally { this.verifying = false; }
+    } finally { if(this.verifying===task)this.verifying=false; }
   },
 
 

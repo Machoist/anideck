@@ -116,7 +116,7 @@ function qs(params) {
 }
 /* ============================== JELLYFIN ============================== */
 const Jellyfin = {
-  server: '', token: '', userId: '', userName: '', deviceId: '',
+  server: '', token: '', userId: '', userName: '', deviceId: '',serverId:'',
   connected() { return !!(this.server && this.token && this.userId); },
   async init() {
     this.deviceId = await window.native.get('deviceId');
@@ -125,7 +125,7 @@ const Jellyfin = {
       await window.native.set('deviceId', this.deviceId);
     }
     const saved = await window.native.get('jellyfin');
-    if (saved) Object.assign(this, { server: saved.server, userId: saved.userId, userName: saved.userName });
+    if (saved) Object.assign(this, { server: saved.server, userId: saved.userId, userName: saved.userName,serverId:saved.serverId||'' });
     this.token = (await window.native.getSecret('jellyfinToken')) || '';
     this.remoteServer = this.server;
     await this.pickFastestServer();
@@ -134,14 +134,23 @@ const Jellyfin = {
   // If a home network address is set and answers quickly, use it instead of the
   // internet address (much faster and full quality when you're at home).
   async pickFastestServer() {
+    const remote=this.remoteServer,user=this.userId,token=this.token;
+    const current=()=>this.remoteServer===remote&&this.userId===user&&this.token===token;
     const local = this.normalizeServer((await window.native.get('localServer')) || '');
-    this.usingLocal = false;
-    if (!local || !this.remoteServer) return;
+    if(!current())return;this.usingLocal=false;this.server=remote||this.server;
+    if (!local || !remote) return;
     try {
-      const info = await http(local + '/System/Info/Public', { timeout: 1500 });
-      if (info?.Id) { this.server = local; this.usingLocal = true; return; }
-    } catch { /* not at home */ }
-    this.server = this.remoteServer;
+      const [info,expected]=await Promise.all([
+        http(local+'/System/Info/Public',{timeout:1500}),
+        this.serverId?Promise.resolve({Id:this.serverId}):http(remote+'/System/Info/Public',{timeout:1500}),
+      ]);
+      if(!current())return;
+      if(!expected?.Id||!info?.Id||String(info.Id)!==String(expected.Id))return;
+      this.serverId=String(expected.Id);
+      const saved=await window.native.get('jellyfin');if(!current())return;
+      if(saved?.server===remote&&String(saved.userId)===String(user)&&saved.serverId!==this.serverId)await window.native.set('jellyfin',{...saved,serverId:this.serverId});
+      if(!current())return;this.server=local;this.usingLocal=true;
+    } catch { /* Unverified or unavailable local servers cannot receive the session. */ }
   },
   authHeader() {
     let h = `MediaBrowser Client="AniDeck", Device="${navigator.platform.includes('Win') ? 'Windows' : 'Desktop'}", DeviceId="${this.deviceId}", Version="${APP_VERSION}"`;
@@ -162,7 +171,7 @@ const Jellyfin = {
     const method = (opts.method || 'GET').toUpperCase();
     const run = () => http(this.server + path, { ...opts, headers: { Authorization: this.authHeader(), ...(opts.headers || {}) } });
     if (method !== 'GET' || opts.json || opts.body) { this.getCache.clear(); return run(); }
-    const key = this.server + path, hit = this.getCache.get(key);
+    const key = JSON.stringify([this.server,this.userId,this.token,path]), hit = this.getCache.get(key);
     if (hit && Date.now() - hit.at < 30000) return hit.p;
     const p = run().catch((e) => { this.getCache.delete(key); throw e; });
     this.getCache.set(key, { at: Date.now(), p });
@@ -177,15 +186,16 @@ const Jellyfin = {
   },
   async login(server, username, password) {
     this.server = this.normalizeServer(server);
-    this.token = '';
+    this.token = '';this.serverId='';this.clearCache();
     const info = await http(this.server + '/System/Info/Public').catch(() => null);
     if (!info || !info.Id) throw new Error('Could not reach a Jellyfin server at that address.');
+    this.serverId=String(info.Id);
     const res = await this.call('/Users/AuthenticateByName', { method: 'POST', json: { Username: username, Pw: password } });
     this.token = res.AccessToken;
     this.userId = res.User.Id;
     this.userName = res.User.Name;
     await window.native.setSecret('jellyfinToken', this.token);
-    await window.native.set('jellyfin', { server: this.server, userId: this.userId, userName: this.userName });
+    await window.native.set('jellyfin', { server: this.server, userId: this.userId, userName: this.userName,serverId:this.serverId });
     await window.native.set('jellyfinShared', null); // our own session now
     this.remoteServer = this.server;
     await this.pickFastestServer();
@@ -196,7 +206,7 @@ const Jellyfin = {
     const shared = await window.native.get('jellyfinShared');
     if (!shared) { try { await this.call('/Sessions/Logout', { method: 'POST' }); } catch { /* ignore */ } }
     this.clearCache();
-    this.token = ''; this.userId = ''; this.userName = ''; this.server = ''; this.remoteServer = ''; this.usingLocal = false;
+    this.token = ''; this.userId = ''; this.userName = ''; this.server = ''; this.remoteServer = ''; this.usingLocal = false;this.serverId='';
     await window.native.setSecret('jellyfinToken', null);
     await window.native.set('jellyfin', null);
     await window.native.set('jellyfinShared', null);
@@ -1375,33 +1385,46 @@ const Ratings = {
 };
 const Matcher = {
   key(seriesId, seasonNumber) { return `${seriesId}:${seasonNumber ?? 1}`; },
+  scope(){return Jellyfin.connected()?JSON.stringify([String(Jellyfin.remoteServer||Jellyfin.server).replace(/\/+$/,''),String(Jellyfin.userId)]):null;},
+  async initScope(){
+    if(await window.native.get('kitsuMatchesOwner'))return;
+    const saved=await window.native.get('jellyfin'),legacy=await window.native.get('kitsuMatches');
+    // At startup the saved connection identifies the owner of the old flat cache.
+    // Preserve that cache and only migrate it for the restored server/account.
+    if(saved?.server&&saved.userId&&legacy&&Object.keys(legacy).length)await window.native.set('kitsuMatchesOwner',JSON.stringify([String(saved.server).replace(/\/+$/,''),String(saved.userId)]));
+  },
   async all() {
-    const all = (await window.native.get('kitsuMatches')) || {};
-    if (!this.cleaned) {
+    const scope=this.scope();if(!scope)return {};
+    const key='kitsuMatches:'+scope,current=()=>this.scope()===scope;
+    let all=await window.native.get(key);if(!current())return {};
+    if(!all&&await window.native.get('kitsuMatchesOwner')===scope){all=await window.native.get('kitsuMatches');if(!current())return {};if(all)await window.native.set(key,all);}
+    if(!current())return {};all=all||{};
+    if (this.cleanedScope!==scope) {
       // One-time cleanup: forget automatic id-based matches made before the mapping fix, so they're re-checked.
-      this.cleaned = true;
+      this.cleanedScope = scope;
       let changed = false;
       for (const [k, m] of Object.entries(all)) if (m && !m.manual && m.how === 'id' && (m.v || 0) < 3) { delete all[k]; changed = true; }
-      if (changed) await window.native.set('kitsuMatches', all);
+      if (changed&&current()) await window.native.set(key, all);
     }
-    return all;
+    return current()?all:{};
   },
   async get(seriesId, seasonNumber) { return (await this.all())[this.key(seriesId, seasonNumber)] || null; },
   VERSION: 3, // bump to re-check automatic matches made by older, looser rules
-  async set(seriesId, seasonNumber, anime, manual, how) {
-    const all = await this.all();
+  async set(seriesId, seasonNumber, anime, manual, how, active=()=>true) {
+    const scope=this.scope();if(!scope||!active())return;const all = await this.all();if(!active()||this.scope()!==scope)return;
     all[this.key(seriesId, seasonNumber)] = anime
       ? { id: anime.id, title: anime.title, episodes: anime.episodes, url: anime.url, poster: anime.poster, manual: !!manual, how: how || (manual ? 'manual' : 'title'), v: this.VERSION }
       : { none: true, manual: !!manual, v: this.VERSION };
-    await window.native.set('kitsuMatches', all);
+    await window.native.set('kitsuMatches:'+scope, all);
   },
-  async clearAll() { await window.native.set('kitsuMatches', {}); },
+  async clearAll() { const scope=this.scope();if(scope)await window.native.set('kitsuMatches:'+scope, {}); },
   // Finds the Kitsu entry for one Jellyfin season, remembering the answer.
-  async auto(series, season, episodeCount) {
+  async auto(series, season, episodeCount,{active=()=>true}={}) {
+    if(!active())return null;
     const isMovie = series.Type === 'Movie';
     const n = isMovie ? 1 : (season?.IndexNumber ?? 1);
     this.lastOk = true; // stays true when the answer comes from cache
-    const saved = await this.get(series.Id, n);
+    const saved = await this.get(series.Id, n);if(!active())return null;
     if (saved && (saved.manual || saved.v === this.VERSION)) return saved.none ? null : saved;
     this.lastOk = false;
     // 1) Exact: anime database ids that Jellyfin already knows (season 1 / movies only).
@@ -1409,9 +1432,11 @@ const Matcher = {
       const pid = Object.fromEntries(Object.entries(series.ProviderIds || {}).map(([k, v]) => [k.toLowerCase(), v]));
       const tries = [['kitsu', null], ['myanimelist', 'myanimelist/anime'], ['anilist', 'anilist/anime'], ['anidb', 'anidb']];
       for (const [key, site] of tries) {
+        if(!active())return null;
         if (!pid[key]) continue;
         const hit = key === 'kitsu' ? await Kitsu.anime(pid[key]).catch(() => null) : await Kitsu.byExternal(site, pid[key]);
-        if (hit) { this.lastOk = true; await this.set(series.Id, n, hit, false, 'id'); return { ...hit, manual: false, how: 'id' }; }
+        if(!active())return null;
+        if (hit) { this.lastOk = true; await this.set(series.Id, n, hit, false, 'id',active); return { ...hit, manual: false, how: 'id' }; }
       }
     }
     // 2) Search by title, with a year check so look-alike names don't match.
@@ -1422,7 +1447,8 @@ const Matcher = {
     let best = null, bestScore = 0;
     for (const q of queries) {
       let results = [];
-      try { results = await Kitsu.search(q, 10); this.lastOk = true; } catch { continue; }
+      if(!active())return null;
+      try { results = await Kitsu.search(q, 10);if(!active())return null;this.lastOk = true; } catch { continue; }
       for (const a of results) {
         if (a.subtype === 'music') continue;
         if (!isMovie && a.subtype === 'movie') continue;
@@ -1445,8 +1471,8 @@ const Matcher = {
       }
       if (bestScore >= 1.1) break;
     }
-    if (!best || bestScore < 0.85) { if (this.lastOk) await this.set(series.Id, n, null, false); return null; } // too unsure; user can pick with "Fix match"
-    await this.set(series.Id, n, best, false, 'title');
+    if (!best || bestScore < 0.85) { if (this.lastOk) await this.set(series.Id, n, null, false,undefined,active); return null; } // too unsure; user can pick with "Fix match"
+    await this.set(series.Id, n, best, false, 'title',active);
     return { id: best.id, title: best.title, episodes: best.episodes, url: best.url, poster: best.poster, manual: false, how: 'title' };
   },
 };
