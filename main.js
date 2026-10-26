@@ -145,6 +145,26 @@ function createWindow() {
       })()`);
       if (!result.main || !result.testBuild || result.version !== app.getVersion() || !result.loginVisible || !result.shellHidden || !result.signedOut || !result.emptyLibrary || !result.emptyServer || !result.controls || !result.modules) throw Error('Packaged fresh-profile smoke check failed: '+JSON.stringify(result));
       console.log('AniDeck fresh-profile checks: '+JSON.stringify(result));
+      // Exercise the real guest/setup controls with cloud/catalog reads isolated.
+      // Never create a backend profile or use an existing provider session in this test.
+      const setup = await win.webContents.executeJavaScript(`(async()=>{
+        Cloud.loadMe=async()=>null;Cloud.enabled=()=>true;Notifier.start=()=>{};
+        App.refreshLibrary=async()=>App.buildNav();
+        App.nav=async()=>{document.querySelector('#main').innerHTML='<div class="page">Isolated setup check</div>';};
+        await App.continueLocally();
+        const guestTracking=LocalTracker.loggedIn()&&Tracker.svc===LocalTracker&&!AniList.loggedIn()&&!Kitsu.loggedIn();
+        const profileOffer=!!document.querySelector('#wf-join')&&!document.querySelector('#modal').hidden;
+        if(!profileOffer)throw Error('Guest did not reach profile setup');
+        document.querySelector('#wf-key-login').click();
+        const keySignIn=!!document.querySelector('#ani-key-form')&&document.querySelector('#ani-key').type==='password';
+        document.querySelector('#ani-key-cancel').click();
+        document.querySelector('#wf-cancel').click();
+        const skipPersists=!!(await window.native.get('anideckProfileIntro'))&&document.querySelector('#modal').hidden;
+        const noRepeat=(await offerProfileIntro())===false;
+        return {guestTracking,profileOffer,keySignIn,skipPersists,noRepeat};
+      })()`);
+      if(Object.values(setup).some(value=>value!==true))throw Error('Packaged setup flow check failed: '+JSON.stringify(setup));
+      console.log('AniDeck isolated guest setup checks: '+JSON.stringify(setup));
       console.log('AniDeck native smoke check passed');
       app.exit(0);
     } catch (error) { console.error(error); app.exit(1); }

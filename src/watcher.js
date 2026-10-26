@@ -392,10 +392,12 @@ async function paintSocial(rid) {
 
 async function offerProfileIntro(){
  const key='anideckProfileIntro';if(await window.native.get(key))return false;
- await window.native.set(key,true);if(!Cloud.enabled())return false;
- let me;try{me=await Cloud.loadMe();}catch{me=null;}
- if(me||!document.getElementById('modal').hidden)return false;
- joinDialog({onboarding:true});return true;
+ if(!Cloud.enabled()||!document.getElementById('modal').hidden)return false;
+ const who=Cloud.ident();let me;try{me=await Cloud.loadMe();}catch{return false;}
+ if(Cloud.ident()!==who||!document.getElementById('modal').hidden)return false;
+ if(me){await window.native.set(key,true);return false;}
+ // Persist only after creation, key sign-in or an explicit skip. Interrupted setup resumes.
+ joinDialog({onboarding:true,onDone:()=>window.native.set(key,true)});return true;
 }
 
 function joinDialog({onboarding=false,onDone}={}) {

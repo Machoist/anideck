@@ -261,7 +261,7 @@ const App = {
     for (let i = 0; i < 60 && !$('#main .home-rows, #main .empty, #main .page'); i++) await new Promise((r) => setTimeout(r, 100));
     hideSplash();
     Notifier.start();
-    if(this.needsProfileIntro&&typeof offerProfileIntro==='function'){this.needsProfileIntro=false;await offerProfileIntro();}
+    if(typeof offerProfileIntro==='function'){this.needsProfileIntro=false;await offerProfileIntro();}
     maybeShowWhatsNew();
   },
 
