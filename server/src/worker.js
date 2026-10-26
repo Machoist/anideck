@@ -1,9 +1,10 @@
 import {ProviderSignInError} from './provider-auth.js';
 import {verifyIdentity} from './identity.js';
+import {localIdentity} from './local-identity.js';
 import { socialRoute, isBlocked } from './social.js';
 // AniDeck cloud: opt-in watcher cards shared only between AniDeck users.
 //
-// Identity comes from the AniList or Kitsu sign-in the app already has: POST /v1/session with that access token, the
+// Identity comes from an optional AniList/Kitsu sign-in or a random 256-bit AniDeck recovery key: POST /v1/session with that access token, the
 // worker asks AniList / Kitsu who it belongs to (the token is never stored), and returns a signed AniDeck session.
 // Nothing about a person is visible until they join with a handle; cards are visible to friends (or, if they choose,
 // to any AniDeck user who knows the handle).
@@ -50,15 +51,16 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, ''), m = req.method;
     try {
-      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites'] });
+      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts'] });
 
-      // Sign in with the tracker the app uses.
+      // Exchange provider credentials or a device recovery key for a signed AniDeck session.
       if (path === '/v1/session' && m === 'POST') {
         const { provider, token } = await req.json().catch(() => ({}));
-        if (!['anilist', 'kitsu'].includes(provider) || typeof token !== 'string' || token.length < 10) return fail(400, 'Sign in to AniList or Kitsu first.');
-        const who = await verifyIdentity(env,provider,token);
+        if (!['anilist', 'kitsu', 'anideck'].includes(provider) || typeof token !== 'string' || token.length < 10) return fail(400, 'Sign in to AniList or Kitsu first.');
+        const who = provider==='anideck'?await localIdentity(token):await verifyIdentity(env,provider,token);
+        if(!who)return fail(401,'Invalid AniDeck recovery key.');
         const existing = await one(env, 'SELECT * FROM users WHERE id = ?', who.id);
-        if (existing) await env.DB.prepare('UPDATE users SET name = ?, avatar = ? WHERE id = ?').bind(who.name, who.avatar, who.id).run();
+        if (existing&&provider!=='anideck') await env.DB.prepare('UPDATE users SET name = ?, avatar = ? WHERE id = ?').bind(who.name, who.avatar, who.id).run();
         return json({ session: await signSession(env, who.id), joined: !!existing?.handle, me: existing ? { ...pub(existing), friendCode: existing.friend_code } : null, suggested: (who.name || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20) });
       }
 

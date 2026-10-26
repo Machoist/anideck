@@ -19,7 +19,7 @@ test('GraphQL reads coalesce only for identical credentials; mutations are never
 });
 test('startup initializes all four services before awaiting their completion',async()=>{
  const app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),begin=app.indexOf('  async boot() {'),end=app.indexOf('\n  },',begin);let started=0;const release=[];const service={init:()=>{started++;return new Promise(resolve=>release.push(resolve))}};
- const ctx={window:{native:{config:async()=>({}),version:async()=> 'test',get:async()=>({})}},DEFAULT_SETTINGS:{gamepad:false},applyAppearance(){},TV:{init(){}},Prefetch:{bind(){}},HoverPreview:{bind(){}},Kitsu:service,Trakt:service,AniList:service,Jellyfin:service,Tracker:{loggedIn:()=>true},preconnectImageHosts(){},Art:{load:async()=>{}},hideSplash(){}};
+ const ctx={window:{native:{config:async()=>({}),version:async()=> 'test',get:async()=>({})}},DEFAULT_SETTINGS:{gamepad:false},applyAppearance(){},TV:{init(){}},Prefetch:{bind(){}},HoverPreview:{bind(){}},Kitsu:service,Trakt:service,AniList:service,Jellyfin:service,Tracker:{loggedIn:()=>true},preconnectImageHosts(){},LocalTracker:{init:async()=>false},Art:{load:async()=>{}},hideSplash(){}};
  const boot=vm.runInNewContext('({'+app.slice(begin,end)+'\n}}).boot',ctx),pending=boot.call({bindUpdates(){},bindShell(){},enter(){}});await new Promise(setImmediate);assert.equal(started,4);release.forEach(resolve=>resolve(false));await pending;
 });
 test('repeated foreground stream requests share resolution and failed requests can retry',async()=>{

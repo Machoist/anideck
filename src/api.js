@@ -972,19 +972,52 @@ const AniZip = {
     return p;
   },
 };
+// Optional on-device tracking. No provider credentials or network writes are needed.
+const LocalTracker = {
+  enabled:false,userId:'',userName:'Your profile',avatar:'',token:'',coll:[],queue:Promise.resolve(),
+  async init(){const data=await window.native.get('localTracker');this.enabled=!!data?.enabled;this.coll=Array.isArray(data?.entries)?data.entries:[];this.userName=data?.name||'Your profile';this.token=await window.native.getSecret('anideckIdentity')||'';if(this.token)await this.identify();return this.enabled;},
+  async identify(){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('anideck-account-v1:'+this.token));this.userId=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');},
+  async enable(){if(!this.token){this.token='adk_'+Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');await window.native.setSecret('anideckIdentity',this.token);await this.identify();}this.enabled=true;await this.persist();},
+  loggedIn(){return this.enabled;},
+  persist(entries=this.coll){return window.native.set('localTracker',{v:1,enabled:this.enabled,name:this.userName,entries});},
+  async recover(token){token=token.trim();if(!/^adk_[a-f0-9]{64}$/.test(token))throw Error('Enter a complete AniDeck recovery key.');await window.native.setSecret('anideckIdentity',token);this.token=token;await this.identify();},
+  async resolve(id){id=String(id);const hit=this.coll.find(e=>String(e.anime.id)===id||(e.anime.aliases||[]).includes(id));if(hit)return String(hit.anime.id);if(!id.startsWith('al:')){const mapped=await AniList.mediaId(id).catch(()=>null);if(mapped)return 'al:'+mapped;}return id;},
+  async entry(id){id=await this.resolve(id);return this.coll.find(e=>String(e.anime.id)===id)||null;},
+  async metadata(id){const current=typeof App!=='undefined'?App.showAl:null;if(current&&String(id)==='al:'+current.id)return {id:String(id),title:current.title,poster:current.cover,episodes:current.episodes,genres:current.genres,rating:current.score,duration:current.duration,status:current.status,titles:[current.title],year:current.year,subtype:current.format};
+    if(String(id).startsWith('al:')){const a=await AniList.details(id);return {id:String(id),title:a.title,poster:a.cover,episodes:a.episodes,genres:a.genres,rating:a.score,duration:a.duration,status:a.status,titles:[a.title],year:a.year,subtype:a.format};}return Kitsu.anime(id);},
+  mutate(fn){const run=this.queue.then(async()=>{const entries=JSON.parse(JSON.stringify(this.coll));const result=await fn(entries);await this.persist(entries);this.coll=entries;return result;});this.queue=run.catch(()=>{});return run;},
+  async saveEntry(id,values){if(!this.enabled)throw Error('Continue without an account first.');const original=String(id);id=await this.resolve(id);if(!/^(al:)?[1-9][0-9]*$/.test(id))throw Error('Choose a valid anime title.');
+    return this.mutate(async entries=>{let entry=entries.find(e=>String(e.anime.id)===id);if(values.status==='remove'){const i=entries.indexOf(entry);if(i>=0)entries.splice(i,1);return null;}
+      if(values.automatic&&entry&&entry.progress>=values.progress&&entry.status!=='planned')return {...entry,unchanged:true};
+      const status=values.automatic?(values.total&&values.progress>=values.total?'completed':'current'):values.status||entry?.status||'current';if(!['current','planned','completed','on_hold','dropped','rewatching'].includes(status))throw Error('Choose a valid list status.');
+      const progress=values.progress===undefined?entry?.progress||0:Number(values.progress);if(!Number.isInteger(progress)||progress<0||progress>100000)throw Error('Enter a valid episode count.');
+      const rating=values.rating===undefined?entry?.rating||null:Number(values.rating);if(rating!==null&&(!Number.isFinite(rating)||rating<0||rating>10))throw Error('Ratings range from 0 to 10.');
+      if(!entry){entry={id:'local:'+id,anime:await this.metadata(id)};entries.push(entry);}
+      entry.anime.aliases=[...new Set([...(entry.anime.aliases||[]),original])];
+      Object.assign(entry,{status:status==='rewatching'?'current':status,reconsuming:status==='rewatching'||!!values.reconsuming,progress,rating,updatedAt:new Date().toISOString()});return {...entry};
+    });
+  },
+  setStatus(id,status){return this.saveEntry(id,{status});},
+  async setProgress(id,episode,total){return this.saveEntry(id,{progress:episode,total,automatic:true});},
+  async watching(){return (await this.list('current',0,500)).entries;},
+  async collection(){return this.coll;},
+  async list(status,offset=0,limit=40,sort='-updatedAt'){const counts={current:0,planned:0,completed:0,onHold:0,dropped:0};for(const e of this.coll)counts[e.status==='on_hold'?'onHold':e.status]++;const values=this.coll.filter(e=>!status||e.status===status).slice();const field=sort.replace(/^-/,''),dir=sort.startsWith('-')?-1:1;values.sort((a,b)=>dir*(field==='rating'?Number(a.rating||0)-Number(b.rating||0):String(field==='title'?a.anime.title:a.updatedAt).localeCompare(String(field==='title'?b.anime.title:b.updatedAt))));return {entries:values.slice(offset,offset+limit),total:values.length,statusCounts:counts};},
+  async profileStats(){const counts={current:0,planned:0,completed:0,on_hold:0,dropped:0};for(const e of this.coll)counts[e.status]++;const episodes=this.coll.reduce((n,e)=>n+e.progress,0);return {name:this.userName,avatar:'',episodes,seconds:this.coll.reduce((n,e)=>n+e.progress*(e.anime.duration||24)*60,0),counts,activity:{}};},
+};
 // The list tracker in use. Kitsu and AniList can both stay signed in; settings.activeTracker picks which one
 // your list, progress and status buttons go to (Settings → Account → Switch). Falls back to whichever is signed in.
 const Tracker = {
   get svc() {
     const pick = typeof App !== 'undefined' ? App.settings?.activeTracker : null;
+    if (pick === 'local' && LocalTracker.loggedIn()) return LocalTracker;
     if (pick === 'kitsu' && Kitsu.loggedIn()) return Kitsu;
     if (pick === 'anilist' && AniList.loggedIn()) return AniList;
-    return AniList.loggedIn() ? AniList : Kitsu;
+    return AniList.loggedIn() ? AniList : Kitsu.loggedIn() ? Kitsu : LocalTracker.loggedIn() ? LocalTracker : Kitsu;
   },
-  get name() { return this.svc === AniList ? 'AniList' : 'Kitsu'; },
+  get name() { return this.svc === LocalTracker ? 'AniDeck' : this.svc === AniList ? 'AniList' : 'Kitsu'; },
   get userName() { return this.svc.userName; },
   get avatar() { return this.svc.avatar || ''; },
-  loggedIn() { return Kitsu.loggedIn() || AniList.loggedIn(); },
+  loggedIn() { return LocalTracker.loggedIn() || Kitsu.loggedIn() || AniList.loggedIn(); },
   logout() { return this.svc.logout(); },
   entry(id) { return this.svc.entry(id); },
   setStatus(id, s) { return this.svc.setStatus(id, s); },

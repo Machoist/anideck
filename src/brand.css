@@ -1,10 +1,11 @@
 /* Approved AniDeck wordmark: ordinary letters, square-dot i, outlined deck D. */
 .brand-wordmark{display:block;object-fit:contain;width:168px;height:auto;flex:none}
 .topbar .top-brand .brand-wordmark{width:132px;height:auto}.brand.big .brand-wordmark{width:230px;height:auto}
-.home-brand{position:absolute;top:16px;left:24px;z-index:44;display:grid;place-items:center;pointer-events:none}
+.home-brand{position:absolute;top:24px;left:24px;z-index:44;display:grid;place-items:center;pointer-events:none}
 .home-brand img{display:block;width:152px;height:auto;filter:drop-shadow(0 2px 7px rgba(0,0,0,.6))}
 body:has(.player:not([hidden])) .home-brand{display:none}
-.home-brand-anchor{position:relative;height:0;z-index:4}
+.home-brand-anchor{position:relative;height:0;z-index:4;animation:none!important}
+.home-brand.scrolled-away{visibility:hidden}
 .home-brand-anchor+.home-rows{padding-top:78px}
 .splash{display:grid;place-items:center;gap:0;background:#121217;overflow:hidden;isolation:isolate;transition:opacity .28s ease;pointer-events:auto}
 .splash-ambient{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 650px 370px at 50% 47%,rgba(183,168,255,.07),transparent 75%);pointer-events:none}
@@ -25,7 +26,7 @@ body:has(.player:not([hidden])) .home-brand{display:none}
 @keyframes brandOutlineIn{to{stroke-dashoffset:0}}
 @keyframes brandCaptionIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes brandPulse{0%,65%,100%{opacity:.25;transform:scale(.9)}30%{opacity:.9;transform:scale(1.15)}}
-@media(max-width:700px){.home-brand{top:16px;left:18px}.home-brand img{width:130px}.splash-signature{width:min(320px,100%)}.splash-center{transform:translateY(-10px)}.splash-foot{bottom:24px;font-size:9px}.topbar .top-brand .brand-wordmark{width:104px}}
+@media(max-width:700px){.home-brand{top:24px;left:18px}.home-brand img{width:130px}.splash-signature{width:min(320px,100%)}.splash-center{transform:translateY(-10px)}.splash-foot{bottom:24px;font-size:9px}.topbar .top-brand .brand-wordmark{width:104px}}
 .reduce-motion .splash *,.reduce-motion .home-brand{animation:none!important;transition:none!important}.reduce-motion .splash .brand-d,.reduce-motion .splash .brand-card-back path{stroke-dashoffset:0}.reduce-motion .splash.out .splash-center{transform:translateY(-18px)}
 @media(prefers-reduced-motion:reduce){.splash,.splash *,.home-brand{animation:none!important;transition:none!important}.splash .brand-d,.splash .brand-card-back path{stroke-dashoffset:0}.splash.out .splash-center{transform:translateY(-18px)}}
 

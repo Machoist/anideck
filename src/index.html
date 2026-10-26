@@ -36,9 +36,9 @@
     <div class="login-card">
       <div class="brand big"><img class="brand-wordmark" src="brand/wordmark.svg" alt="AniDeck" width="168" height="40"></div>
       <h1>Your anime. Your deck.</h1>
-      <p class="muted">Sign in to sync your list and track what you watch.</p>
+      <p class="muted">Start watching your way. Keep your list on this device, or connect a tracker to sync it.</p>
       <div class="login-providers"><button type="button" class="btn primary wide" id="login-anilist">Continue with AniList</button><button type="button" class="btn ghost wide" id="login-kitsu">Continue with Kitsu</button></div>
-      <p class="login-note muted">Browse and stream anime without a Jellyfin server.</p>
+      <button type="button" class="btn ghost wide login-guest" id="login-guest">Continue without an account</button><p class="login-note muted">Your progress saves on this device. Friends profiles are optional.</p>
       <details class="login-jellyfin"><summary>Connect a Jellyfin library instead <span>Optional</span></summary><form id="login-form" autocomplete="on"><p class="small muted">Use your Jellyfin server account to access your own media library.</p>
       <label>Server address
         <input id="login-server" type="text" placeholder="https://jellyfin.example.com" required>

@@ -90,7 +90,7 @@ function createWindow() {
     },
   });
   mainWin = win;
-  win.once('ready-to-show', () => { if(smokeTest)return;if (getStore().windowMaximized) win.maximize(); win.show(); });
+  win.once('ready-to-show', () => { if(smokeTest)return;if (getStore().windowMaximized) win.maximize(); win.show(); win.webContents.send('window:shown'); });
 
   const remember = () => {
     if (win.isDestroyed()) return;
@@ -234,14 +234,16 @@ ipcMain.handle('oauth:open', (_e, { url, redirectPrefix } = {}) => new Promise((
   const w = new BrowserWindow({ width: 520, height: 760, parent, modal: false, title: 'Sign in', autoHideMenuBar: true, backgroundColor: '#0f0e14',
     webPreferences: { partition: 'persist:anishelf-oauth', contextIsolation: true, sandbox: true } });
   w.webContents.setUserAgent(CHROME_UA);
-  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const flow=require('./src/oauth-flow.cjs').oauthFlow(url,redirectPrefix);
+  w.webContents.setWindowOpenHandler(({url:next})=>{if(flow.sameProvider(next))setImmediate(()=>{if(!w.isDestroyed())w.loadURL(next).catch(()=>{});});else if(/^https:\/\//i.test(next))shell.openExternal(next);return {action:'deny'};});
   let done = false;
   const finish = (v) => { if (done) return; done = true; resolve(v); if (!w.isDestroyed()) w.close(); };
-  const check = (u) => { if (String(u).startsWith(redirectPrefix)) finish(u); };
+  const check = (u) => { if (flow.redirect(u)) finish(u); };
   w.webContents.on('will-redirect', (_ev, u) => check(u));
   w.webContents.on('will-navigate', (_ev, u) => check(u));
-  w.webContents.on('did-navigate', (_ev, u) => check(u));
-  w.webContents.on('did-navigate-in-page', (_ev, u) => check(u));
+  const navigated=(_ev,u)=>{check(u);if(!done&&flow.visit(u))setImmediate(()=>{if(!done&&!w.isDestroyed())w.loadURL(url).catch(()=>{});});};
+  w.webContents.on('did-navigate',navigated);
+  w.webContents.on('did-navigate-in-page',navigated);
   w.on('closed', () => finish(null));
   w.loadURL(url).catch(() => {});
 }));

@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('native', {
+  onWindowShown: cb => ipcRenderer.on('window:shown',()=>cb()),
   config: () => ipcRenderer.invoke('config:get'),
   get: (key) => ipcRenderer.invoke('store:get', key),
   set: (key, value) => ipcRenderer.invoke('store:set', key, value),

@@ -197,6 +197,7 @@ const App = {
     if (this.settings.startFullscreen || this.settings.tvMode) window.native.setFullscreen?.(true);
     const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init()]);
     preconnectImageHosts();
+    await LocalTracker.init();
     await Art.load();
     this.bindShell();
     if (signedIn) {
@@ -216,6 +217,7 @@ const App = {
     $('#login-user').value = Jellyfin.userName || '';
     $('#login-anilist').onclick = () => this.anilistLogin();
     $('#login-kitsu').onclick = () => this.kitsuLogin();
+    $('#login-guest').onclick = () => this.continueLocally();
     $('#login-anilist').focus();
     $('#login-form').onsubmit = async (e) => {
       e.preventDefault();
@@ -230,6 +232,14 @@ const App = {
         err.hidden = false;
       } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
     };
+  },
+
+  async continueLocally(){const button=$('#login-guest');button.disabled=true;try{await LocalTracker.enable();await this.useTracker('local');await this.enter();}catch(error){toast('Couldn’t start your local profile: '+error.message,'bad');}finally{button.disabled=false;}},
+
+  localRecovery(){
+    this.modal(`<h2>Your AniDeck recovery key</h2><p class="muted">This key restores your AniDeck Friends profile and messages on another device. Keep it private. Your local watchlist stays on this device.</p><input id="local-key" type="password" readonly value="${esc(LocalTracker.token)}" aria-label="Recovery key"><div class="row gap"><button class="btn" id="local-reveal">Show key</button><button class="btn" id="local-copy">Copy key</button><button class="btn ghost" id="local-restore">Restore a profile…</button><button class="btn primary" id="local-done">Done</button></div>`);
+    $('#local-reveal').onclick=()=>{$('#local-key').type=$('#local-key').type==='password'?'text':'password';};$('#local-copy').onclick=()=>navigator.clipboard.writeText(LocalTracker.token).then(()=>toast('Recovery key copied'));$('#local-done').onclick=()=>this.closeModal();
+    $('#local-restore').onclick=()=>{this.modal(`<h2>Restore your AniDeck profile</h2><p class="muted">Your current local watchlist stays here. Your Friends profile switches to the recovery key you enter.</p><form id="local-restore-form"><label>Recovery key<input id="local-restore-key" type="password" required autocomplete="off"></label><p id="local-restore-error" class="error" hidden></p><button class="btn primary">Restore profile</button><button type="button" class="btn ghost" id="local-cancel">Cancel</button></form>`);$('#local-cancel').onclick=()=>this.closeModal();$('#local-restore-form').onsubmit=async event=>{event.preventDefault();try{await LocalTracker.recover($('#local-restore-key').value);Friends.stop();Cloud.session=null;Cloud.me=undefined;this.profileCache=null;this.closeModal();this.refresh();toast('AniDeck profile restored');}catch(error){$('#local-restore-error').textContent=error.message;$('#local-restore-error').hidden=false;}};};
   },
 
   jellyfinLogin() {
@@ -333,6 +343,7 @@ const App = {
     $('#home-fab').onclick = () => this.returnHome();
     $('#page-back').onclick = () => this.back();
     this.homeBrand=$('#home-brand');
+    $('#main').addEventListener('scroll',()=>{if(this.homeBrand)this.homeBrand.classList.toggle('scrolled-away',$('#main').scrollTop>8);},{passive:true});
 
     $('.topbar').addEventListener('click', (e) => { // Home / Schedule / My list / Library / Requests / Settings
       if (e.target.closest('#nav-current')) return this.toggleNavMenu();
@@ -831,7 +842,7 @@ const App = {
       main.innerHTML = html;
       if(view==='home'&&this.homeBrand){
         const anchor=document.createElement('div');anchor.className='home-brand-anchor';
-        main.prepend(anchor);anchor.appendChild(this.homeBrand);this.homeBrand.hidden=false;
+        main.prepend(anchor);anchor.appendChild(this.homeBrand);this.homeBrand.hidden=false;this.homeBrand.classList.toggle('scrolled-away',quiet&&keepScroll>8);
       }
       showTint(main, ['show', 'anime', 'movie', 'thread'].includes(view) ? App.showAl?.color : null); // title pages wear the show's colour
       setWindowTitle(view, main);
@@ -1011,6 +1022,8 @@ const App = {
       case 'traktLogout': await Trakt.logout(); this.updateWho(); toast('Signed out of Trakt', 'good'); return this.refresh();
       case 'traktSync': return this.traktSyncSeason(d.series, Number(d.season));
       case 'kitsuLogout': await Kitsu.logout(); this.updateWho(); toast('Signed out of Kitsu', 'good'); return this.refresh();
+      case 'localRecovery': return this.localRecovery();
+      case 'localProfile': return this.nav('settings',{section:'account'});
       case 'switchTracker': return this.switchTracker(d.tracker);
       case 'jellyLogin': return this.jellyfinLogin();
       case 'jellyLogout': return this.disconnectJellyfin();
@@ -1358,7 +1371,7 @@ const App = {
       </form>`);
     $('#k-user').focus();
     $('#k-cancel').onclick = () => this.closeModal();
-    $('#k-new').onclick = (e) => { e.preventDefault(); window.native.openExternal('https://kitsu.app/'); };
+    $('#k-new').onclick = (e) => { e.preventDefault(); window.native.openExternal('https://kitsu.app/');const note=$('#k-err');note.textContent='Create your Kitsu account in the browser, then return here and sign in with your new email and password.';note.className='muted small';note.hidden=false; };
     $('#kitsu-form').onsubmit = async (e) => {
       e.preventDefault();
       const btn = $('#k-go'), err = $('#k-err');
@@ -1389,11 +1402,12 @@ const App = {
     await this.saveSettings();
   },
   async switchTracker(which) {
-    const svc = which === 'anilist' ? AniList : Kitsu;
+    if(which==='local'&&!LocalTracker.enabled)await LocalTracker.enable();
+    const svc = which === 'local' ? LocalTracker : which === 'anilist' ? AniList : Kitsu;
     if (!svc.loggedIn()) return which === 'anilist' ? this.anilistLogin() : this.kitsuLogin();
     await this.useTracker(which);
     this.updateWho();
-    toast(`Now using ${which === 'anilist' ? 'AniList' : 'Kitsu'} for your list`, 'good', `Signed in as ${svc.userName}`);
+    toast(`Now using ${Tracker.name} for your list`, 'good', `Signed in as ${svc.userName}`);
     this.refresh();
   },
 
@@ -1643,8 +1657,9 @@ function bindSettingInputs() {
 function trackerRows() {
   const list = [['anilist', 'AniList', AniList, 'anilistLogout'], ['kitsu', 'Kitsu', Kitsu, 'kitsuLogout']];
   const using = Tracker.loggedIn() ? Tracker.svc : null;
-  const usingName = using === AniList ? 'AniList' : 'Kitsu';
-  return list.map(([id, name, svc, outAct]) => {
+  const usingName = Tracker.name;
+  const localRow=`<div class="acct-row"><span class="avatar">${icon('deck')}</span><div class="grow"><b>On this device</b><div class="desc">${using===LocalTracker?'Your active list · Saved locally':'Keep a separate AniDeck list without an account'}</div></div>${using===LocalTracker?'<button class="btn ghost sm" data-act="localRecovery">Recovery key</button>':'<button class="btn ghost sm" data-act="switchTracker" data-tracker="local">Use local list</button>'}</div>`;
+  return localRow+list.map(([id, name, svc, outAct]) => {
     if (svc === using) {
       return `<div class="acct-row"><span class="avatar">${icon('user', 'pf-ph')}${svc.avatar ? `<img src="${esc(svc.avatar)}" alt="">` : ''}</span>
       <div class="grow"><b>${esc(svc.userName || name)}</b><div class="desc">Your list and progress sync here</div></div>
@@ -1686,7 +1701,9 @@ function actionForKey(e) { const k = keyName(e); return KEY_ACTIONS.find(([a]) =
 function applyAppearance() {
   const s = App.settings;
   document.documentElement.style.setProperty('--accent-rgb', (ACCENTS[s.accent] || ACCENTS.lavender)[1]);
-  document.body.style.zoom = String(s.tvMode ? Math.max(1.3, s.uiScale || 1) : (s.uiScale || 1));
+  const uiZoom=s.tvMode?Math.max(1.3,s.uiScale||1):(s.uiScale||1);
+  document.body.style.zoom=String(uiZoom);
+  document.documentElement.style.setProperty('--ui-zoom',String(uiZoom));
   const poster = { small: 'clamp(130px, 8.5vw, 190px)', medium: 'clamp(150px, 10.5vw, 230px)', large: 'clamp(185px, 13vw, 290px)' }[s.posterSize] || 'clamp(150px, 10.5vw, 230px)';
   document.documentElement.style.setProperty('--poster-w', poster);
   document.body.classList.toggle('reduce-motion', !!s.reduceMotion);
@@ -1696,7 +1713,9 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-24.2', items:[
+  { v:'1.0.0', revision:'2026-10-26.1', items:[
+    'Start without an account, keep a local watchlist and optionally create an independent AniDeck Friends profile.',
+    'A new deck-and-play app icon, replaying loading animation, and navigation that respects your interface size.',
     'A refreshed Home with custom decks, widgets, a release-aware watch queue and useful title previews.',
     'AniDeck Friends: profiles, requests, messages, anime recommendations, watch plans and taste comparisons.',
     'TV playback with PC remote controls, automatic reconnection codes and faster command delivery.',
@@ -2418,8 +2437,7 @@ async function mySchedule(items, filter = true) {
   const ids = new Set(), keys = new Set(), recentShows = new Set();
   const pick = (e) => e.status === 'current' || (recent(e.updatedAt) && !['planned', 'dropped'].includes(e.status));
   const [entries, played] = await Promise.all([
-    Tracker.svc === AniList && AniList.loggedIn() ? AniList.collection().catch(() => [])
-      : Kitsu.loggedIn() ? Kitsu.list('', 0, 500).then((r) => r.entries).catch(() => []) : [],
+    Tracker.loggedIn() ? Tracker.list('',0,500).then(r=>r.entries).catch(()=>[]) : [],
     Jellyfin.recentlyPlayed().catch(() => []),
   ]);
   const progById = new Map(), progByKey = new Map();
@@ -3038,7 +3056,7 @@ const HoverPreview = {
     let trackerId=id,entry=null,entryKnown=!Tracker.loggedIn();
     if(Tracker.loggedIn()&&id){try{
       if(service===AniList)trackerId=al?.id?'al:'+al.id:(id.startsWith('al:')?id:'al:'+await AniList.mediaId(id));
-      else if(id.startsWith('al:'))trackerId=await AniList.kitsuIdFor(id.slice(3),null);
+      else if(Tracker.name!=='AniDeck'&&id.startsWith('al:'))trackerId=await AniList.kitsuIdFor(id.slice(3),null);
       if(trackerId&&Tracker.svc===service&&service?.userId===userId){entry=await Tracker.entry(trackerId);entryKnown=true;}
     }catch{entryKnown=false;}}
     return {d,lib,id,al,k,trackerId,entry,entryKnown,service,userId};
@@ -3122,11 +3140,14 @@ function updateText(s) {
 }
 
 // Loading follows readiness; animation never adds a minimum startup delay.
+function replaySplash(el=$('#splash')){if(!el||el.hidden)return;el.getAnimations?.({subtree:true}).forEach(animation=>{animation.cancel();animation.play();});}
+window.native?.onWindowShown?.(()=>replaySplash());
 let splashExitTimer=null;
 function splash(msg){
   const el=$('#splash');if(!el)return;
   clearTimeout(splashExitTimer);splashExitTimer=null;
-  el.hidden=false;el.classList.remove('out','failed');el.setAttribute('aria-busy','true');
+  const replay=el.hidden||el.classList.contains('out');
+  el.hidden=false;el.classList.remove('out','failed');if(replay)replaySplash(el);el.setAttribute('aria-busy','true');
   const retry=$('#splash-retry');if(retry)retry.hidden=true;
   const status=$('#splash-msg');if(status){status.setAttribute('role','status');if(msg)status.textContent=msg;}
 }
@@ -4400,7 +4421,7 @@ const Views = {
     const sorts = [['-updatedAt', 'Recently updated'], ['anime.titles.canonical', 'Title A–Z'], ['-progress', 'Most progress'], ['-ratingTwenty', 'Your rating'], ['-anime.averageRating', 'Score']];
     return `<div class="page mylist">
       <div class="ml-hero">
-        <div class="ml-title"><span class="ml-eyebrow">${esc(Tracker.name)} · synced</span><h1>My list</h1><div class="muted small" id="ml-total">&nbsp;</div></div>
+        <div class="ml-title"><span class="ml-eyebrow">${Tracker.name==='AniDeck'?'On this device':esc(Tracker.name)+' · synced'}</span><h1>My list</h1><div class="muted small" id="ml-total">&nbsp;</div></div>
         <div class="ml-stats" id="ml-stats">${'<div class="ml-stat"><div class="skel" style="width:70px;height:26px"></div><div class="skel sk-line" style="width:96px"></div></div>'.repeat(4)}</div>
       </div>
       <div class="ml-head">
@@ -5020,49 +5041,32 @@ document.addEventListener('error', (e) => { if (e.target?.tagName === 'IMG') e.t
 
 window.addEventListener('DOMContentLoaded', () => Promise.resolve().then(()=>App.boot()).catch(startupFailed));
 
-// Dock: rises from the bottom edge once the pointer rests there (a short dwell, so passing through doesn't pop it up),
-// then stays up only while the pointer is on the dock or its menus, which open upward.
+// Dock: rises from the bottom edge; reveal on edge dwell or deliberate keyboard navigation; pointer input owns dismissal.
 (() => {
-  const ZONE = 64, DWELL = 140; // px from the bottom edge; ms the pointer has to stay in that zone
-  let hideTimer, revealTimer = null, armed = true;
-  const bar = () => document.querySelector('#shell .topbar');
-  const cancelReveal = () => { if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; } };
-  const reveal = () => { cancelReveal(); bar()?.classList.add('auto-reveal'); };
-  const hide = () => {
-    const el = bar(); if (!el) return;
-    cancelReveal();
-    el.classList.remove('auto-reveal');
-    if (el.contains(document.activeElement)) document.activeElement.blur();
-    for (const id of ['nav', 'tb-suggest', 'notif-panel']) { const menu = document.getElementById(id); if (menu) menu.hidden = true; }
-    document.getElementById('nav-current')?.setAttribute('aria-expanded', 'false');
+  const ZONE=64,DWELL=140;
+  let revealTimer=null,armed=true,keyboard=false;
+  const bar=()=>document.querySelector('#shell .topbar');
+  const cancel=()=>{clearTimeout(revealTimer);revealTimer=null;};
+  const hide=()=>{cancel();const el=bar();if(!el)return;el.classList.remove('auto-reveal');if(el.contains(document.activeElement))document.activeElement.blur();for(const id of ['nav','tb-suggest','notif-panel']){const menu=document.getElementById(id);if(menu)menu.hidden=true;}document.getElementById('nav-current')?.setAttribute('aria-expanded','false');};
+  const allowed=()=>{const shell=document.getElementById('shell'),player=document.getElementById('player'),modal=document.getElementById('modal');return shell&&!shell.hidden&&(!player||player.hidden)&&(!modal||modal.hidden)&&!document.getElementById('entry-pop');};
+  const reveal=()=>{cancel();if(allowed())bar()?.classList.add('auto-reveal');};
+  const near=event=>{const el=bar(),r=el?.getBoundingClientRect?.();const height=document.documentElement?.clientHeight||window.innerHeight;
+    const bottom=height-event.clientY;return bottom>=0&&bottom<=ZONE&&(!r||(event.clientX>=r.left-16&&event.clientX<=r.right+16));};
+  const move=event=>{if(event.pointerType==='touch')return;keyboard=false;const el=bar();if(!el)return;if(!allowed()){hide();return;}
+    const inside=near(event)||el.contains(event.target);if(!inside){armed=true;hide();return;}
+    if(!el.classList.contains('auto-reveal')&&armed&&!revealTimer)revealTimer=setTimeout(()=>{revealTimer=null;armed=false;reveal();},DWELL);
   };
-  const later = () => { clearTimeout(hideTimer); hide(); };
-  document.addEventListener('pointermove', event => {
-    const shell = document.getElementById('shell'), el = bar(), player = document.getElementById('player');
-    if (!el || !shell || shell.hidden || event.pointerType === 'touch') return;
-    if (player && !player.hidden) { clearTimeout(hideTimer); hide(); return; }
-    // A window is open (list editor, deck builder, Cast…): the dock stays away.
-    const modal = document.getElementById('modal'), pop = document.getElementById('entry-pop');
-    if ((modal && !modal.hidden) || pop) { clearTimeout(hideTimer); hide(); return; }
-    const active = el.classList.contains('auto-reveal');
-    const fromBottom = window.innerHeight - event.clientY;
-    if (fromBottom > ZONE) armed = true;
-    if (active) {
-      if ((fromBottom >= 0 && fromBottom <= ZONE) || el.contains(event.target)) clearTimeout(hideTimer);
-      else later();
-    } else if (fromBottom <= ZONE && armed) {
-      if (!revealTimer) revealTimer = setTimeout(() => { revealTimer = null; armed = false; reveal(); }, DWELL);
-    } else cancelReveal();
-  }, { passive: true });
-  // Leaving the renderer at any edge hides the dock and cancels a pending dwell.
-  const leaveWindow = () => { armed = true; later(); };
-  document.addEventListener('pointerleave', leaveWindow);
-  document.addEventListener('pointerout', event => { if (!event.relatedTarget) leaveWindow(); });
-  // Ctrl+F, Tab and other keyboard focus into the dock bring it up.
-  document.addEventListener('focusin', (event) => { if (bar()?.contains(event.target)) { clearTimeout(hideTimer); reveal(); } });
-  window.addEventListener('blur', () => { clearTimeout(hideTimer); hide(); });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Tab') { clearTimeout(hideTimer); bar()?.classList.add('auto-reveal'); }
-    if (event.key === 'Escape') { clearTimeout(hideTimer); hide(); }
-  });
+  document.addEventListener('pointermove',move,{passive:true});
+  document.addEventListener('pointerdown',event=>{keyboard=false;if(!near(event)&&!bar()?.contains(event.target))hide();},{passive:true});
+  const leave=()=>{keyboard=false;armed=true;hide();};
+  document.addEventListener('pointerleave',leave);
+  document.addEventListener('pointerout',event=>{if(!event.relatedTarget)leave();});
+  // Scrolling can move a hovered control without another pointermove.
+  document.addEventListener('wheel',event=>{if(!bar()?.contains(event.target))leave();},{passive:true});
+  document.addEventListener('focusin',event=>{if(keyboard&&bar()?.contains(event.target))reveal();});
+  document.addEventListener('focusout',()=>queueMicrotask(()=>{if(keyboard&&!bar()?.contains(document.activeElement))hide();}));
+  window.addEventListener('blur',leave);
+  window.addEventListener('resize',leave);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)leave();});
+  document.addEventListener('keydown',event=>{if(event.key==='Tab'||((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f')){keyboard=true;if(event.key!=='Tab')reveal();}if(event.key==='Escape')leave();},true);
 })();

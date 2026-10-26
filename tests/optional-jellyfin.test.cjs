@@ -6,7 +6,7 @@ test('startup restores either tracker without requiring Jellyfin; a fresh instal
  for(const tracked of [true,false]){
   let entered=0,onboarded=0,jellyCalls=0;
   const svc={init:async()=>{}};
-  const ctx={window:{native:{config:async()=>({}),version:async()=> 'test',get:async()=>({})}},DEFAULT_SETTINGS:{gamepad:false},applyAppearance(){},TV:{init(){}},Prefetch:{bind(){}},HoverPreview:{bind(){}},Kitsu:svc,Trakt:svc,AniList:svc,Jellyfin:{init:async()=>false,call:async()=>jellyCalls++},Tracker:{loggedIn:()=>tracked},preconnectImageHosts(){},Art:{load:async()=>{}},hideSplash(){}};
+  const ctx={window:{native:{config:async()=>({}),version:async()=> 'test',get:async()=>({})}},DEFAULT_SETTINGS:{gamepad:false},applyAppearance(){},TV:{init(){}},Prefetch:{bind(){}},HoverPreview:{bind(){}},Kitsu:svc,Trakt:svc,AniList:svc,Jellyfin:{init:async()=>false,call:async()=>jellyCalls++},Tracker:{loggedIn:()=>tracked},preconnectImageHosts(){},LocalTracker:{init:async()=>false},Art:{load:async()=>{}},hideSplash(){}};
   const instance={bindUpdates(){},bindShell(){},enter(){entered++},showLogin(){onboarded++}};
   await method('boot',ctx).call(instance);assert.equal(entered,tracked?1:0);assert.equal(onboarded,tracked?0:1);assert.equal(jellyCalls,0);
  }

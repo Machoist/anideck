@@ -81,10 +81,10 @@ function watcherCard(st, entries, act, who = {}) {
 
 /* ---------------- page markup (yours, or a friend's) ---------------- */
 function profileMarkup({ self = true, handle = '' } = {}) {
-  const out = Tracker.svc === AniList ? 'anilistLogout' : 'kitsuLogout';
+  const out = Tracker.name==='AniDeck' ? 'localProfile' : Tracker.svc === AniList ? 'anilistLogout' : 'kitsuLogout';
   const card = (id, title, sub, body, cls = '') => `<section class="pf2-card ${cls} pf-in" id="${id}"><header><div><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ''}</div></header>${body}</section>`;
   const acts = self
-    ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}Sign out</button>`
+    ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}${Tracker.name==='AniDeck'?'Account settings':'Sign out'}</button>`
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
   return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
     <section class="pf2-hero pf-in" style="--d:0ms">
@@ -238,7 +238,7 @@ function compareCards(mine, theirs, name) {
   const bothRated = shared.filter(([s, m]) => s.s && m.s).sort((a, b) => (b[0].s + b[1].s) - (a[0].s + a[1].s));
   const agree = bothRated.length ? Math.round(bothRated.filter(([s, m]) => Math.abs(s.s - m.s) <= 1).length / bothRated.length * 100) : null;
   const picks = theirs.shows.filter((s) => s.s >= 8 && !findMine(s)).sort((a, b) => b.s - a.s).slice(0, 8);
-  const canAdd = (s) => (Tracker.svc === AniList ? String(s.id).startsWith('al:') : /^\d+$/.test(String(s.id)));
+  const canAdd = (s) => Tracker.name==='AniDeck'||(Tracker.svc === AniList ? String(s.id).startsWith('al:') : /^\d+$/.test(String(s.id)));
   const ring = `<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><circle class="f" cx="60" cy="60" r="52" stroke-dasharray="${(match / 100 * 326.7).toFixed(1)} 400"/></svg>`;
   return `<div class="pf2-cmp-head"><div class="pf2-cmp-ring">${ring}<b>${match}%</b><small>taste match</small></div>
       <div class="pf2-cmp-sum"><h3>You and ${esc(name)}</h3><p>${match >= 80 ? 'Practically the same watchlist brain.' : match >= 60 ? 'A lot in common, with a few detours.' : match >= 35 ? 'Some overlap, plenty to swap.' : 'Different tastes. Great for recommendations.'}</p>
@@ -253,14 +253,14 @@ const Cloud = {
   session: null, who: '', me: undefined, publishedAt: 0, rarity: null, rarityAt: 0,
   base() { return String(App.config?.cloudUrl || '').replace(/\/+$/, ''); },
   enabled() { return !!this.base() && Tracker.loggedIn(); },
-  ident() { return `${Tracker.svc === AniList ? 'anilist' : 'kitsu'}:${Tracker.svc.userId || Tracker.userName}`; },
+  ident() { return `${Tracker.name==='AniDeck'?'anideck':Tracker.svc === AniList ? 'anilist' : 'kitsu'}:${Tracker.svc.userId || Tracker.userName}`; },
   async call(path, { method = 'GET', json } = {}) {
     return httpUncached(`${this.base()}${path}`, { method, json, timeout: 12000, headers: this.session ? { Authorization: `Bearer ${this.session}` } : {} });
   },
   // An AniDeck session for the tracker in use (kept with your other sign-ins), made from its access token if needed.
   async ensure(force = false) {
     if (!this.enabled()) return false;
-    const id=this.ident(),svc=Tracker.svc,provider=svc===AniList?'anilist':'kitsu';
+    const id=this.ident(),svc=Tracker.svc,provider=Tracker.name==='AniDeck'?'anideck':svc===AniList?'anilist':'kitsu';
     if(this.who!==id){this.session=null;this.me=undefined;this.publishedAt=0;this.who=id;}
     if(!force&&this.session)return true;
     if(this.authPending?.id===id&&(!force||this.authPending.force))return this.authPending.promise;
@@ -291,7 +291,7 @@ const Cloud = {
   },
   async loadMe() { const who=this.ident();return this.withSession(async () => { const r = await this.call('/v1/me'); if(this.ident()!==who)throw new Error('Account changed');this.me = r.me || null; return this.me; }); },
   async join(handle, visibility) {
-    return this.withSession(async () => { const r = await this.call('/v1/me', { method: 'PUT', json: { handle, visibility, name: Tracker.userName, avatar: Tracker.avatar || '' } }); this.me = r.me; this.publishedAt = 0; return r.me; });
+    return this.withSession(async () => { const r = await this.call('/v1/me', { method: 'PUT', json: { handle, visibility, name: Tracker.name==='AniDeck'?handle:Tracker.userName, avatar: Tracker.avatar || '' } }); this.me = r.me; this.publishedAt = 0;if(Tracker.name==='AniDeck'){LocalTracker.userName=handle;await LocalTracker.persist();}return r.me; });
   },
   async update(fields) { return this.withSession(async () => { const r = await this.call('/v1/me', { method: 'PUT', json: fields }); this.me = r.me; return r.me; }); },
   async leave() { if(typeof Friends!=='undefined')Friends.snapshot=null;return this.withSession(async () => { await this.call('/v1/me', { method: 'DELETE' }); this.me = null; }); },
@@ -395,7 +395,7 @@ function joinDialog() {
       <label class="wf-opt"><input type="radio" name="wf-vis" value="friends" checked><span class="wf-option-copy"><span class="wf-option-icon" aria-hidden="true">${icon('user')}</span><b>Friends only</b><small>People you accept on AniDeck.</small><em>Private by default</em></span><span class="wf-radio" aria-hidden="true"></span></label>
       <label class="wf-opt"><input type="radio" name="wf-vis" value="public"><span class="wf-option-copy"><span class="wf-option-icon" aria-hidden="true">${icon('search')}</span><b>Anyone with your handle</b><small>AniDeck users who look you up.</small><em>Make your taste discoverable</em></span><span class="wf-radio" aria-hidden="true"></span></label>
     </div></fieldset>
-    <details class="wf-sharing-note"><summary>${icon('info')}What will I share?${icon('chev')}</summary><p>Your watcher card, including watch time, genres, scores, milestones and what you’re watching, plus your list’s titles and scores for comparisons. Your visibility choice controls who can see it.</p><p>AniList or Kitsu verifies your identity. Your tracker access token isn’t stored by the AniDeck service. Friends and messages live in AniDeck.</p></details>
+    <details class="wf-sharing-note"><summary>${icon('info')}What will I share?${icon('chev')}</summary><p>Your watcher card, including watch time, genres, scores, milestones and what you’re watching, plus your list’s titles and scores for comparisons. Your visibility choice controls who can see it.</p><p>${Tracker.name==='AniDeck'?'An encrypted recovery key on this device secures your AniDeck profile. Save it from Settings → Account to recover your friends on another device.':'AniList or Kitsu verifies your identity. Your tracker access token isn’t stored by the AniDeck service.'} Friends and messages live in AniDeck.</p></details>
     <p class="dk-error" id="wf-err" role="alert" hidden></p>
     <footer class="dk-foot"><span class="wf-footer-note">Your profile. Your circle.</span><button type="button" class="btn ghost ad2-btn" id="wf-cancel">Maybe later</button><button class="btn primary ad2-btn" id="wf-go">Create profile ${icon('chev')}</button></footer>
   </form>`, 'dk-modal wf-modal wf-onboard-modal');
@@ -441,7 +441,7 @@ function sharingSettings() {
     <header class="dk-head"><div class="wf-welcome"><span class="wf-profile-mark" aria-hidden="true">${icon('logout')}</span><div><span class="ad-eyebrow">LEAVE ANIDECK PROFILES</span><h2 id="wf-leave-title">Leaving your circle?</h2></div></div><button type="button" class="icon-btn" id="wf-confirm-x" aria-label="Close">${icon('close')}</button></header>
     <p class="wf-intro">Leaving permanently deletes <b>@${esc(me.handle)}</b> and its social data from AniDeck cloud.</p>
     <div class="wf-delete-summary"><h3>What gets deleted</h3><ul><li>${icon('user')}Your profile and shared watcher card</li><li>${icon('deck')}Your friends, requests and blocked list</li><li>${icon('chat')}Messages you’ve sent or received on AniDeck</li></ul></div>
-    <p class="wf-keep-note">${icon('info')}<span>Your AniList or Kitsu account and anime tracking stay connected. Creating an AniDeck profile again won’t restore deleted social data.</span></p>
+    <p class="wf-keep-note">${icon('info')}<span>Your watchlist and episode tracking stay on your device or connected tracker. Creating an AniDeck profile again won’t restore deleted social data.</span></p>
     <p class="dk-error" id="wf-leave-error" role="alert" hidden></p>
     <footer class="dk-foot"><button type="button" class="btn ghost ad2-btn" id="wf-keep">Keep my profile</button><button type="button" class="btn danger ad2-btn" id="wf-delete">${icon('trash')}Delete AniDeck profile</button></footer>
   </section></div>`, 'dk-modal wf-modal wf-onboard-modal');

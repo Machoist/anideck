@@ -9,7 +9,7 @@ async function fixture(t){
  const token=uid=>{const body=Buffer.from(JSON.stringify({uid,exp:Date.now()+60000})).toString('base64url');return body+'.'+createHmac('sha256',env.SESSION_SECRET).update(body).digest('base64url')};
  const call=async(uid,route,method='GET',body)=>{const response=await worker.fetch(new Request('https://test.invalid/v1'+route,{method,headers:{Authorization:'Bearer '+token(uid),'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)}),env);return {...await response.json(),status:response.status}};
  const accept=()=>db.prepare("INSERT OR REPLACE INTO friends(a,b,status,created_at) VALUES('alice','bob','accepted',1)").run();
- return {db,call,accept};
+ return {db,call,accept,env,worker};
 }
 test('requests do not expose private summaries; accepting enables profile visits and title activity',async t=>{
  const {call}=await fixture(t);assert.equal((await call('alice','/friends','POST',{to:'bob'})).status,200);
@@ -88,4 +88,18 @@ test('invitation responses are immutable system events, including older stored r
  db.prepare('INSERT INTO messages(id,sender,recipient,body,created_at,client_id) VALUES(?,?,?,?,?,?)').run('legacy-event','alice','bob','Declined the invitation.',Date.now(),'invitation-response-legacy-event');assert.equal((await call('alice','/messages/bob/legacy-event','DELETE')).status,403);
  const ordinary=await call('alice','/messages/bob','POST',{clientId:'ordinary-invite-text-01',text:'Accepted the watch invitation.'});assert.equal(ordinary.message.system,undefined);assert.equal((await call('alice','/messages/bob/'+ordinary.message.id,'PATCH',{text:'Still my message'})).status,200);
  assert.equal((await call('alice','/messages/bob','POST',{clientId:'invitation-response-forged',text:'Forged system event'})).status,400);
+});
+
+test('standalone AniDeck identities can recover a profile and use Friends without provider tokens',async t=>{
+ const {db,env,worker,call}=await fixture(t);
+ const invoke=async(route,method='GET',body,session)=>{const r=await worker.fetch(new Request('https://test.invalid/v1'+route,{method,headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return {...await r.json(),httpStatus:r.status};};
+ const key='adk_'+'1'.repeat(64),first=await invoke('/session','POST',{provider:'anideck',token:key});assert.equal(first.httpStatus,200);assert.equal(first.joined,false);
+ const joined=await invoke('/me','PUT',{handle:'new_local',name:'New local'},first.session);assert.equal(joined.me.name,'New local');
+ const resumed=await invoke('/session','POST',{provider:'anideck',token:key});assert.equal(resumed.me.handle,'new_local');assert.equal(resumed.me.name,'New local');
+ assert.equal((await invoke('/friends','POST',{to:'bob'},resumed.session)).httpStatus,200);
+ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM friends WHERE b=?').get('bob').n,1);await call('bob','/friends/new_local/accept','POST',{});
+ const sent=await invoke('/messages/bob','POST',{text:'Isolated local account test',clientId:'local-account-message-001'},resumed.session);assert.equal(sent.httpStatus,201);
+ const wrong=await invoke('/session','POST',{provider:'anideck',token:'adk_'+'2'.repeat(64)});assert.equal((await invoke('/me','GET',undefined,wrong.session)).me,null);
+ assert.equal((await invoke('/session','POST',{provider:'anideck',token:'anideck:'+key})).httpStatus,401);
+ assert(!JSON.stringify(db.prepare('SELECT * FROM users').all()).includes(key));
 });
