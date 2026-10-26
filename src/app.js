@@ -328,7 +328,7 @@ const App = {
     // Top-left Home button on every page but Home, so you don't have to bring up the dock to get back.
     $('#home-fab').onclick = () => this.returnHome();
     $('#page-back').onclick = () => this.back();
-    this.homeBrand=$('#home-brand');
+    this.homeBrand=$('#home-brand');this.pageShortcuts=$('#page-shortcuts');
     $('#main').addEventListener('scroll',()=>{if(this.homeBrand)this.homeBrand.classList.toggle('scrolled-away',$('#main').scrollTop>8);},{passive:true});
 
     $('.topbar').addEventListener('click', (e) => { // Home / Schedule / My list / Library / Requests / Settings
@@ -821,6 +821,7 @@ const App = {
       main.classList.remove('view-leaving');
       this.renderQuiet = quiet; // quiet refreshes don't replay the card animations
       main.innerHTML = html;
+      this.mountPageShortcuts(main);
       if(view==='home'&&this.homeBrand){
         const anchor=document.createElement('div');anchor.className='home-brand-anchor';
         main.prepend(anchor);anchor.appendChild(this.homeBrand);this.homeBrand.hidden=false;this.homeBrand.classList.toggle('scrolled-away',quiet&&keepScroll>8);
@@ -844,6 +845,7 @@ const App = {
       clearTimeout(this.spinTimer);
       main.classList.remove('view-leaving');
       main.innerHTML = `<div class="page"><div class="empty">Something went wrong: ${esc(e.message)}<br><br><button class="btn" data-act="retry">Try again</button></div></div>`;
+      this.mountPageShortcuts(main);
     });
   },
   // Re-draws the current page in place after something changed (closing the player, a list update…): the page stays
@@ -855,6 +857,7 @@ const App = {
     const target=this.renderId+1;
     return this.nav(prev.view, prev.params, false).then(() => { if(!this.stale(target))$('#main').scrollTop=prev.scroll||0; });
   },
+  mountPageShortcuts(main=$('#main')) {if(!this.pageShortcuts||!main)return;const anchor=document.createElement('div');anchor.className='page-shortcuts-anchor';main.prepend(anchor);anchor.appendChild(this.pageShortcuts);},
   stale(id) { return id !== this.renderId; },
 
   /* ---------------- actions ---------------- */
@@ -1700,7 +1703,8 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.5', items:[
+  { v:'1.0.0', revision:'2026-10-26.6', items:[
+    'Search-first favorite picking, stories on hovered posters, and shortcuts anchored to the page top.',
     'More reliable favorite searches, browsable rating columns, a compact status hand and fixed corner navigation.',
     'Choose and arrange a favorite-anime shelf on your AniDeck profile.',
     'Customize your AniDeck picture, display name and bio; sign in on another device with your private key.',
@@ -2127,7 +2131,7 @@ function episodeCard(ep) {
 function animeCard(a, extra = '', entry = null) {
   const inLib = App.libIndex?.find(a);
   const badge = (inLib ? '<span class="badge in">In library</span>' : '') + (a.rating ? `<span class="badge right rating">★ ${a.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(a.id)}" hidden></span>`);
-  return `<article class="card ta-card" tabindex="0" role="link" ${entry?`data-list-status="${esc(entry.status||'current')}" data-list-progress="${Number(entry.progress)||0}"`: ''} data-total="${Number(a.episodes)||0}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
+  return `<article class="card ta-card" tabindex="0" role="link" ${entry?`data-list-status="${esc(entry.status||'current')}" data-list-progress="${Number(entry.progress)||0}"`: ''} data-synopsis="${esc(String(a.synopsis||'').slice(0,4000))}" data-story-meta="${esc([a.subtype,a.year,a.episodes?a.episodes+' eps':''].filter(Boolean).join(' · '))}" data-total="${Number(a.episodes)||0}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
     <div class="poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}<span class="ta-overlay"><button type="button" class="ta-play" data-ta="play" aria-label="Play next episode" data-tip="Play next episode">${icon('play','fill')}</button><button type="button" class="ta-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></span></div>
     <div class="card-title">${esc(a.title)}</div>
     <div class="card-sub">${esc(extra || [a.subtype, a.year].filter(Boolean).join(' · '))}</div>
@@ -3049,7 +3053,7 @@ const HoverPreview = {
       if(e.target.closest?.('[data-ta]')){this.hide();return;}
       if(e.target.closest?.('.hover-pop')){clearTimeout(this.hideTimer);return;}
       const card=e.target.closest?.('#main .rail .card[data-id], #main .grid .card[data-id], #main .mz-tile[data-id]');
-      if(card&&['series','movie'].includes(card.dataset.act))return this.hide();
+      if(card&&(card.querySelector('.poster')||['series','movie'].includes(card.dataset.act)))return this.hide();
       if(card===this.card){clearTimeout(this.hideTimer);return;}
       clearTimeout(this.timer);if(!card){this.hideSoon();return;}this.hide();
       this.card=card;this.timer=setTimeout(()=>this.show(card),650);
@@ -4909,7 +4913,7 @@ const Views = {
           <select data-set="spotlightMs">${opt([[3000, 'Quick (3 s)'], [4800, 'Normal (4.8 s)'], [7200, 'Relaxed (7.2 s)']], spotlightDuration(s.spotlightMs))}</select></div>
         <div class="set-row"><div><div>Trending chart</div><div class="desc">How many shows the Trending chart ranks.</div></div>
           <select data-set="trendingCount">${opt([[5, 'Top 5'], [9, 'Top 9']], s.trendingCount === 5 ? 5 : 9)}</select></div>
-        <div class="set-row"><div><div>Hover previews</div><div class="desc">Pause on a poster for a synopsis, genres, airing info and your list progress.</div></div>${sw('hoverPreview')}</div>
+        <div class="set-row"><div><div>Hover previews</div><div class="desc">Expanded quick looks for compact titles. Poster cards show their story directly on hover.</div></div>${sw('hoverPreview')}</div>
         <div class="set-row"><div><div>Hide NSFW shows</div><div class="desc">Keeps ecchi and adult titles out of home, browse and search.</div></div>${sw('hideNsfw')}</div>
       </div>
 
