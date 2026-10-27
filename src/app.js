@@ -742,7 +742,7 @@ const App = {
       <button data-view="home" class="nav-item" title="Home">${icon('home')}<span>Home</span></button>
       <button data-view="schedule" class="nav-item" title="Schedule">${icon('calendar')}<span>Schedule</span></button>
       <button data-view="mylist" class="nav-item" title="My list">${icon('list')}<span>My list</span></button>
-      ${Tracker.loggedIn()?`<button data-view="friends" class="nav-item" title="Friends">${icon('chat')}<span>Friends</span></button>`:''}
+      ${Tracker.loggedIn()?`<button data-view="friends" class="nav-item" title="Social">${icon('chat')}<span>Social</span></button>`:''}
       ${Jellyfin.connected() ? `<button data-view="library" class="nav-item" title="My library">${icon('grid')}<span>My library</span></button>` : ''}
       ${Requests.enabled() ? `<button data-view="requests" class="nav-item" title="Requests">${icon('send')}<span>Requests</span></button>` : ''}`;
     this.markNav();
@@ -2569,7 +2569,7 @@ function showTint(el, hex) {
   el.style.setProperty('--accent-rgb', rgb); el.style.setProperty('--accent', `rgb(${rgb})`);
   el.style.setProperty('--accent2-rgb', rgb); el.style.setProperty('--accent-2', `rgb(${rgb})`);
 }
-const VIEW_TITLES = { home: 'Home', schedule: 'Schedule', mylist: 'My list', library: 'Library', requests: 'Requests', settings: 'Settings', profile: 'Profile', friends:'Friends', browse: 'Browse', search: 'Search', homesections: 'Home rows' };
+const VIEW_TITLES = { home: 'Home', schedule: 'Schedule', mylist: 'My list', library: 'Library', requests: 'Requests', settings: 'Settings', profile: 'Profile', friends:'Social', browse: 'Browse', search: 'Search', homesections: 'Home rows' };
 function setWindowTitle(view, main) {
   const t = VIEW_TITLES[view] || main.querySelector('.hero-text h1, .sub-head h1, .page-head h1')?.textContent?.trim();
   document.title = t ? `${t} · AniDeck` : 'AniDeck';

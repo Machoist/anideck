@@ -251,7 +251,7 @@ function createWindow() {
           window.__friendsLayoutOriginal={request:Friends.request,valid:Friends.valid,markRead:Friends.markRead};Friends.valid=()=>true;Friends.markRead=async()=>{};
           Friends.request=async()=>({peer:{handle:'sora',name:'Sora'},messages:Array.from({length:70},(_,i)=>({id:'layout-'+i,text:'Sample conversation '+(i+1),mine:i%2===0,at:Date.now()-70000+i*1000})),nextCursor:null});
           document.querySelector('#main').innerHTML=await Views.friends();document.querySelector('.af-page-actions').hidden=false;
-          Friends.rows=[{handle:'sora',name:'Sora',last:{text:'What should we watch next?',at:Date.now()}}];Friends.social={friends:[{handle:'sora'}],incoming:[],outgoing:[]};Friends.renderRoster(document.querySelector('#af-content'),{handle:'mira',name:'Mira'},Friends.social);
+          Friends.me={handle:'mira',name:'Mira'};Friends.rows=[{handle:'sora',name:'Sora',last:{text:'What should we watch next?',at:Date.now()}}];Friends.social={friends:[{handle:'sora'}],incoming:[],outgoing:[]};Friends.renderRoster(document.querySelector('#af-content'),{handle:'mira',name:'Mira'},Friends.social);
           document.querySelector('#main').scrollTop=0;
         })()`);
         await new Promise(resolve=>setTimeout(resolve,250));
@@ -268,6 +268,16 @@ function createWindow() {
         if(Object.values(friendsNarrow).some(v=>v!==true))throw Error('Narrow Friends layout failed: '+JSON.stringify(friendsNarrow));
         console.log('AniDeck Friends window layout: '+JSON.stringify({friendsWelcome,friendsThread,friendsNarrow}));
         await win.webContents.executeJavaScript("Object.assign(Friends,window.__friendsLayoutOriginal);document.querySelector('#main').innerHTML='';");win.setContentSize(...friendsSize);
+        await win.webContents.executeJavaScript(`(async()=>{document.querySelector('#main').innerHTML=await Views.friends();Friends.me={handle:'mira',name:'Mira'};Friends.social={friends:[{handle:'sora',name:'Sora'}],incoming:[],outgoing:[]};Friends.renderRoster(document.querySelector('#af-content'),Friends.me,Friends.social);Social.select('friends');})()`);
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const socialFriends=await win.webContents.executeJavaScript("(()=>{const button=document.querySelector('#social-friend-list [data-act=wfOpen]');if(!button)throw Error('Social friend missing');button.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:400,clientY:300}));return {menu:!!document.querySelector('#profile-actions-menu'),profile:!!document.querySelector('#profile-actions-menu [data-action=wfOpen]'),message:!!document.querySelector('#profile-actions-menu [data-action=friendsMessage]'),compare:!!document.querySelector('#profile-actions-menu [data-action=friendsCompare]')};})()");
+        if(Object.values(socialFriends).some(v=>v!==true))throw Error('Profile right click menu failed: '+JSON.stringify(socialFriends));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-social-friends-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript("ProfileActions.close();Social.select('settings');");await new Promise(resolve=>setTimeout(resolve,200));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-social-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const socialSettings=await win.webContents.executeJavaScript("({privacy:!!document.querySelector('.social-panel [data-act=messagePrivacy]'),alerts:!!document.querySelector('.social-panel [data-act=socialNotifications]'),blocked:!!document.querySelector('.social-panel [data-act=friendsBlocked]')})");
+        if(Object.values(socialSettings).some(v=>v!==true))throw Error('Social settings missing: '+JSON.stringify(socialSettings));
+        await win.webContents.executeJavaScript("Social.section='messages';Friends.handle='';document.querySelector('#main').innerHTML='';");console.log('AniDeck Social controls: '+JSON.stringify({socialFriends,socialSettings}));
         const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
         const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
         try{
