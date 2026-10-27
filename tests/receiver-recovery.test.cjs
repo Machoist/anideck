@@ -52,6 +52,11 @@ test('a slow initial metadata load does not erase the requested resume position'
  const f=await fixture(t);f.video.readyState=0;f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false,at:300});await f.tick();assert.equal(f.cast.status().screen.playback.time,300);
 });
 
+test('an autoplay-blocked receiver still offers Play on TV after reconnecting',async t=>{
+ const f=await fixture(t);f.video.play=async()=>{throw Error('User gesture required')};f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false});await f.tick();await f.tick();assert.equal(f.nodes.activate.hidden,false);
+ f.offline(true);await f.tick();f.offline(false);await f.tick();assert.equal(f.nodes.activate.hidden,false);assert.match(f.nodes.activate.textContent,/Play on TV/);
+});
+
 test('disconnect aborts an already-open media transfer and revokes its proxy URL',async t=>{
  let cancelled;const ended=new Promise(resolve=>cancelled=resolve);
  const cast=createCasting({host:'127.0.0.1',port:0,fetchUpstream:async()=>new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1,2,3]));},cancel(){cancelled();}}),{headers:{'Content-Type':'video/mp4'}})});
