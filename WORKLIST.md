@@ -31,9 +31,10 @@ Evaluation: useful for bounded supervised tasks; independent accuracy has not be
 2. Test recovery-key sign-in and profile presentation on a physical second device; verify private Jellyfin playback and isolation from anime discovery and Social.
 3. Test physical TV picture, sound, captions, codecs, LAN connectivity and recovery during media playback. Same-tab refresh, pairing retention, centered wordmark and pairing-code lifecycle pass packaged checks; media decoding remains simulated in protocol tests.
 4. Verify real OS desktop alerts and two-account request/accept/decline, No messages and notification timing. Backend permission tests and UI bindings pass in isolation.
-5. **Deferred backlog:** live Friends acceptance with Gio, including consent, messages, invitations and notifications. Resume when available; do not repeatedly request testing.
-6. **Deferred backlog:** physical Mac installation, sign-in, playback and cross-platform Friends acceptance. Mac CI is now successful; physical acceptance and notarization remain separate work.
-7. Consider public release after acceptance. Only Anikoto is user-confirmed working; other playback providers remain unverified or unreliable. Watch invitations save a plan; they do not synchronize playback.
+5. **New release notification / GitHub release link:** add an AniDeck-styled, dismissible prompt when a newer public stable release is available, showing its version with **View release on GitHub** and **Later** actions. Open the specific verified AniDeck release page; remember dismissal per version, avoid interrupting playback, and keep a manual check in Settings > About. Compare versions correctly, exclude drafts/prereleases unless explicitly opted in, and handle offline/rate-limit failures quietly. Reconcile this with the existing Windows electron-updater (currently downloads/install-on-quit in release builds) so users do not receive duplicate or misleading prompts. Development/test builds currently disable auto-updates; preserve that separation. Verify discovery/comparison/prompt behavior with fixtures before live release acceptance. **Planned, not implemented.**
+6. **Deferred backlog:** live Friends acceptance with Gio, including consent, messages, invitations and notifications. Resume when available; do not repeatedly request testing.
+7. **Deferred backlog:** physical Mac installation, sign-in, playback and cross-platform Friends acceptance. Mac CI is now successful; physical acceptance and notarization remain separate work.
+8. Consider public release after acceptance. Only Anikoto is user-confirmed working; other playback providers remain unverified or unreliable. Watch invitations save a plan; they do not synchronize playback.
 
 ## Resume safely
 
