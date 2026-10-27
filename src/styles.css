@@ -4033,6 +4033,9 @@ body:has(#player:not([hidden])) :is(#home-fab.home-fab,#page-back,#home-brand){d
 
 /* Page shortcuts belong to the top of the page and scroll away with its content. */
 .page-shortcuts-anchor { position:relative; height:70px; margin-bottom:-70px; z-index:44; animation:none!important; pointer-events:none; }
+/* Standard pages need a real navigation row; hero layouts retain their overlay. */
+.page-shortcuts-anchor:has(+ .page, + .af-messenger-page) { margin-bottom:0; }
+@media(min-height:461px){.page-shortcuts-anchor + .page.schedule { height:calc(100% - 70px); }}
 #main.view-in>.page-shortcuts-anchor { animation:none!important; }
 #page-shortcuts { position:absolute; inset:0; height:70px; z-index:44; pointer-events:none; }
 #page-shortcuts>button { pointer-events:auto; }

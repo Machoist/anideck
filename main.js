@@ -190,6 +190,20 @@ function createWindow() {
       if(Object.values(setup).some(value=>value!==true))throw Error('Packaged setup flow check failed: '+JSON.stringify(setup));
       console.log('AniDeck isolated guest setup checks: '+JSON.stringify(setup));
       if(visualDir){
+        const shortcutSizes=[];
+        for(const [width,height] of [[1440,900],[640,760],[360,720]]){
+          win.setContentSize(width,height);
+          await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();await App.nav('mylist',{tab:'current'});document.querySelector('#home-fab').hidden=false;document.querySelector('#page-back').hidden=false;})()");
+          await new Promise(resolve=>setTimeout(resolve,450));
+          const geometry=await win.webContents.executeJavaScript(`(()=>{const main=document.querySelector('#main'),title=document.querySelector('.ml-title'),buttons=[document.querySelector('#home-fab'),document.querySelector('#page-back')],rect=title.getBoundingClientRect();const clear=buttons.every(button=>button.getBoundingClientRect().bottom+8<=rect.top);const before=buttons[0].getBoundingClientRect().top;const spacer=document.createElement('div');spacer.style.height='1200px';main.append(spacer);main.scrollTop=180;const distance=main.scrollTop,after=buttons[0].getBoundingClientRect().top;const scrolls=distance>100&&Math.abs((before-after)-distance)<2;main.scrollTop=0;spacer.remove();return {clear,scrolls,titleTop:rect.top,buttonBottom:Math.max(...buttons.map(button=>button.getBoundingClientRect().bottom))};})()`);
+          if(!geometry.clear||!geometry.scrolls)throw Error('My list shortcuts overlap or do not scroll naturally: '+JSON.stringify({width,...geometry}));
+          shortcutSizes.push({width,...geometry});
+          fs.writeFileSync(path.join(visualDir,'AniDeck-mylist-shortcuts-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        }
+        win.setContentSize(1180,820);
+        console.log('AniDeck My list shortcut geometry: '+JSON.stringify(shortcutSizes));
+      }
+      if(visualDir){
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
