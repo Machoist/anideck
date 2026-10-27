@@ -22,18 +22,18 @@ function rewritePlaylist(text, base, register) {
   return line.replace(/URI="([^"]+)"/g, (_, url) => `URI="${local(url)}"`);
  }).join('\n');
 }
-function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch, now=Date.now }={}) {
+function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch, now=Date.now,pairingEnabled=true }={}) {
  let server, starting, current=null, revision=0;
  const screens=new Map(), assets=new Map(),assetIndex=new Map(),listeners=new Map(),transfers=new Set();
  const notify=token=>{for(const response of listeners.get(token)||[]){if(!response.destroyed)response.write('data: '+revision+'\n\n');}};
- let pairing=true;
- const setPairing=enabled=>{pairing=!!enabled;for(const screen of screens.values()){if(screen.token!==current){screen.code=null;screen.expires=0;}notify(screen.token);}return status();};
+ let pairing=pairingEnabled,pairingUntil=pairingEnabled?Infinity:0;
+ const setPairing=enabled=>{const changed=pairing!==!!enabled;pairing=!!enabled;pairingUntil=pairing?now()+3000:0;if(changed)for(const screen of screens.values()){if(screen.token!==current){screen.code=null;screen.expires=0;}notify(screen.token);}return status();};
  let addressCache=[],addressAt=-Infinity;
  const localAddresses=()=>{if(now()-addressAt>=5000){addressCache=addresses();addressAt=now();}return addressCache;};
  const clearAssets=()=>{for(const controller of transfers)controller.abort();transfers.clear();assets.clear();assetIndex.clear();};
  const publicScreen=s=>({name:s.name, connected:current===s.token, online:now()-s.seen<15000, playback:s.playback});
- const status=()=>({running:!!server?.listening, port:server?.address()?.port||port, urls:server?.listening?localAddresses().map(a=>`http://${a}:${server.address().port}`):[], screen:current&&screens.has(current)?publicScreen(screens.get(current)):null});
- const cleanup=()=>{const active=screens.get(current);if(active&&now()-active.seen>=15000)disconnect();for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
+ const status=()=>({pairing,running:!!server?.listening, port:server?.address()?.port||port, urls:server?.listening?localAddresses().map(a=>`http://${a}:${server.address().port}`):[], screen:current&&screens.has(current)?publicScreen(screens.get(current)):null});
+ const cleanup=()=>{if(pairing&&now()>pairingUntil)setPairing(false);const active=screens.get(current);if(active&&now()-active.seen>=15000)disconnect();for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
  const register=(url,token,headers={})=>{
   if(!/^https?:$/.test(new URL(url).protocol))throw new Error('Unsupported media address');
   const indexKey=token+'\0'+url;let id=assetIndex.get(indexKey);
@@ -101,7 +101,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   if(req.method==='POST'&&url.pathname==='/leave'){if(current===token)disconnect();screens.delete(token);return json(res,200,{ok:true});}
   if(req.method==='GET'&&url.pathname==='/state'){
    const reported=screen.playback,matching=reported.mediaId===screen.state.media?.id;
-   return json(res,200,{...screen.state,pairing,connected:current===token,resumeAt:matching?reported.time:screen.state.media?.at,completed:!!(matching&&reported.ended&&reported.revision===screen.state.revision)});
+   return json(res,200,{...screen.state,pairing,code:pairing&&screen.expires>now()?screen.code:null,expiresIn:Math.max(0,(screen.expires-now())/1000),connected:current===token,resumeAt:matching?reported.time:screen.state.media?.at,completed:!!(matching&&reported.ended&&reported.revision===screen.state.revision)});
   }
   if(req.method==='POST'&&url.pathname==='/playback'){
    const data=await body(req);

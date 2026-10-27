@@ -6,14 +6,17 @@ async function fixture(t){
  const nodes=Object.fromEntries(['welcome','message','activate','now','code','instructions','receiver-heading'].map(id=>[id,{hidden:false,textContent:'',focus(){}}]));
  let plays=0,offline=false;const tracks=[];
  const video=nodes.video={paused:true,currentTime:0,duration:1200,readyState:4,ended:false,querySelectorAll:()=>tracks,addEventListener(){},appendChild:track=>tracks.push(track),pause(){this.paused=true;},play:async()=>{plays++;video.paused=false;},removeAttribute(name){if(name==='src')this.src='';},load(){this.currentTime=0;this.ended=false;},canPlayType:()=> 'probably'};
- const context={document:{getElementById:id=>nodes[id],createElement:()=>({track:{}})},window:{},navigator:{userAgent:'Fixture receiver'},AbortController,Date,setTimeout,clearTimeout,
+ const storage=new Map();
+ const context={sessionStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},document:{getElementById:id=>nodes[id],createElement:()=>({track:{}})},window:{},navigator:{userAgent:'Fixture receiver'},AbortController,Date,setTimeout,clearTimeout,
   fetch:(url,options)=>{if(offline)return Promise.reject(Error('Network unavailable'));return fetch(new URL(url,base),options);}};
  const source=fs.readFileSync(path.join(__dirname,'../src/casting/receiver.js'),'utf8');
- const receiver=vm.runInNewContext(source.slice(0,source.indexOf('let lastHeartbeat='))+'\n({tick,getMedia:()=>media})',context);
+ const makeReceiver=()=>vm.runInNewContext(source.slice(0,source.indexOf('let lastHeartbeat='))+'\n({tick,getMedia:()=>media})',{...context});let receiver=makeReceiver();
  const tick=async()=>{await receiver.tick();video.onloadedmetadata?.();};
  await tick();cast.connect(nodes.code.textContent);await tick();
- return {cast,receiver,nodes,video,base,tick,get plays(){return plays},offline:value=>offline=value};
+ return {cast,get receiver(){return receiver},nodes,video,base,tick,reload:async()=>{receiver=makeReceiver();await tick();},get plays(){return plays},offline:value=>offline=value};
 }
+
+test('refresh resumes a paired TV using the same tab session and last playback position',async t=>{const f=await fixture(t);f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false,at:5});await f.tick();f.video.currentTime=120;await f.tick();const media=f.receiver.getMedia().id;f.cast.setPairing(false);await f.reload();assert.equal(f.cast.status().screen.connected,true);assert.equal(f.receiver.getMedia().id,media);assert.equal(f.video.currentTime,120);assert.equal(f.nodes.code.hidden,true);f.cast.disconnect();await f.reload();assert.equal(f.cast.status().screen,null);assert.equal(f.receiver.getMedia(),null);assert.equal(f.nodes.code.hidden,true);});
 
 test('unused TV code disappears when pairing closes and returns with a new code on reopening',async t=>{const f=await fixture(t);f.cast.disconnect();f.cast.setPairing(false);await f.tick();assert.equal(f.nodes.code.hidden,true);assert.match(f.nodes.instructions.textContent,/Open Cast to TV/);f.cast.setPairing(true);await f.tick();assert.equal(f.nodes.code.hidden,false);assert.match(f.nodes.code.textContent,/\d{3} \d{3}/);f.cast.connect(f.nodes.code.textContent);await f.tick();assert.equal(f.nodes.code.hidden,true);});
 

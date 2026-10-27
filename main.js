@@ -192,6 +192,25 @@ function createWindow() {
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript(`(()=>{
+          document.querySelector('#main').innerHTML=profileMarkup({self:true});
+          const counts=[5,5,2,0,0],entries=Array.from({length:12},(_,i)=>({anime:{id:'al:'+String(i+1),title:i===0?'Frieren: Beyond Journey’s End':'Sample anime '+(i+1),poster:'brand/mark.svg',genres:['Fantasy','Adventure','Drama'],episodes:12,year:2025},status:i<5?'current':i<10?'planned':'completed',progress:i<5?4:i<10?0:12,rating:8}));
+          const card=watcherCard({episodes:306,seconds:450000,counts:{current:5,planned:5,completed:2}},entries,{}, {name:'Mira',avatar:'brand/mark.svg',tracker:'AniDeck'});
+          paintProfileIdentity({name:'Mira',handle:'mira',bio:'Fantasy worlds, slow adventures, and a growing backlog. Always making room for one more favorite.'});paintProfile(card);
+          document.querySelector('#pf-favorites').hidden=true;document.querySelector('#pf2-social').hidden=true;document.querySelector('#pf2-habits').hidden=true;
+          document.querySelector('#main').scrollTop=0;window.__profileFixture=card;
+        })()`);
+        await new Promise(resolve=>setTimeout(resolve,1500));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-profile-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const layout=await win.webContents.executeJavaScript(`(()=>{const cards=[...document.querySelectorAll('#pf2-list .pf2-pcard')];return {buttons:cards.length,labelsFit:cards.every(c=>{const label=c.querySelector('.pf2-pcard-top'),a=c.getBoundingClientRect(),b=label.getBoundingClientRect();return b.right<=a.right&&b.left>=a.left;}),noOverlap:cards.every((c,i)=>!i||c.getBoundingClientRect().left>=cards[i-1].getBoundingClientRect().right-3),recoveryOnly:!accountProfileCard().includes('aniEdit')&&!accountProfileCard().includes('aniFavorites')};})()`);
+        if(Object.values(layout).some(v=>v===false)||layout.buttons!==5)throw Error('Profile layout check failed: '+JSON.stringify(layout));
+        const routes=await win.webContents.executeJavaScript("(()=>{const seen=[],original=App.act;try{App.act=(action,data)=>seen.push(action+':'+data.tab);for(const button of document.querySelectorAll('#pf2-list button'))button.click();}finally{App.act=original;}return seen;})()");
+        if(JSON.stringify(routes)!==JSON.stringify(['listTab:current','listTab:planned','listTab:completed','listTab:on_hold','listTab:dropped']))throw Error('Status card clicks were redirected: '+JSON.stringify(routes));
+        await win.webContents.executeJavaScript("document.querySelector('#pf2-list').style.width='320px';document.querySelector('#pf2-list').style.gridColumn='1 / -1';document.querySelector('#pf2-list').scrollIntoView({block:'center'});");
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const narrow=await win.webContents.executeJavaScript("(()=>{const box=document.querySelector('#pf2-list'),cards=[...box.querySelectorAll('.pf2-pcard')];return {noOverflow:box.scrollWidth<=box.clientWidth,stacked:cards[1].getBoundingClientRect().top>cards[0].getBoundingClientRect().bottom};})()");
+        if(!narrow.noOverflow||!narrow.stacked)throw Error('Narrow status layout failed: '+JSON.stringify(narrow));
+        console.log('AniDeck profile layout: '+JSON.stringify({...layout,narrow}));
         const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
         const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
         try{
@@ -200,9 +219,13 @@ function createWindow() {
           await new Promise(resolve=>setTimeout(resolve,250));if(await codeVisible())throw Error('Closed pairing still shows a TV code');
           receiverServer.setPairing(true);await new Promise(resolve=>setTimeout(resolve,1200));if(!await codeVisible())throw Error('Opening pairing did not show a fresh TV code');
           receiverServer.setPairing(false);await new Promise(resolve=>setTimeout(resolve,1200));if(await codeVisible())throw Error('Closing pairing did not clear the TV code');
+          await tv.webContents.executeJavaScript('location.reload()');await new Promise(resolve=>setTimeout(resolve,1200));if(await codeVisible())throw Error('Refresh reopened closed pairing');
+          receiverServer.setPairing(true);await new Promise(resolve=>setTimeout(resolve,1200));const code=await tv.webContents.executeJavaScript("document.getElementById('code').textContent");receiverServer.connect(code);receiverServer.setPairing(false);await new Promise(resolve=>setTimeout(resolve,250));
+          const before=await tv.webContents.executeJavaScript("sessionStorage.getItem('anideckReceiverSession')");await tv.webContents.executeJavaScript('location.reload()');await new Promise(resolve=>setTimeout(resolve,1200));const after=await tv.webContents.executeJavaScript("sessionStorage.getItem('anideckReceiverSession')");if(!receiverServer.status().screen?.connected||before!==after||await codeVisible())throw Error('Refreshing a paired TV lost its session');
+          receiverServer.disconnect();await new Promise(resolve=>setTimeout(resolve,1200));
           const branded=await tv.webContents.executeJavaScript("[...document.querySelectorAll('.receiver-brand img')].every(img=>img.complete&&img.naturalWidth>0)");if(!branded)throw Error('TV brand assets did not load');
           fs.writeFileSync(path.join(visualDir,'AniDeck-TV-waiting-preview.png'),(await tv.webContents.capturePage()).toPNG());
-          console.log('AniDeck native TV setup: '+JSON.stringify({brandLoaded:true,closedCodeHidden:true,reopenedCodeVisible:true,closedAgainHidden:true}));
+          console.log('AniDeck native TV setup: '+JSON.stringify({brandLoaded:true,closedCodeHidden:true,reopenedCodeVisible:true,closedAgainHidden:true,refreshKeepsPairing:true,closedRefreshHasNoCode:true}));
         }finally{tv.destroy();await receiverServer.stop();}
       }
       if(process.argv.includes('--anideck-checks')){
@@ -408,7 +431,7 @@ ipcMain.handle('stream:getQualityOptions', async (_e, source, episodeData) => {
 
 // ---------- Cast to TV: browser receiver, no PC-to-PC account sharing ----------
 const { createCasting } = require('./src/casting/server.js');
-const casting = createCasting({ fetchUpstream: (url, options) => net.fetch(url, options) });
+const casting = createCasting({ pairingEnabled:false,fetchUpstream: (url, options) => net.fetch(url, options) });
 const mediaRelay = require('./src/mediaRelay').createMediaRelay({fetchUpstream:(url,options)=>net.fetch(url,options)});
 ipcMain.handle('media:relay', (_event, media) => mediaRelay.load(media));
 ipcMain.handle('media:stop', () => mediaRelay.stop());

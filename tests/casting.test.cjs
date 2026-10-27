@@ -21,6 +21,8 @@ test('closing pairing invalidates unused codes, hides them in state and preserve
  const state=(await request('/state',undefined,b.token)).body;assert.equal(state.connected,true);assert(state.media);assert.equal(state.pairing,false);
  for(const file of ['wordmark.svg','mark.svg']){const response=await fetch(base+'/'+file);assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/svg/);assert.match(await response.text(),/<svg/);}
 });
+
+test('production receiver starts with no pairing and a lost pairing dialog lease invalidates codes',async t=>{let time=1000;const {cast,request}=await setup(t,{pairingEnabled:false,now:()=>time});assert.equal((await request('/hello',{})).body.code,null);cast.setPairing(true);const a=(await request('/hello',{})).body;assert(a.code);time+=2000;cast.setPairing(true);assert.equal((await request('/state',undefined,a.token)).body.code,a.code);time+=3001;assert.equal((await request('/state',undefined,a.token)).body.pairing,false);assert.throws(()=>cast.connect(a.code),/Open Cast/);assert.equal((await request('/hello',{})).body.code,null);});
 test('cast media relays playlists, keys and byte ranges without leaking upstream URLs or headers',async t=>{
  const received=[];
  const upstream=http.createServer((req,res)=>{received.push({url:req.url,headers:req.headers});

@@ -65,6 +65,7 @@ const Cast = {
  async poll(){
   if(this.polling)return;this.polling=true;const session=this.session||0;
   try{
+   if(document.querySelector('.cast-panel'))await this.call('pairing',true);
    const s=await this.call('status');if(session!==(this.session||0))return;const screen=s.screen,p=screen?.playback,el=document.getElementById('cast-state');
    if(el)el.textContent=screen?(screen.online?`${screen.name} · ${p?.error||(p?.needsInteraction?'Press Play on your TV remote':this.active?(p?.loading?'Loading on TV…':p?.paused?'Paused on TV':'Playing on TV'):this.ready?'Ready · choose an episode':'Connected')}`:'TV connection lost · reopen the receiver page'):'Waiting for a TV';
    const loaded=!!Player.ctx&&!Player.el?.hidden&&!!(Player.castSource||Player.item);
@@ -130,4 +131,4 @@ const Cast = {
 };
 
 // All close paths (button, Escape, backdrop and replacement modal) end unused pairing.
-{const close=App.closeModal,modal=App.modal;const end=()=>{if(document.querySelector('.cast-panel'))Cast.call('pairing',false).catch(()=>{});};App.closeModal=function(...args){end();return close.apply(this,args);};App.modal=function(...args){end();return modal.apply(this,args);};}
+{const close=App.closeModal,modal=App.modal,nav=App.nav;const end=()=>{if(document.querySelector('.cast-panel'))Cast.call('pairing',false).catch(()=>{});};App.closeModal=function(...args){end();return close.apply(this,args);};App.modal=function(...args){end();return modal.apply(this,args);};App.nav=function(...args){if(document.querySelector('.cast-panel'))this.closeModal();return nav.apply(this,args);};}

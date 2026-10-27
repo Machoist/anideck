@@ -1,6 +1,6 @@
 'use strict';
 const video=document.getElementById('video'),welcome=document.getElementById('welcome'),message=document.getElementById('message'),activate=document.getElementById('activate'),nowPlaying=document.getElementById('now');
-let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false,events=null,tickAgain=false,playPending=false;
+let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false,events=null,tickAgain=false,playPending=false,unloading=false;
 async function api(path,data){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
@@ -37,11 +37,17 @@ function listenForCommands(){
  // The regular state poll remains available to browsers or networks without event streams.
  stream.onerror=()=>{stream.close();if(events===stream)events=null;};
 }
-async function hello(){events?.close();events=null;token=null;const r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code?r.code.slice(0,3)+' '+r.code.slice(3):'';message.textContent='The code expires in two minutes.';listenForCommands();}
+function rememberSession(value){try{if(value)sessionStorage.setItem('anideckReceiverSession',value);else sessionStorage.removeItem('anideckReceiverSession');}catch{}}
+async function hello({resume=false}={}){
+ events?.close();events=null;token=null;let r=null;
+ if(resume){try{token=sessionStorage.getItem('anideckReceiverSession');if(token)r=await api('/state');}catch{token=null;}}
+ if(!r){token=null;r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;}
+ rememberSession(token);expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code?r.code.slice(0,3)+' '+r.code.slice(3):'';message.textContent=r.connected?'Reconnected to your PC.':'The code expires in two minutes.';listenForCommands();
+}
 async function tick(){
- if(starting)return;starting=true;
+ if(starting||unloading)return;starting=true;
  try{
-  if(!token)await hello();
+  if(!token)await hello({resume:true});
   let s=await api('/state');
   lastContact=Date.now();
   if(!s.connected&&media)stop();
@@ -64,12 +70,14 @@ async function tick(){
    else if(media&&s.action==='play'&&!restore)play();
   }
   if(media&&s.connected)await api('/playback',{mediaId:media.id,revision,time:video.readyState>=1?video.currentTime:(pendingSeek??media.at??0),duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:(video.readyState<3||playPending)&&!video.ended});
- }catch(error){connectionLost();if(error.status===401)token=null;}
+ }catch(error){connectionLost();if(error.status===401){token=null;rememberSession(null);}}
  finally{starting=false;if(tickAgain){tickAgain=false;tick();}}
 }
 let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
 tick();setInterval(tick,1000);setInterval(checkConnection,1000);
 
 window.addEventListener?.('pagehide',()=>{
- events?.close();stop();if(token)fetch('/leave',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
+ // A refresh and a tab close both fire pagehide. Keep the token for reload;
+ // a closed tab loses its server-side lease after 15 seconds without heartbeats.
+ unloading=true;events?.close();stop();
 });

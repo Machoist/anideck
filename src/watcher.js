@@ -81,29 +81,29 @@ function watcherCard(st, entries, act, who = {}) {
 
 /* ---------------- page markup (yours, or a friend's) ---------------- */
 function profileMarkup({ self = true, handle = '' } = {}) {
-  const out = Tracker.name==='AniDeck' ? 'localProfile' : Tracker.svc === AniList ? 'anilistLogout' : 'kitsuLogout';
   const card = (id, title, sub, body, cls = '') => `<section class="pf2-card ${cls} pf-in" id="${id}"><header><div><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ''}</div></header>${body}</section>`;
   const acts = self
-    ? `<button class="btn ghost ad2-btn" data-act="aniEdit">${icon('edit')}Edit profile</button><button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="${out}">${icon('logout')}${Tracker.name==='AniDeck'?'Account settings':'Sign out'}</button>`
+    ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="wfSettings">${icon('settings')}Profile privacy</button>`
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
   return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
-    <section class="pf2-hero pf-in" style="--d:0ms">
+    <section class="pf2-hero pf3-hero pf-in" style="--d:0ms">
+      <header class="pf3-topline"><span class="ad-eyebrow">${self?'YOUR':'AN ANIDECK'} WATCHER CARD</span>${self?`<button class="btn primary" data-act="aniEdit">${icon('pencil')}Customize profile</button>`:''}</header>
       <div class="pf2-id">
         <div class="pf2-ava"><svg class="pf2-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="55"/><circle class="pf2-ring-fill" id="pf2-ring" cx="60" cy="60" r="55" stroke-dasharray="0 400"/></svg>
           <span class="avatar xl" id="pf-avatar">${icon('user', 'pf-ph')}${self && Tracker.avatar ? `<img src="${esc(Tracker.avatar)}" alt="">` : ''}</span><span class="pf2-lvl" id="pf2-lvl">Lv 1</span></div>
-        <div class="pf2-who"><span class="pf2-rank" id="pf2-rank">${self ? 'Fresh recruit' : '&nbsp;'}</span><h1 id="pf-name">${esc(self ? Tracker.userName || '' : handle ? `@${handle}` : '')}</h1>
-          ${self ? '' : `<span class="pf2-handle" id="pf2-handle">@${esc(handle)}</span>`}
-          <p id="pf-bio" class="pf-bio" hidden></p><div class="pf2-xp"><i><b id="pf2-xp"></b></i><small id="pf2-xp-t">&nbsp;</small></div></div>
+        <div class="pf2-who"><span class="pf2-rank" id="pf2-rank">${self ? 'Fresh recruit' : '&nbsp;'}</span><h1 id="pf-name">${esc(self ? Tracker.userName || '' : handle ? `@${handle}` : '')}</h1><span class="pf2-handle" id="pf2-handle" ${self?'hidden':''}>${self?'':'@'+esc(handle)}</span>
+          <div class="pf2-xp"><i><b id="pf2-xp"></b></i><small id="pf2-xp-t">&nbsp;</small></div></div>
       </div>
-      <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p>
-        <div class="pf2-hero-acts">${acts}</div></div>
+      <div class="pf3-story"><p id="pf-bio" class="pf-bio" hidden></p><div id="pf3-snapshot" class="pf3-snapshot" hidden></div></div>
+      <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p></div>
+      <footer class="pf3-footer"><span class="pf3-footer-note">${icon('deck')}${self?'Your taste. Your pace. Your deck.':'A little of what makes their deck.'}</span><div class="pf2-hero-acts">${acts}</div></footer>
     </section>
     <section id="pf-favorites" class="pf-favorites" hidden></section>
     ${self ? '<section class="pf2-social pf-in" id="pf2-social" style="--d:60ms" hidden></section>' : '<section class="pf2-compare pf-in" id="pf2-compare" style="--d:60ms" hidden></section>'}
     <section class="pf2-habits pf-in" style="--d:80ms" id="pf2-habits">${['Current streak', 'Longest streak', 'Best day', 'Per active day'].map((l) => `<div><b>–</b><span>${l}</span></div>`).join('')}</section>
     <div class="pf2-grid">
       ${card('pf2-taste', 'Taste fingerprint', 'The genres they keep coming back to'.replace('they', self ? 'you' : 'they'), '<div class="pf2-radar" id="pf2-radar"></div>', 'pf2-span2')}
-      ${card('pf2-list', self ? 'Your list' : 'Their list', '<span id="pf2-list-total">0</span> titles, dealt by status', '<div class="pf2-hand" id="pf2-hand"></div>')}
+      ${card('pf2-list', self ? 'Your list' : 'Their list', '<span id="pf2-list-total">0</span> titles'+(self?' · Open a status to explore':' · A look at their list'), '<div class="pf2-hand" id="pf2-hand"></div>')}
       ${card('pf2-score', self ? 'How you score' : 'How they score', `Every show ${self ? 'you’ve' : 'they’ve'} rated, piled by score`, '<div class="pf2-axis"><button class="link-btn" id="pf-score-browse">Browse ratings →</button></div><div class="pf2-stacks" id="pf2-hist"></div><p class="pf2-note" id="pf2-score-note">&nbsp;</p><div class="pf2-calls" id="pf2-calls"></div>')}
       ${card('pf2-erascard', 'Eras & formats', `When ${self ? 'your' : 'their'} shows are from, and what kind`, '<div class="pf2-eras" id="pf2-eras"></div><div class="pf2-formats" id="pf2-formats"></div>')}
       ${card('pf2-now', 'Watching now', '', '<div class="pf2-now" id="pf2-nowlist"></div>', 'pf2-span2')}
@@ -121,21 +121,22 @@ function countUp(el, to, decimals = 0, ms = 1300) {
   requestAnimationFrame(step);
 }
 function drawHand(vals, total, self = true) {
-  const box = $('#pf2-hand'); if (!box) return;
-  const n = STATUS_CARDS.length;
-  box.innerHTML = STATUS_CARDS.map(([l, col, tab], i) => {
-    const v = vals[i] || 0, pct = total ? Math.round(v / total * 100) : 0, k = i - (n - 1) / 2;
-    return `<button class="pf2-pcard ${v ? '' : 'empty'}" ${self ? `data-act="listTab" data-tab="${tab}"` : 'tabindex="-1"'} style="--rot:${(k * 8).toFixed(1)}deg;--lift:${(Math.abs(k) * 12).toFixed(0)}px;--col:${col};--fill:${pct}%;--i:${i}" title="${l}: ${v} title${v === 1 ? '' : 's'}">
-      <span class="pf2-pcard-fill"></span><span class="pf2-pcard-top"><i></i>${l}</span><b>${v}</b><small>${pct}%</small></button>`;
+  const box=$('#pf2-hand');if(!box)return;
+  box.innerHTML=STATUS_CARDS.map(([label,color,tab],i)=>{const count=vals[i]||0,pct=total?Math.round(count/total*100):0;
+    const tag=self?'button':'div';
+    return `<${tag} ${self?`type="button" data-act="listTab" data-tab="${tab}"`:''} class="pf2-pcard ${count?'':'empty'}" style="--col:${color};--fill:${pct}%;--i:${i};--tilt:${(i-2)*.75}deg" ${self?`aria-label="${label}: ${count} titles, ${pct}% of your list"`:''}><span class="pf2-pcard-fill"></span><span class="pf2-pcard-top"><i></i>${label}</span><b>${count}</b><small>${pct}% <span>of list</span></small>${self?`<span class="pf3-card-open" aria-hidden="true">${icon('arrowRight')}</span>`:''}</${tag}>`;
   }).join('');
-  // The cards overlap, so which one is "under the pointer" comes from where you are across the hand (five equal
-  // slices): sliding left or right moves card to card in both directions, and a click opens the lifted one.
-  const cards = [...box.querySelectorAll('.pf2-pcard')];
-  const pick = (e) => { let best=0,distance=Infinity;cards.forEach((card,index)=>{const rect=card.getBoundingClientRect(),next=Math.abs(e.clientX-(rect.left+rect.width/2));if(next<distance){best=index;distance=next;}});return best; };
-  box.onpointermove = (e) => { const i = pick(e); cards.forEach((c, j) => c.classList.toggle('lift', j === i)); };
-  box.onpointerleave = () => cards.forEach((c) => c.classList.remove('lift'));
-  box.handCards = cards; box.handPick = pick;
-  if (!box.dataset.bound) box.dataset.bound = '1', box.addEventListener('click', (e) => { if (!e.isTrusted) return; const c = box.handCards[box.handPick(e)]; if (c && e.target.closest('.pf2-pcard') !== c) { e.stopPropagation(); e.preventDefault(); c.click(); } }, { capture: true });
+}
+function profileHeroSnapshot(cd,{self=true}={}){
+  const watching=(cd.watching||[]).find(a=>/^(al:)?[1-9][0-9]*$/.test(String(a.id))),genres=(cd.genres||[]).slice(0,3);
+  const tags=genres.length?`<div class="pf3-genre-notes" aria-label="Most watched genres">${genres.map(([label])=>`<span>${esc(label)}</span>`).join('')}</div>`:'';
+  const rotation=watching?`<button class="pf3-rotation" data-act="anime" data-id="${esc(watching.id)}">${watching.p?`<img src="${esc(watching.p)}" alt="" loading="lazy">`:`<span class="pf3-rotation-art">${icon('video')}</span>`}<span><small>${self?'ON YOUR':'ON THEIR'} ROTATION</small><b>${esc(watching.t)}</b><em>${Number(watching.pr)||0}${Number(watching.ep)>0?' / '+Number(watching.ep):''} watched</em></span>${icon('chev')}</button>`:`<div class="pf3-rotation-empty"><span class="ad-eyebrow">${self?'YOUR':'THEIR'} TASTE, TAKING SHAPE</span><p>${genres.length?'The genres that keep finding their way onto this deck.':self?'Your watching titles and favorite genres will appear here as you track.':'More of their taste appears when they share their watchlist.'}</p>${self?'<button class="link-btn" data-act="listTab" data-tab="current">Open your watching list →</button>':''}</div>`;
+  return tags+rotation;
+}
+function paintProfileIdentity(user,{self=true}={}){
+  const bio=$('#pf-bio'),handle=$('#pf2-handle');if(bio){bio.textContent=user?.bio||'';bio.hidden=!user?.bio;}
+  if(handle){handle.textContent=user?.handle?'@'+user.handle:'';handle.hidden=!user?.handle;}
+  const name=$('#pf-name');if(name&&user?.name)name.textContent=user.name;
 }
 function radarSvg(series, labels) {
   // series: [{ values: [0..1], cls }]
@@ -148,6 +149,7 @@ function radarSvg(series, labels) {
 }
 function paintProfile(cd, { self = true, rarity = null } = {}) {
   const you = self ? 'you' : 'they', your = self ? 'your' : 'their';
+  const snapshot=$('#pf3-snapshot');if(snapshot){snapshot.innerHTML=profileHeroSnapshot(cd,{self});snapshot.hidden=false;}
   if (cd.avatar && !$('#pf-avatar img')) $('#pf-avatar').insertAdjacentHTML('beforeend', `<img src="${esc(cd.avatar)}" alt="">`);
   if (cd.name) $('#pf-name').textContent = cd.name;
   $('#pf2-lvl').textContent = `Lv ${cd.level}`;
@@ -156,8 +158,8 @@ function paintProfile(cd, { self = true, rarity = null } = {}) {
   $('#pf2-xp-t').textContent = `${Math.max(0, cd.next).toLocaleString()} episodes to level ${cd.level + 1}`;
   requestAnimationFrame(() => { const r = $('#pf2-ring'); if (r) r.setAttribute('stroke-dasharray', `${(cd.frac * 2 * Math.PI * 55).toFixed(1)} 400`); });
   countUp($('#pf-days'), cd.seconds / 86400, 1);
-  const hours = Math.round(cd.seconds / 3600), cours = Math.round(cd.eps / 12);
-  $('#pf-sub').textContent = `${hours.toLocaleString()} hours · ${cd.eps.toLocaleString()} episodes · about ${cours.toLocaleString()} cour${cours === 1 ? '' : 's'} of anime`;
+  const hours = Math.round(cd.seconds / 3600);
+  $('#pf-sub').textContent = `${hours.toLocaleString()} hours · ${cd.eps.toLocaleString()} episodes`;
   $('#pf-sub').classList.add('show');
   // list
   requestAnimationFrame(() => drawHand(cd.counts, cd.total, self)); countUp($('#pf2-list-total'), cd.total);
@@ -510,7 +512,7 @@ Object.assign(Views, {
     const rarity = Cloud.enabled() ? await Cloud.milestones().catch(() => null) : null;
     if (App.stale(rid)) return;
     let identity=null;try{identity=await Cloud.loadMe();}catch{}if(App.stale(rid))return;
-    if(identity){card.name=identity.name||card.name;card.avatar=identity.avatar||'';const bio=$('#pf-bio');bio.textContent=identity.bio||'';bio.hidden=!identity.bio;const image=$('#pf-avatar img');if(image)image.remove();}
+    paintProfileIdentity(identity,{self:true});if(identity){card.name=identity.name||card.name;card.avatar=identity.avatar||'';const image=$('#pf-avatar img');if(image)image.remove();}
     AniFavorites.paint(identity,true);
     paintProfile(card, { self: true, rarity });
     if (!stale) Cloud.publish(card);
@@ -525,7 +527,7 @@ Object.assign(Views, {
     if (App.stale(rid)) return;
     const u = r.user, btn = $('#wf-friend-btn');
     AniFavorites.paint(u,false);
-    const bio=$('#pf-bio');bio.textContent=u.bio||'';bio.hidden=!u.bio;
+    paintProfileIdentity(u,{self:false});
     $('#pf-name').textContent = u.name || `@${u.handle}`;
     if (u.avatar && !$('#pf-avatar img')) $('#pf-avatar').insertAdjacentHTML('beforeend', `<img src="${esc(u.avatar)}" alt="">`);
     if (btn) {
@@ -541,7 +543,7 @@ Object.assign(Views, {
     }
     const rarity = await Cloud.milestones().catch(() => null);
     if (App.stale(rid)) return;
-    paintProfile(u.card, { self: false, rarity });
+    paintProfile({...u.card,name:u.name||u.card.name,avatar:u.avatar??u.card.avatar}, { self: false, rarity });
     // compare with yours (from the last time your profile loaded, or now)
     const mine = (App.myCardWho===Cloud.ident()?App.myCard:null) || (await myCard(rid).catch(() => null))?.card;
     if (App.stale(rid) || !mine) return;

@@ -1679,9 +1679,7 @@ function trackerRows() {
 
 function accountProfileCard(){
   const me=Cloud.who===Cloud.ident()?Cloud.me:null;
-  const favorites=Array.isArray(me?.favorites)?me.favorites:[];
-  const actions=[['aniEdit','user',me?'Edit profile':'Create your profile','Picture, name & bio'],['aniFavorites','heart','Favorite anime','Build your eight-title shelf'],['localRecovery','signin','Sign-in & recovery','Access your account on another device']];
-  return `<section class="acct-profile-card" aria-label="Your AniDeck profile"><div class="acct-profile-identity"><span class="acct-profile-avatar">${me?.avatar?`<img src="${esc(me.avatar)}" alt="">`:icon('user')}</span><div><span class="ad-eyebrow">YOUR SPACE ON ANIDECK</span><h4>${esc(me?.name||me?.handle||'Make yourself at home')}</h4><span class="acct-profile-handle">${me?'@'+esc(me.handle):'A profile for your favorites and your circle'}</span>${me?.bio?`<p class="acct-profile-bio">${esc(me.bio)}</p>`:''}</div></div><div class="acct-profile-actions">${actions.map(([act,glyph,title,description])=>`<button class="acct-profile-action" data-act="${act}"><span class="acct-profile-action-icon">${icon(glyph)}</span><span><b>${title}</b><small>${description}</small></span><span aria-hidden="true">${icon('chev')}</span></button>`).join('')}</div><footer><span>${icon('deck')} ${favorites.length?favorites.length+' favorite'+(favorites.length===1?'':'s')+' on your shelf':'Your next favorite belongs here'}</span><small>Your local watchlist stays on this device.</small></footer></section>`;
+  return `<section class="acct-access-card" aria-label="AniDeck account access"><span class="acct-access-icon">${icon('signin')}</span><div><span class="ad-eyebrow">ANIDECK ACCOUNT</span><h4>${me?'Signed in as @'+esc(me.handle):'Your account, across devices'}</h4><p>Manage sign-in and your private recovery key. Your local watchlist stays on this device.</p></div><button class="btn ghost" data-act="localRecovery">Sign-in & recovery ${icon('chev')}</button></section>`;
 }
 
 function accountRows() {
