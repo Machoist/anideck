@@ -86,7 +86,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
     ? `<button class="btn ghost ad2-btn" data-act="friendsOpen">${icon('chat')}Friends & messages</button><button class="btn ghost ad2-btn" data-act="ad-route" data-view="review">${icon('spark')}Season in review</button><button class="btn ghost ad2-btn" data-act="wfSettings">${icon('settings')}Profile privacy</button>`
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
   return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
-    <section class="pf2-hero pf3-hero pf-in" style="--d:0ms">
+    <section class="pf2-hero pf3-hero pf-in" style="--d:0ms"><div id="pf-banner" class="profile-cover" hidden></div>
       <header class="pf3-topline"><span class="ad-eyebrow">${self?'YOUR':'AN ANIDECK'} WATCHER CARD</span>${self?`<button class="btn primary" data-act="aniEdit">${icon('pencil')}Customize profile</button>`:''}</header>
       <div class="pf2-id">
         <div class="pf2-ava"><svg class="pf2-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="55"/><circle class="pf2-ring-fill" id="pf2-ring" cx="60" cy="60" r="55" stroke-dasharray="0 400"/></svg>
@@ -94,10 +94,11 @@ function profileMarkup({ self = true, handle = '' } = {}) {
         <div class="pf2-who"><span class="pf2-rank" id="pf2-rank">${self ? 'Fresh recruit' : '&nbsp;'}</span><h1 id="pf-name">${esc(self ? Tracker.userName || '' : handle ? `@${handle}` : '')}</h1><span class="pf2-handle" id="pf2-handle" ${self?'hidden':''}>${self?'':'@'+esc(handle)}</span>
           <div class="pf2-xp"><i><b id="pf2-xp"></b></i><small id="pf2-xp-t">&nbsp;</small></div></div>
       </div>
-      <div class="pf3-story"><p id="pf-bio" class="pf-bio" hidden></p><div id="pf3-snapshot" class="pf3-snapshot" hidden></div></div>
+      <div class="pf3-story"><div id="pf3-snapshot" class="pf3-snapshot" hidden></div></div>
       <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p></div>
       <footer class="pf3-footer"><span class="pf3-footer-note">${icon('deck')}${self?'Your taste. Your pace. Your deck.':'A little of what makes their deck.'}</span><div class="pf2-hero-acts">${acts}</div></footer>
     </section>
+    <section class="profile-about-card" id="pf-about" hidden><div class="profile-about-body"><header><span class="ad-eyebrow">BEHIND THE WATCHER CARD</span><h2 id="pf-about-title">About me</h2></header><div id="pf-bio" class="profile-rich-text"></div></div><aside id="pf-timezone" class="profile-timezone" hidden></aside></section>
     <section id="pf-favorites" class="pf-favorites" hidden></section>
     ${self ? '<section class="pf2-social pf-in" id="pf2-social" style="--d:60ms" hidden></section>' : '<section class="pf2-compare pf-in" id="pf2-compare" style="--d:60ms" hidden></section>'}
     <section class="pf2-habits pf-in" style="--d:80ms" id="pf2-habits">${['Current streak', 'Longest streak', 'Best day', 'Per active day'].map((l) => `<div><b>–</b><span>${l}</span></div>`).join('')}</section>
@@ -134,7 +135,7 @@ function profileHeroSnapshot(cd,{self=true}={}){
   return tags+rotation;
 }
 function paintProfileIdentity(user,{self=true}={}){
-  const bio=$('#pf-bio'),handle=$('#pf2-handle');if(bio){bio.textContent=user?.bio||'';bio.hidden=!user?.bio;}
+  ProfilePresentation.paint(user,{self});const handle=$('#pf2-handle');
   if(handle){handle.textContent=user?.handle?'@'+user.handle:'';handle.hidden=!user?.handle;}
   const name=$('#pf-name');if(name&&user?.name)name.textContent=user.name;
 }
@@ -453,7 +454,7 @@ function sharingSettings() {
       <label class="wf-opt"><input type="radio" name="wf-vis" value="friends" ${me.visibility !== 'public' ? 'checked' : ''}><span class="wf-option-copy"><span class="wf-option-icon" aria-hidden="true">${icon('user')}</span><b>Friends only</b><small>People you accept on AniDeck.</small><em>Keep your circle close</em></span><span class="wf-radio" aria-hidden="true"></span></label>
       <label class="wf-opt"><input type="radio" name="wf-vis" value="public" ${me.visibility === 'public' ? 'checked' : ''}><span class="wf-option-copy"><span class="wf-option-icon" aria-hidden="true">${icon('search')}</span><b>Anyone with your handle</b><small>AniDeck users who look you up.</small><em>Make your taste discoverable</em></span><span class="wf-radio" aria-hidden="true"></span></label>
     </div></fieldset>
-    <p class="wf-settings-help">Your watcher card includes your watch stats, list titles and scores. Only accepted friends can send you messages.</p>
+    <p class="wf-settings-help">Your watcher card includes your watch stats, list titles and scores. Message privacy is separate; choose whether other profiles can send introductions.</p>
     <div class="wf-leave-row"><div><b>Leave AniDeck profiles</b><p>Remove your social profile and shared data.</p></div><button type="button" class="btn ghost" id="wf-leave">${icon('logout')}Leave…</button></div>
     <p class="dk-error" id="wf-settings-error" role="alert" hidden></p>
     <footer class="dk-foot"><span class="wf-footer-note">Make yourself at home.</span><button type="button" class="btn ghost ad2-btn" id="wf-cancel">Cancel</button><button type="submit" class="btn primary ad2-btn" id="wf-save" disabled>Save changes</button></footer>
@@ -526,6 +527,7 @@ Object.assign(Views, {
     try { r = await Cloud.user(handle); } catch (e) { if (!App.stale(rid)) fail(e.data?.error || e.message); return; }
     if (App.stale(rid)) return;
     const u = r.user, btn = $('#wf-friend-btn');
+    if(r.friend==='accepted'||u.messagePolicy==='requests')document.querySelector('.pf2-hero-acts')?.insertAdjacentHTML('beforeend',`<button class="btn ghost ad2-btn" data-act="${r.friend==='accepted'?'friendsMessage':'requestMessage'}" data-handle="${esc(u.handle)}">${icon('chat')}${r.friend==='accepted'?'Message':'Send message request'}</button>`);
     AniFavorites.paint(u,false);
     paintProfileIdentity(u,{self:false});
     $('#pf-name').textContent = u.name || `@${u.handle}`;

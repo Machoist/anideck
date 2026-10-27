@@ -31,7 +31,7 @@ const SystemChecks={
    read('cloud','Online services','AniDeck service',async()=>{
     if(!Cloud.base())return add('cloud','Online services','AniDeck service','attention','The service is not configured in this build.');
     const r=await this.probe(Cloud.base()+'/v1/health',{timeout:8000}),features=Array.isArray(r.features)?r.features:[];
-    const needed=['friends','messages','watch-invites','anideck-accounts','discussions','profile-favorites'];
+    const needed=['friends','messages','watch-invites','anideck-accounts','discussions','profile-favorites','profile-presentation','message-requests'];
     const ready=r.ok&&needed.every(x=>features.includes(x));add('cloud','Online services','AniDeck service',ready?'pass':'attention',ready?'The service reports support for accounts, Friends, invitations, discussions and favorites.':'The service is unreachable or missing required features.');
    }),provider('AniList',AniList),provider('Kitsu',Kitsu)
   ];

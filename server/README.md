@@ -70,3 +70,9 @@ Apply social-v5.sql before deploying. `/v1/me/profile` accepts PUT from register
 ## Favorite anime upgrade
 
 Apply social-v6.sql before deploying. PUT `/v1/me/favorites` replaces the authenticated profile’s ordered selection of up to eight unique anime catalog IDs, titles and HTTPS cover URLs. Replacement is an atomic D1 batch, independent of profile identity updates and watcher-card publication. GET `/v1/me` and profile lookup include favorites. Favorites are visible to profile visitors, separately from watcher-card privacy. Leaving the account cascades deletion. No external tracker favorites or list entries are changed.
+
+## Profile presentation and message requests
+
+Apply the repeatable `social-v7.sql` before deploying. Profile PUT supports About me up to 4,000 characters, `bioFormat` (`plain`/`markdown`), an uploaded raster banner up to 180,000 encoded characters, and an optional IANA `timezone`. Omitted presentation fields preserve saved values for older clients. These fields are public on profile lookup independently of watcher-card privacy. Raw HTML is escaped by the client; external images require a click to load. Server validates raster signatures and time zones.
+
+`/v1/me/message-policy` reads/updates `friends` (default), `requests`, or `none`. `/v1/message-requests` accepts one text-only introduction up to 500 characters, with opt-in and rate limits. Pending requests grant no conversation/history/attachment access. Only the recipient may accept/decline. Acceptance creates a contact conversation and its initial message without adding a friendship or exposing a friends-only watcher card. Decline cannot be resubmitted; blocking revokes request contact access. `none` stops incoming messages while retaining readable history. Health advertises `profile-presentation` and `message-requests`.

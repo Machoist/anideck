@@ -53,7 +53,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, ''), m = req.method;
     try {
-      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions','profile-customization','profile-favorites'] });
+      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions','profile-customization','profile-favorites','profile-presentation','message-requests'] });
 
       // Exchange provider credentials or a device recovery key for a signed AniDeck session.
       if (path === '/v1/session' && m === 'POST') {
@@ -163,7 +163,7 @@ export default {
       mm = path.match(/^\/v1\/friends\/([^/]+)$/);
       if (mm && m === 'DELETE') {
         const t = await one(env, 'SELECT * FROM users WHERE handle = ?', decodeURIComponent(mm[1]));
-        if (t) await env.DB.prepare('DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(uid, t.id, t.id, uid).run();
+        if(t)await env.DB.batch([env.DB.prepare('DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(uid,t.id,t.id,uid),env.DB.prepare("UPDATE message_requests SET status='declined' WHERE (sender=? AND recipient=?) OR (sender=? AND recipient=?)").bind(uid,t.id,t.id,uid)]);
         return json({ ok: true });
       }
       // A profile: the card for friends (or anyone, if they chose "public"); otherwise just who they are.

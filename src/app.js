@@ -1724,7 +1724,10 @@ function applyAppearance() {
 
 // What's new, shown in Settings → About and once after each update.
 const CHANGELOG = [
-  { v:'1.0.0', revision:'2026-10-26.7', items:[
+  { v:'1.0.0', revision:'2026-10-26.8', items:[
+    'Make your profile yours with a banner, formatted About me and an optional local-time display.',
+    'Choose friends-only messaging, consent-based message requests, or pause incoming messages.',
+    'Control social and library alerts in Settings → Notifications.',
     'Faster favorite searches, immediate poster-story loading and page shortcuts that scroll naturally.',
     'Search-first favorite picking, stories on hovered posters, and shortcuts anchored to the page top.',
     'More reliable favorite searches, browsable rating columns, a compact status hand and fixed corner navigation.',
@@ -1958,11 +1961,11 @@ const Notifier = {
   },
 
   async save() { await window.native.set('notifications', this.list.slice(0, 60)); },
-  unread() { return this.list.filter((n) => !n.read&&(!n.owner||n.owner===Cloud.ident())).length; },
+  unread() { return this.list.filter((n) => (typeof NotificationPrefs==='undefined'||NotificationPrefs.allows(n.type))&&!n.read&&(!n.owner||n.owner===Cloud.ident())).length; },
 
   async check() {
     if(!['library','show','movie'].includes(App.view))return;
-    const fresh = [];
+    let fresh = [];
     const known = new Set(this.list.map((n) => n.key));
     let since = await window.native.get('notifSince');
     if (!since) since = new Date(Date.now() - 3 * 86400000).toISOString(); // first run: last 3 days only
@@ -1993,12 +1996,14 @@ const Notifier = {
       }
     } catch { /* ignore */ }
 
+    if(typeof NotificationPrefs!=='undefined')fresh=fresh.filter(n=>NotificationPrefs.allows(n.type));
     await window.native.set('notifSince', new Date().toISOString());
     if (!fresh.length) return;
     this.list = [...fresh, ...this.list];
     await this.save();
     this.render();
     // Windows notification (one summary if several arrive at once)
+    if(typeof NotificationPrefs!=='undefined'&&!NotificationPrefs.prefs.desktop)return;
     try {
       const n = fresh.length === 1
         ? new Notification(fresh[0].title, { body: fresh[0].body, silent: false })
@@ -2022,11 +2027,11 @@ const Notifier = {
     if (panel.hidden) return;
     panel.classList.toggle('fresh', opening);
     const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
-    const kind = (n) => (n.type === 'friend' ? ['Friend request','user'] : n.type === 'request' ? ['Request ready', 'checkCircle'] : ['New episode', 'play']);
+    const kind = (n) => (n.type==='message'?['Message','chat']:n.type==='invite'?['Watch invitation','clock']:n.type==='message-request'?['Message request','chat']:n.type === 'friend' ? ['Friend request','user'] : n.type === 'request' ? ['Request ready', 'checkCircle'] : ['New episode', 'play']);
     // Filter tabs (All / Episodes / Requests), then the list grouped by day.
     const filter = this.filter || 'all';
-    const visible=this.list.filter(n=>!n.owner||n.owner===Cloud.ident());const counts = { all: visible.length, episode: visible.filter(n=>n.type==='episode').length, request: visible.filter(n=>n.type==='request').length, friend:visible.filter(n=>n.type==='friend').length };
-    const shown = this.list.map((n, i) => [n, i]).filter(([n])=>!n.owner||n.owner===Cloud.ident()).filter(([n]) => filter === 'all' || n.type === filter);
+    const visible=this.list.filter(n=>(!n.owner||n.owner===Cloud.ident())&&(typeof NotificationPrefs==='undefined'||NotificationPrefs.allows(n.type)));const counts = { all: visible.length, episode: visible.filter(n=>n.type==='episode').length, request: visible.filter(n=>n.type==='request').length, friend:visible.filter(n=>n.type==='friend').length };
+    const shown = this.list.map((n, i) => [n, i]).filter(([n])=>(!n.owner||n.owner===Cloud.ident())&&(typeof NotificationPrefs==='undefined'||NotificationPrefs.allows(n.type))).filter(([n]) => filter === 'all' || n.type === filter);
     const day0 = new Date(); day0.setHours(0, 0, 0, 0);
     const group = (t) => (t >= +day0 ? 'Today' : t >= +day0 - 86400000 ? 'Yesterday' : 'Earlier');
     let last = '', k = 0;
@@ -2089,6 +2094,8 @@ const Notifier = {
     if (!n) return;
     n.read = true; await this.save();
     this.close(); this.render();
+    if(n.act==='messageRequests'){if(n.owner&&n.owner!==Cloud.ident())return;return App.act('messageRequests',{});}
+    if(n.act==='friendsThread'){if(n.owner&&n.owner!==Cloud.ident())return;return App.nav('friends',{handle:n.handle});}
     if(n.act==='friendsRequests'){if(n.owner&&n.owner!==Cloud.ident())return;await App.nav('friends');return Friends.requestsDialog();}
     if (n.act === 'play') App.playEpisode(n.id, n.series); else App.openItem(n.id);
   },
@@ -5005,7 +5012,7 @@ const Views = {
       ['Your shelf', ['Appearance', 'Home screen', 'Tracking']],
       ['Watching', ['Playback', 'Subtitles', 'Keyboard']],
       ['Connections', ['Account', 'Libraries', 'TV', 'Requests']],
-      ['App', ['About']],
+      ['App', ['Notifications','About']],
     ];
     $('#set-menu').innerHTML = groups.map(([label, titles]) => `<div class="set-group"><span class="set-group-label">${esc(label)}</span>${titles.map((title) => { const i = cards.findIndex((c) => c.querySelector('h3').textContent === title); return i < 0 ? '' : `<button class="set-tab" data-i="${i}">${esc(title)}</button>`; }).join('')}</div>`).join('');
     $('#set-menu').querySelectorAll('button').forEach((b) => { b.onclick = () => show(+b.dataset.i); });

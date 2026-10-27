@@ -5,7 +5,7 @@ function fixture(){
   LocalTracker:{coll:[{anime:{id:'al:1',title:'Private local title'},progress:4,rating:8}]},AniList:service(),Kitsu:service(),
   Cloud:{base:()=> 'https://cloud.fixture',ident:()=> 'anideck:private-id',session:null},
   window:{native:{config:async()=>({testBuild:'preview-fixture'}),version:async()=> '1.0.0',systemCheck:async()=>({storage:true,secureStorage:true})}},
-  httpUncached:async(url,options={})=>{calls.push({url,options});if(url.includes('anilist'))return {data:{Page:{media:[{id:1}]},Viewer:{id:'private-id'}}};if(url.includes('kitsu'))return {data:[{id:'private-id'}]};return {ok:true,features:['friends','messages','watch-invites','anideck-accounts','discussions','profile-favorites']};}};
+  httpUncached:async(url,options={})=>{calls.push({url,options});if(url.includes('anilist'))return {data:{Page:{media:[{id:1}]},Viewer:{id:'private-id'}}};if(url.includes('kitsu'))return {data:[{id:'private-id'}]};return {ok:true,features:['friends','messages','watch-invites','anideck-accounts','discussions','profile-favorites','profile-presentation','message-requests']};}};
  const api=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/system-checks.js'),'utf8')+'\nSystemChecks',ctx);return {api,ctx,calls};
 }
 test('readiness checks perform bounded public reads, exclude internal acceptance checklists, and do not change local data',async()=>{
