@@ -207,6 +207,13 @@ function createWindow() {
         fs.writeFileSync(path.join(visualDir,'AniDeck-profile-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         const layout=await win.webContents.executeJavaScript(`(()=>{const cards=[...document.querySelectorAll('#pf2-list .pf2-pcard')];return {buttons:cards.length,labelsFit:cards.every(c=>{const label=c.querySelector('.pf2-pcard-top'),a=c.getBoundingClientRect(),b=label.getBoundingClientRect();return b.right<=a.right&&b.left>=a.left;}),noOverlap:cards.every((c,i)=>!i||c.getBoundingClientRect().left>=cards[i-1].getBoundingClientRect().right-3),headerRefined:!document.querySelector('.pf3-topline .ad-eyebrow')&&!!document.querySelector('.pf3-milestone[data-act=pfMilestones]')&&document.querySelector('.pf3-genre-group').textContent.includes('Most watched genres'),coverConnected:(()=>{const cover=document.querySelector('#pf-banner').getBoundingClientRect(),avatar=document.querySelector('.pf2-ava').getBoundingClientRect();return avatar.top<cover.bottom&&avatar.bottom>cover.bottom})(),personalAligned:(()=>{const a=document.querySelector('#pf-about').getBoundingClientRect(),b=document.querySelector('#pf-favorites').getBoundingClientRect();return Math.abs(a.top-b.top)<2&&a.right<b.left&&b.right<=document.querySelector('.profile-personal').getBoundingClientRect().right+1})(),recoveryOnly:!accountProfileCard().includes('aniEdit')&&!accountProfileCard().includes('aniFavorites')};})()`);
         if(Object.values(layout).some(v=>v===false)||layout.buttons!==5)throw Error('Profile layout check failed: '+JSON.stringify(layout));
+        const scrollStart=await win.webContents.executeJavaScript("(()=>{const main=document.querySelector('#main');main.scrollTop=0;window.__milestoneMotion=ProfileScroll.to(document.querySelector('#pf2-badges'));return main.scrollTop;})()");
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const scrollMiddle=await win.webContents.executeJavaScript("document.querySelector('#main').scrollTop");
+        await new Promise(resolve=>setTimeout(resolve,1200));
+        const scrollEnd=await win.webContents.executeJavaScript("({top:document.querySelector('#main').scrollTop,focused:document.activeElement.id==='pf2-badges'})");
+        if(!(scrollMiddle>scrollStart&&scrollMiddle<scrollEnd.top&&scrollEnd.focused))throw Error('Milestone scroll jumped or lost focus: '+JSON.stringify({scrollStart,scrollMiddle,scrollEnd}));
+        console.log('AniDeck milestone animation: '+JSON.stringify({scrollStart,scrollMiddle,scrollEnd}));
         const routes=await win.webContents.executeJavaScript("(()=>{const seen=[],original=App.act;try{App.act=(action,data)=>seen.push(action+':'+data.tab);for(const button of document.querySelectorAll('#pf2-list button'))button.click();}finally{App.act=original;}return seen;})()");
         if(JSON.stringify(routes)!==JSON.stringify(['listTab:current','listTab:planned','listTab:completed','listTab:on_hold','listTab:dropped']))throw Error('Status card clicks were redirected: '+JSON.stringify(routes));
         await win.webContents.executeJavaScript("document.querySelector('#pf2-list').style.width='320px';document.querySelector('#pf2-list').style.gridColumn='1 / -1';document.querySelector('#pf2-list').scrollIntoView({block:'center'});");
@@ -282,10 +289,20 @@ function createWindow() {
         await win.webContents.executeJavaScript("Social.section='messages';Friends.handle='';document.querySelector('#main').innerHTML='';");console.log('AniDeck Social controls: '+JSON.stringify({socialFriends,socialSettings}));
         await win.webContents.executeJavaScript("document.querySelector('#main').innerHTML='<div class=\"page\" style=\"max-width:650px;margin:auto\">'+DeckUI.widget({id:'roulette',span:6})+'</div>';");
         await new Promise(resolve=>setTimeout(resolve,200));
-        const mystery=await win.webContents.executeJavaScript("({oneCard:document.querySelectorAll('.ad-deal-art span').length===1,solid:getComputedStyle(document.querySelector('.ad-deal-art span')).backgroundColor!=='rgba(0, 0, 0, 0)'})");
-        if(!mystery.oneCard||!mystery.solid)throw Error('Mystery card still has visible backs: '+JSON.stringify(mystery));
+        const mystery=await win.webContents.executeJavaScript("({threeCards:document.querySelectorAll('.ad-deal-art span').length===3,solid:[...document.querySelectorAll('.ad-deal-art span')].every(card=>/^rgb\\(/.test(getComputedStyle(card).backgroundColor))})");
+        if(!mystery.threeCards||!mystery.solid)throw Error('Mystery card still has visible backs: '+JSON.stringify(mystery));
         fs.writeFileSync(path.join(visualDir,'AniDeck-deal-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         await win.webContents.executeJavaScript("document.querySelector('#main').innerHTML='';");
+        await win.webContents.executeJavaScript("(async()=>{document.querySelector('#main').innerHTML=await Views.friends();Friends.me={handle:'mira'};Friends.social={friends:[],incoming:[],outgoing:[]};Social.section='requests';Social.requestsKind='friends';Social.paint();})()");
+        await new Promise(resolve=>setTimeout(resolve,200));
+        const requestsCompact=await win.webContents.executeJavaScript("({inline:!!document.querySelector('.social-requests #af-request-list'),compact:document.querySelector('.social-requests').getBoundingClientRect().height<500})");
+        if(!requestsCompact.inline||!requestsCompact.compact)throw Error('Requests inbox not compact: '+JSON.stringify(requestsCompact));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-social-requests-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript(`(()=>{window.__widgetEntries=DeckUI.tonightWidget;DeckUI.tonightWidget=()=>'<div style="height:130px">Sample tonight lineup</div>';document.querySelector('#main').innerHTML='<div class="page"><div class="ad-widgets">'+DeckUI.widget({id:'airing',span:6})+DeckUI.widget({id:'tonight',span:6})+'</div></div>';document.querySelector('#ad-widget-airing').innerHTML='<div style="height:260px">Sample horizon content</div>';DeckUI.tonightWidget=window.__widgetEntries;})()`);
+        await new Promise(resolve=>setTimeout(resolve,200));
+        const widgetMatch=await win.webContents.executeJavaScript("(()=>{const horizon=document.querySelector('.ad-widget--airing').getBoundingClientRect(),tonight=document.querySelector('.ad-widget--tonight').getBoundingClientRect();return Math.abs(horizon.top-tonight.top)<1&&Math.abs(horizon.height-tonight.height)<1})()");
+        if(!widgetMatch)throw Error('Tonight does not match adjacent Horizon height');
+        await win.webContents.executeJavaScript("Social.section='messages';document.querySelector('#main').innerHTML='';");
         const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
         const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
         try{
