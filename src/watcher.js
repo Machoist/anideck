@@ -567,7 +567,7 @@ Object.assign(Views, {
     if (!['profileNav', 'wfJoin', 'wfOpen', 'wfCopy', 'wfAccept', 'wfRemove', 'wfRemoveAsk', 'wfAddHandle', 'wfSettings', 'wfRefresh', 'wfPlan', 'pfMilestones'].includes(name)) return act.call(this, name, d, el);
     try {
       switch (name) {
-        case 'pfMilestones': {const target=$('#pf2-badges');target?.scrollIntoView({behavior:App.settings.reduceMotion?'auto':'smooth',block:'start'});if(target){target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}return;}
+        case 'pfMilestones': return ProfileScroll.to($('#pf2-badges'));
         case 'profileNav': return this.nav('profile');
         case 'wfJoin': await Cloud.ensure().catch((e) => { throw e; }); return joinDialog();
         case 'wfOpen': return this.nav('watcher', { handle: d.handle });

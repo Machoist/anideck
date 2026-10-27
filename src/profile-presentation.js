@@ -18,3 +18,14 @@ const ProfilePresentation={
  toolbar(){return this.tools.map(([id,label,title])=>`<button type="button" data-bio-tool="${id}" title="${title}" aria-label="${title}">${label}</button>`).join('');},
  wrap(input,tool){const a=input.selectionStart,b=input.selectionEnd,selected=input.value.slice(a,b)||({heading:'A heading',list:'List item',quote:'A quote',code:'code'}[tool]||'your text'),pair={bold:['**','**'],italic:['*','*'],underline:['++','++'],strike:['~~','~~'],spoiler:['||','||'],heading:['\n## ','\n'],list:['\n- ','\n'],quote:['\n> ','\n'],code:['`','`'],center:['\n:::center\n','\n:::\n']}[tool];if(!pair)return;if(input.value.length-(b-a)+pair[0].length+selected.length+pair[1].length>4000)return false;input.setRangeText(pair[0]+selected+pair[1],a,b,'select');input.focus();input.dispatchEvent(new Event('input',{bubbles:true}));}
 };
+
+/* Animate the actual page scroller; OS-level smooth-scroll overrides cannot turn this into a jump. */
+const ProfileScroll={
+ cancel:null,
+ to(target,scroller=document.querySelector('#main')){this.cancel?.();if(!target||!scroller)return Promise.resolve(false);const start=scroller.scrollTop,end=Math.max(0,Math.min(scroller.scrollHeight-scroller.clientHeight,start+target.getBoundingClientRect().top-scroller.getBoundingClientRect().top-24)),distance=end-start;
+  const focus=()=>{target.setAttribute('tabindex','-1');target.focus({preventScroll:true});};if(App.settings.reduceMotion||Math.abs(distance)<2){scroller.scrollTop=end;focus();return Promise.resolve(true);}
+  return new Promise(resolve=>{let frame,finished=false,began;const duration=Math.min(1100,650+Math.abs(distance)*.14),keys=new Set(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' ']),clean=()=>{cancelAnimationFrame(frame);for(const event of ['wheel','touchstart','pointerdown'])scroller.removeEventListener(event,cancel);document.removeEventListener('keydown',key);if(this.cancel===cancel)this.cancel=null;},finish=ok=>{if(finished)return;finished=true;clean();if(ok)focus();resolve(ok);},cancel=()=>finish(false),key=event=>{if(keys.has(event.key))cancel();};this.cancel=cancel;for(const event of ['wheel','touchstart','pointerdown'])scroller.addEventListener(event,cancel,{passive:true});document.addEventListener('keydown',key);
+   const tick=now=>{if(!target.isConnected||!scroller.isConnected)return finish(false);if(began===undefined)began=now;const t=Math.min(1,(now-began)/duration),eased=t<.5?16*t**5:1-(-2*t+2)**5/2;scroller.scrollTop=start+distance*eased;if(t<1)frame=requestAnimationFrame(tick);else finish(true);};frame=requestAnimationFrame(tick);
+  });
+ }
+};
