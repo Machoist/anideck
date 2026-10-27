@@ -9,11 +9,15 @@ Updated 27 October 2026. This file is the resumable checklist; earlier developme
 - [Windows test build](https://github.com/Machoist/anideck/actions/runs/40459268760) and [Mac test build](https://github.com/Machoist/anideck/actions/runs/40459268720) both succeeded for `3de4263`. Successful CI does not establish physical device acceptance.
 - Latest UI work is complete: progressive profile rendering, labeled most-watched genres and next milestone, fluid milestone navigation, compact Social requests/refresh, opaque three-card shuffle with matching reveal size, and equal-height Tonight/Horizon widgets.
 - Profile customization, recovery-key sign-in, consent-based message requests, notification preferences, local-list import adapters and isolated optional Jellyfin functionality are implemented. The live checks below remain necessary.
-- This worklist is a documentation-only follow-up; the current packaged app still corresponds to `3de4263`. No public release or release tag was created.
+- Subsequent changes add agent documentation and one regression test; current source suite has 426 passing tests. App runtime and existing packages still correspond to `3de4263` (425 tests at packaging). No public release or release tag was created.
 
 ## Local agent readiness
 
-`AGENTS.md` is a compact entry point with on-demand repository map, product rules, verification and 32K workflow under `docs/agents/`. Documentation does not install indexing/LSP/UB tools or change model settings. Next local-agent step: evaluate a read-only Social request trace, then a reviewed bounded implementation task. Runtime remains `preview-3de4263`; no app behavior changed in this documentation pass.
+`AGENTS.md` is a compact entry point with on-demand repository map, product rules, verification and 32K workflow under `docs/agents/`. These documents do not install indexing/LSP/UB tools or change model settings.
+
+The local Qwen agent completed a Social request trace/document and a policy-change regression test with substantial review. Reviewed test now verifies denial without writes/chat, pending-state preservation, successful restoration, retry status and exactly-once introduction delivery without friendship. Focused tests: 6 pass. Full suite independently rerun: 426 pass (localhost access required). See `docs/agents/MESSAGE-REQUEST-FLOW.md`.
+
+Evaluation: useful for bounded supervised tasks; independent accuracy has not been established. Observed issues included guessed details after truncated reads, PowerShell/tool mismatches, incomplete assertions and unsupported verification claims. Use fresh scoped sessions, actual command evidence and diff review. Do not treat this exercise as model training or physical/live acceptance. Next local-agent assignment can be a read-only import-mapping review in parallel with CI artifact acceptance, with coordinated ownership before edits. Runtime remains `preview-3de4263`.
 
 ## Next, in order
 

@@ -6,3 +6,34 @@ test('No messages pauses new incoming messages and request acceptance while pres
 test('request retries preserve the original introduction and per-day limits apply to new contacts',async t=>{const {call,db}=await fixture(t);await call('bob','/me/message-policy','PUT',{policy:'requests'});const r=await call('alice','/message-requests','POST',{to:'bob',text:'Original'});await call('alice','/message-requests','POST',{to:'bob',text:'Replaced'});assert.equal((await call('bob','/message-requests')).incoming[0].text,'Original');for(let i=0;i<9;i++){const uid='limit'+i;db.prepare('INSERT INTO users(id,handle,created_at) VALUES(?,?,1)').run(uid,uid);db.prepare("INSERT INTO message_requests VALUES(?,?,?,'Hi','pending',?,?)").run('limit-'+i,'alice',uid,Date.now(),Date.now());}await call('carol','/me/message-policy','PUT',{policy:'requests'});assert.equal((await call('alice','/message-requests','POST',{to:'carol',text:'Over limit'})).status,429);assert.equal((await call('carol','/message-requests')).incoming.length,0);});
 
 test('accepting a request does not grant private watcher-card access, and removal revokes its chat grant',async t=>{const {call,db}=await fixture(t);db.prepare("UPDATE users SET card='{}',visibility='friends' WHERE id='bob'").run();await call('bob','/me/message-policy','PUT',{policy:'requests'});const r=await call('alice','/message-requests','POST',{to:'bob',text:'Hello'});await call('bob','/message-requests/'+r.id,'POST',{action:'accept'});assert.equal((await call('alice','/users/bob')).locked,true);db.prepare("INSERT INTO friends VALUES('alice','bob','pending',1)").run();assert.equal((await call('alice','/conversations')).conversations.length,1);await call('bob','/friends/alice','DELETE');assert.equal((await call('alice','/messages/bob')).status,403);});
+
+test('policy change blocks acceptance and preserves original introduction', async t => {
+  const {call, db} = await fixture(t);
+  await call('bob', '/me/message-policy', 'PUT', {policy:'requests'});
+  const request = await call('alice', '/message-requests', 'POST', {to:'bob', text:'Hello'});
+  assert.equal(request.status, 201);
+
+  await call('bob', '/me/message-policy', 'PUT', {policy:'none'});
+  const rejected = await call('bob', '/message-requests/'+request.id, 'POST', {action:'accept'});
+  assert.equal(rejected.status, 403);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM messages').get().n, 0);
+  const pending = await call('bob', '/message-requests');
+  assert.equal(pending.incoming.length, 1);
+  assert.equal(pending.incoming[0].id, request.id);
+  assert.equal(pending.incoming[0].text, 'Hello');
+  assert.equal((await call('bob', '/messages/alice')).status, 403);
+  assert.equal((await call('alice', '/messages/bob')).status, 403);
+
+  await call('bob', '/me/message-policy', 'PUT', {policy:'requests'});
+  const accepted = await call('bob', '/message-requests/'+request.id, 'POST', {action:'accept'});
+  assert.equal(accepted.status, 200);
+  const retried = await call('bob', '/message-requests/'+request.id, 'POST', {action:'accept'});
+  assert.equal(retried.status, 200);
+  const messages = await call('bob', '/messages/alice');
+  assert.equal(messages.status, 200);
+  assert.equal(messages.messages.length, 1);
+  assert.equal(messages.messages[0].text, 'Hello');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM messages').get().n, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM friends').get().n, 0);
+  assert.equal((await call('alice', '/conversations')).conversations[0].handle, 'bob');
+});

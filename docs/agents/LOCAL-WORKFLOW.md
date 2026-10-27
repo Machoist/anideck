@@ -44,3 +44,11 @@ The useful baseline is small changes, root-cause fixes, behavior tests and verif
 ## Initial evaluation
 
 First do a read-only trace of Social message-request acceptance with current file/function references and relevant tests. Then attempt one bounded bug fix in an isolated branch/worktree with coordinated ownership. Assess correct retrieval, minimal diff, actual verification, truthful reporting and a usable handoff. Review failures before granting broader tasks. Do not treat successful navigation as proof of implementation ability.
+
+## Observed retrieval and reporting pitfalls
+
+On the current Windows setup, the shell is PowerShell: use compatible commands rather than Bash `find`/`grep`, CMD `dir /s`, or `&&` in Windows PowerShell. Check available tools; a JavaScript executor is not necessarily Node.js and may not support `require`.
+
+Some source files have very long lines. When a reader truncates a line, retrieve a bounded character range from that file with PowerShell `Get-Content -Raw`, `IndexOf` and `Substring`, or an equivalent verified file-reading tool. Do not infer unseen branches or invent line numbers. A retry that produces the same truncated output adds no evidence.
+
+For every test claim, retain the actual command and observed summary/exit result. If only a focused file ran, do not report the full suite passed. A test assertion must check the intended state: an unsupported endpoint returning 404 does not prove no database relationship exists, and a forbidden chat read does not prove no message was inserted. Retry tests must actually retry and inspect both status and resulting state.
