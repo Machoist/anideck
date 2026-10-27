@@ -31,7 +31,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Build ad-hoc signed test app (not published)
-        run: npm run dist:mac:test -- --${{ matrix.arch }} --config.extraMetadata.testBuild="mac-${{ matrix.arch }}-${{ github.run_number }}-${{ github.sha }}"
+        run: npx electron-builder --mac zip --${{ matrix.arch }} --publish never --config.mac.sign=./scripts/sign-mac-test.cjs --config.mac.notarize=false --config.extraMetadata.testBuild="mac-${{ matrix.arch }}-${{ github.run_number }}-${{ github.sha }}"
       - name: Audit packaged runtime and public config
         run: node scripts/audit-package.cjs "dist/${{ matrix.folder }}"
       - name: Verify bundle signature

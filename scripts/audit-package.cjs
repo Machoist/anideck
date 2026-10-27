@@ -8,6 +8,8 @@ function resourcesDir(appOutDir,productFilename='AniDeck'){
 function audit(appOutDir,productFilename='AniDeck'){
  const resources=resourcesDir(appOutDir,productFilename),archive=path.join(resources,'app.asar');
  const entries=asar.listPackage(archive).map(name=>name.replaceAll('\\','/'));
+ const metadata=JSON.parse(asar.extractFile(archive,'package.json').toString('utf8'));
+ if(Object.hasOwn(metadata,'testBuild'))assert(typeof metadata.testBuild==='string'&&metadata.testBuild.trim().length>0,'Packaged testBuild must be a non-empty string');
  for(const name of ['/config.json','/config.release.json','/store.json','/secrets.json','/tests','/server','/.git','/work'])assert(!entries.some(entry=>entry===name||entry.startsWith(name+'/')),'Private/development path packaged: '+name);
  for(const name of entries.filter(name=>name.startsWith('/src/')))assertRuntimePath(name);
  const root=path.join(__dirname,'..'),html=fs.readFileSync(path.join(root,'src/index.html'),'utf8');
