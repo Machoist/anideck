@@ -11,6 +11,10 @@ Updated 27 October 2026. This file is the resumable checklist; earlier developme
 - Profile customization, recovery-key sign-in, consent-based message requests, notification preferences, local-list import adapters and isolated optional Jellyfin functionality are implemented. The live checks below remain necessary.
 - This worklist is a documentation-only follow-up; the current packaged app still corresponds to `3de4263`. No public release or release tag was created.
 
+## Local agent readiness
+
+`AGENTS.md` is a compact entry point with on-demand repository map, product rules, verification and 32K workflow under `docs/agents/`. Documentation does not install indexing/LSP/UB tools or change model settings. Next local-agent step: evaluate a read-only Social request trace, then a reviewed bounded implementation task. Runtime remains `preview-3de4263`; no app behavior changed in this documentation pass.
+
 ## Next, in order
 
 1. Inspect/download the successful Windows and Mac CI artifacts and confirm their expected contents. Retain the verified local Windows package as the current checkpoint.
