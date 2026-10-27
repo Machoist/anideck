@@ -98,7 +98,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
       <div class="pf2-time"><span class="pf2-eyebrow">Time watched</span><div class="pf-days"><b id="pf-days">0.0</b><span>days</span></div><p class="pf-sub" id="pf-sub">&nbsp;</p></div>
       <footer class="pf3-footer"><span class="pf3-footer-note">${icon('deck')}${self?'Your taste. Your pace. Your deck.':'A little of what makes their deck.'}</span><div class="pf2-hero-acts">${acts}</div></footer>
     </section>
-    <section class="profile-about-card" id="pf-about" hidden><div class="profile-about-body"><header><span class="ad-eyebrow">BEHIND THE WATCHER CARD</span><h2 id="pf-about-title">About me</h2></header><div id="pf-bio" class="profile-rich-text"></div></div><aside id="pf-timezone" class="profile-timezone" hidden></aside></section>
+    <section class="profile-about-card" id="pf-about" hidden><div class="profile-about-body"><header><div><span class="ad-eyebrow">BEHIND THE WATCHER CARD</span><h2 id="pf-about-title">About me</h2></div>${self?'<button class="btn ghost sm" data-act="aniEdit">Edit introduction</button>':''}</header><div id="pf-bio" class="profile-rich-text"></div></div><aside id="pf-timezone" class="profile-timezone" hidden></aside></section>
     <section id="pf-favorites" class="pf-favorites" hidden></section>
     ${self ? '<section class="pf2-social pf-in" id="pf2-social" style="--d:60ms" hidden></section>' : '<section class="pf2-compare pf-in" id="pf2-compare" style="--d:60ms" hidden></section>'}
     <section class="pf2-habits pf-in" style="--d:80ms" id="pf2-habits">${['Current streak', 'Longest streak', 'Best day', 'Per active day'].map((l) => `<div><b>–</b><span>${l}</span></div>`).join('')}</section>

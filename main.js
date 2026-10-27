@@ -237,6 +237,15 @@ function createWindow() {
         const requestControls=await win.webContents.executeJavaScript(`(async()=>{try{const panel=document.querySelector('#message-request-inbox'),button=panel.querySelector('[data-action="decline"]');await panel.onclick({target:button});const declined=window.__requestCalls.some(c=>c.options?.json?.action==='decline');await MessageRequests.privacy();const form=document.querySelector('#message-privacy');form.querySelector('input[value="requests"]').checked=true;await form.onsubmit({preventDefault(){}});return {declined,privacySaved:window.__requestCalls.some(c=>c.options?.json?.policy==='requests')};}finally{Friends.request=window.__requestOriginal;App.closeModal();}})()`);
         if(Object.values(requestControls).some(v=>v!==true))throw Error('Message request controls did not reach their routes');
         console.log('AniDeck message request controls: '+JSON.stringify(requestControls));
+        await win.webContents.executeJavaScript("showWhatsNew();");
+        await new Promise(resolve=>setTimeout(resolve,350));
+        const releaseActions=await win.webContents.executeJavaScript("(()=>{const footer=document.querySelector('.wn-panel>footer'),buttons=[...footer.querySelectorAll('.btn')];return {compact:buttons.every(b=>b.getBoundingClientRect().height<=36),separate:buttons[0].getBoundingClientRect().right<buttons[1].getBoundingClientRect().left};})()");
+        if(!releaseActions.compact||!releaseActions.separate)throw Error('Release note actions oversized: '+JSON.stringify(releaseActions));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-whats-new-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript("App.closeModal();MessageRequests.start();");
+        await new Promise(resolve=>setTimeout(resolve,350));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-new-message-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript("App.closeModal();");
         const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
         const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
         try{
