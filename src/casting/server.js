@@ -105,10 +105,9 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
    const data=await body(req);
    if(current!==token||data.mediaId!==screen.state.media?.id)return json(res,409,{error:'Old playback session'});
    if(Number.isInteger(data.revision)&&data.revision!==screen.state.revision)return json(res,200,{ok:true,ignored:true});
-   const established=screen.playback.revision===data.revision;
    const seconds=value=>Number.isFinite(Number(value))?Math.max(0,Number(value)):0;
    screen.playback={time:seconds(data.time),duration:seconds(data.duration),paused:!!data.paused,ended:!!data.ended,error:String(data.error||'').slice(0,200),mediaId:data.mediaId,revision:Number.isInteger(data.revision)?data.revision:null,needsInteraction:!!data.needsInteraction,loading:!!data.loading};
-   if(established&&screen.playback.revision===screen.state.revision&&!screen.playback.needsInteraction&&!screen.playback.loading)screen.state.paused=screen.playback.paused;
+   if(screen.playback.revision===screen.state.revision&&!screen.playback.needsInteraction&&!screen.playback.loading)screen.state.paused=screen.playback.paused;
    return json(res,200,{ok:true});
   }
   return json(res,404,{error:'Not found'});

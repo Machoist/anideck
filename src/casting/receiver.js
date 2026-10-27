@@ -1,6 +1,6 @@
 'use strict';
 const video=document.getElementById('video'),welcome=document.getElementById('welcome'),message=document.getElementById('message'),activate=document.getElementById('activate'),nowPlaying=document.getElementById('now');
-let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false,events=null,tickAgain=false;
+let token=null,revision=-1,media=null,hls=null,expires=0,playbackError='',starting=false,needsInteraction=false,lastSeek=0,pendingSeek=null,lastContact=0,wasConnected=false,events=null,tickAgain=false,playPending=false;
 async function api(path,data){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
@@ -10,14 +10,14 @@ async function api(path,data){
 }
 function notice(text){nowPlaying.textContent=text;nowPlaying.hidden=!text;}
 function stop(){
- media=null;needsInteraction=false;video.onloadedmetadata=null;
+ media=null;needsInteraction=false;playPending=false;video.onloadedmetadata=null;
  // Stop native playback first; a failed streaming-library cleanup must not leave buffered video playing.
  video.pause();video.removeAttribute('src');video.load();video.hidden=true;welcome.hidden=false;activate.hidden=true;notice('');
  const previous=hls;hls=null;try{previous?.destroy();}catch{}
 }
 function connectionLost(){stop();message.textContent='Connection lost. Keep AniDeck open on your PC. Retrying…';}
 function checkConnection(){if(media&&Date.now()-lastContact>=8000)connectionLost();}
-async function play(){const selected=media;if(!selected)return;try{await video.play();if(media!==selected)return;needsInteraction=false;activate.hidden=true;notice('');}catch{if(media!==selected)return;needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}}
+async function play(){const selected=media;if(!selected)return;playPending=true;try{await video.play();if(media!==selected)return;needsInteraction=false;activate.hidden=true;notice('');}catch{if(media!==selected)return;needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}finally{if(media===selected)playPending=false;}}
 activate.onclick=()=>{video.requestFullscreen?.().catch(()=>{});return play();};
 function load(next,autoplay=true){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
@@ -62,7 +62,7 @@ async function tick(){
    if(media&&s.paused===true)video.pause();
    else if(media&&s.action==='play'&&!restore)play();
   }
-  if(media&&s.connected)await api('/playback',{mediaId:media.id,revision,time:video.readyState>=1?video.currentTime:(pendingSeek??media.at??0),duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
+  if(media&&s.connected)await api('/playback',{mediaId:media.id,revision,time:video.readyState>=1?video.currentTime:(pendingSeek??media.at??0),duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:(video.readyState<3||playPending)&&!video.ended});
  }catch(error){connectionLost();if(error.status===401)token=null;}
  finally{starting=false;if(tickAgain){tickAgain=false;tick();}}
 }

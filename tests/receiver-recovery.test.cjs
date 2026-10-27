@@ -54,7 +54,7 @@ test('a slow initial metadata load does not erase the requested resume position'
 
 test('an autoplay-blocked receiver still offers Play on TV after reconnecting',async t=>{
  const f=await fixture(t);f.video.play=async()=>{throw Error('User gesture required')};f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false});await f.tick();await f.tick();assert.equal(f.nodes.activate.hidden,false);
- f.offline(true);await f.tick();f.offline(false);await f.tick();assert.equal(f.nodes.activate.hidden,false);assert.match(f.nodes.activate.textContent,/Play on TV/);
+ for(let attempt=0;attempt<3;attempt++){f.offline(true);await f.tick();f.offline(false);await f.tick();assert.equal(f.nodes.activate.hidden,false);assert.match(f.nodes.activate.textContent,/Play on TV/);}
 });
 
 test('disconnect aborts an already-open media transfer and revokes its proxy URL',async t=>{
