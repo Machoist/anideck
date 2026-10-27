@@ -1,8 +1,11 @@
 // File: preload.js
 const { contextBridge, ipcRenderer } = require('electron');
+let windowShown=false;
+const shownListeners=new Set();
+ipcRenderer.on('window:shown',()=>{windowShown=true;for(const cb of shownListeners)cb();});
 
 contextBridge.exposeInMainWorld('native', {
-  onWindowShown: cb => ipcRenderer.on('window:shown',()=>cb()),
+  onWindowShown: cb => { shownListeners.add(cb);if(windowShown)cb(); },
   config: () => ipcRenderer.invoke('config:get'),
   get: (key) => ipcRenderer.invoke('store:get', key),
   set: (key, value) => ipcRenderer.invoke('store:set', key, value),
@@ -34,6 +37,7 @@ contextBridge.exposeInMainWorld('native', {
 
   // The receiver gets proxied media, never account sign-in credentials.
   cast: {
+    pairing: enabled => ipcRenderer.invoke('cast:pairing', enabled),
     start: () => ipcRenderer.invoke('cast:start'),
     status: () => ipcRenderer.invoke('cast:status'),
     connect: code => ipcRenderer.invoke('cast:connect', code),

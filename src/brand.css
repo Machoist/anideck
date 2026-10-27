@@ -13,6 +13,8 @@ body:has(.player:not([hidden])) .home-brand{display:none}
 .splash-ambient::after{transform:translate(-110px,20px) rotate(-13deg)}
 .splash-center{width:min(480px,calc(100vw - 48px));display:grid;justify-items:center;text-align:center;transform:translateY(-18px);transition:transform .28s ease,opacity .28s ease}
 .splash-signature{width:min(400px,100%);line-height:0}.splash-wordmark{display:block;width:100%;height:auto;overflow:visible}
+.splash-deal{display:block;position:relative;width:64px;height:72px;margin:0 auto 28px}.splash-deal i{position:absolute;inset:4px 12px;border:2px solid #b7a8ff;border-radius:9px;background:#252132;transform-origin:50% 90%;animation:splashDeal 1.8s ease-in-out infinite;--fan:0deg}.splash-deal i:first-child{--fan:-24deg;animation-delay:-.12s}.splash-deal i:last-child{--fan:24deg;animation-delay:.12s}.splash-deal i:nth-child(2)::after{content:"";position:absolute;left:14px;top:23px;border-left:11px solid #e4ddff;border-top:7px solid transparent;border-bottom:7px solid transparent}
+@keyframes splashDeal{0%,100%{transform:rotate(var(--fan)) translateY(0)}50%{transform:rotate(calc(var(--fan) * .35)) translateY(-9px)}}
 .splash .brand-letters{animation:brandLettersIn .6s cubic-bezier(.2,.8,.2,1) both}
 .splash .brand-card-back path{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .65s .1s cubic-bezier(.3,.1,.2,1) forwards}
 .splash .brand-d{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .75s .16s cubic-bezier(.3,.1,.2,1) forwards}

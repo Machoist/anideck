@@ -26,6 +26,8 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
  let server, starting, current=null, revision=0;
  const screens=new Map(), assets=new Map(),assetIndex=new Map(),listeners=new Map(),transfers=new Set();
  const notify=token=>{for(const response of listeners.get(token)||[]){if(!response.destroyed)response.write('data: '+revision+'\n\n');}};
+ let pairing=true;
+ const setPairing=enabled=>{pairing=!!enabled;for(const screen of screens.values()){if(screen.token!==current){screen.code=null;screen.expires=0;}notify(screen.token);}return status();};
  let addressCache=[],addressAt=-Infinity;
  const localAddresses=()=>{if(now()-addressAt>=5000){addressCache=addresses();addressAt=now();}return addressCache;};
  const clearAssets=()=>{for(const controller of transfers)controller.abort();transfers.clear();assets.clear();assetIndex.clear();};
@@ -73,10 +75,10 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   if(req.headers.origin&&req.headers.origin!==authority.origin)return json(res,403,{error:'Invalid origin'});
   const url=new URL(req.url,authority);
   if(url.pathname.startsWith('/media/')&&['GET','HEAD'].includes(req.method))return media(req,res,url);
-  if(req.method==='GET'&&['/','/receiver.js','/receiver.css','/hls.min.js'].includes(url.pathname)){
+  if(req.method==='GET'&&['/','/receiver.js','/receiver.css','/hls.min.js','/wordmark.svg','/mark.svg'].includes(url.pathname)){
    const name=url.pathname==='/'?'receiver.html':url.pathname.slice(1);
-   const file=name==='hls.min.js'?path.join(__dirname,'../vendor/hls.min.js'):path.join(__dirname,name);
-   res.writeHead(200,{'Content-Type':name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.css')?'text/css':'application/javascript','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; worker-src blob:; frame-ancestors 'none'"});
+   const file=['wordmark.svg','mark.svg'].includes(name)?path.join(__dirname,'../brand',name):name==='hls.min.js'?path.join(__dirname,'../vendor/hls.min.js'):path.join(__dirname,name);
+   res.writeHead(200,{'Content-Type':name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'application/javascript','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self' blob:; worker-src blob:; frame-ancestors 'none'"});
    fs.createReadStream(file).on('error',()=>res.destroy()).pipe(res);return;
   }
   if(req.method==='POST'&&url.pathname==='/hello'){
@@ -84,7 +86,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
    const data=await body(req),token=secret();let code;
    do{code=String(crypto.randomInt(100000,1000000));}while([...screens.values()].some(s=>s.code===code));
    screens.set(token,{token,code,name:String(data.name||'TV browser').slice(0,60),seen:now(),expires:now()+120000,playback:{},state:{revision:0,media:null}});
-   return json(res,200,{token,code,expiresIn:120});
+   return json(res,200,{token,code:pairing?code:null,expiresIn:120,pairing});
   }
   const token=req.headers.authorization?.replace(/^Bearer /,'')||(url.pathname==='/events'?url.searchParams.get('token'):null), screen=screens.get(token);
   if(!screen)return json(res,401,{error:'Open the receiver page again to reconnect.'});
@@ -99,7 +101,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   if(req.method==='POST'&&url.pathname==='/leave'){if(current===token)disconnect();screens.delete(token);return json(res,200,{ok:true});}
   if(req.method==='GET'&&url.pathname==='/state'){
    const reported=screen.playback,matching=reported.mediaId===screen.state.media?.id;
-   return json(res,200,{...screen.state,connected:current===token,resumeAt:matching?reported.time:screen.state.media?.at,completed:!!(matching&&reported.ended&&reported.revision===screen.state.revision)});
+   return json(res,200,{...screen.state,pairing,connected:current===token,resumeAt:matching?reported.time:screen.state.media?.at,completed:!!(matching&&reported.ended&&reported.revision===screen.state.revision)});
   }
   if(req.method==='POST'&&url.pathname==='/playback'){
    const data=await body(req);
@@ -121,7 +123,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   }).finally(()=>{starting=null;});return starting;
  }
  function connect(code){
-  cleanup();const screen=[...screens.values()].find(s=>s.code===String(code).replace(/\D/g,'')&&s.expires>now()&&now()-s.seen<15000);
+  cleanup();if(!pairing)throw Error('Open Cast to TV on your PC to pair a screen.');const screen=[...screens.values()].find(s=>s.code===String(code).replace(/\D/g,'')&&s.expires>now()&&now()-s.seen<15000);
   if(!screen)throw new Error('That code is incorrect or expired. Refresh the TV page and try again.');
   disconnect();current=screen.token;screen.code=null;notify(current);return status();
  }
@@ -146,6 +148,6 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
  }
  function disconnect(){const screen=screens.get(current);if(screen){screen.state={revision:++revision,action:'stop',media:null};screen.playback={};}const previous=current;current=null;clearAssets();if(previous)notify(previous);return status();}
  async function stop(){disconnect();screens.clear();const s=server;server=null;if(s){s.closeAllConnections?.();await new Promise(resolve=>s.close(resolve));}return status();}
- return {start,status:()=>{cleanup();return status();},connect,load,command,disconnect,stop};
+ return {start,setPairing,status:()=>{cleanup();return status();},connect,load,command,disconnect,stop};
 }
 module.exports={createCasting,rewritePlaylist};

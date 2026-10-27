@@ -49,7 +49,7 @@ const Cast = {
   document.getElementById('cast-return').onclick=()=>this.returnToPc();
   document.getElementById('cast-disconnect').onclick=()=>this.disconnectReceiver();
   document.getElementById('cast-off').onclick=()=>this.disconnectReceiver(true);
-  try{const s=await this.call('start');this.showAddresses(s.urls||[]);await this.poll();this.ensurePoll();}catch(error){this.showError(error);}
+  try{const s=await this.call('start');if(!document.querySelector('.cast-panel'))return;await this.call('pairing',true);this.showAddresses(s.urls||[]);await this.poll();this.ensurePoll();}catch(error){this.showError(error);}
  },
  // The likeliest address big with a copy button; virtual adapters (VirtualBox, Hyper-V/WSL, Docker) go under "Other addresses".
  showAddresses(urls){
@@ -128,3 +128,6 @@ const Cast = {
  },
  async returnToPc(){const at=Player.casting?.time;this.ready=false;this.active=false;this.mediaId=null;Player.casting=null;await this.call('command','stop').catch(()=>{});if(at!=null&&!Player.el.hidden){try{await Player.resumeFromCast(at);}catch(error){this.showError(error);}}await this.poll();if(Player.ctx&&!Player.el?.hidden)Player.tick();},
 };
+
+// All close paths (button, Escape, backdrop and replacement modal) end unused pairing.
+{const close=App.closeModal,modal=App.modal;const end=()=>{if(document.querySelector('.cast-panel'))Cast.call('pairing',false).catch(()=>{});};App.closeModal=function(...args){end();return close.apply(this,args);};App.modal=function(...args){end();return modal.apply(this,args);};}

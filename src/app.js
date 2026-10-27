@@ -1677,6 +1677,13 @@ function trackerRows() {
   }).join('');
 }
 
+function accountProfileCard(){
+  const me=Cloud.who===Cloud.ident()?Cloud.me:null;
+  const favorites=Array.isArray(me?.favorites)?me.favorites:[];
+  const actions=[['aniEdit','user',me?'Edit profile':'Create your profile','Picture, name & bio'],['aniFavorites','heart','Favorite anime','Build your eight-title shelf'],['localRecovery','signin','Sign-in & recovery','Access your account on another device']];
+  return `<section class="acct-profile-card" aria-label="Your AniDeck profile"><div class="acct-profile-identity"><span class="acct-profile-avatar">${me?.avatar?`<img src="${esc(me.avatar)}" alt="">`:icon('user')}</span><div><span class="ad-eyebrow">YOUR SPACE ON ANIDECK</span><h4>${esc(me?.name||me?.handle||'Make yourself at home')}</h4><span class="acct-profile-handle">${me?'@'+esc(me.handle):'A profile for your favorites and your circle'}</span>${me?.bio?`<p class="acct-profile-bio">${esc(me.bio)}</p>`:''}</div></div><div class="acct-profile-actions">${actions.map(([act,glyph,title,description])=>`<button class="acct-profile-action" data-act="${act}"><span class="acct-profile-action-icon">${icon(glyph)}</span><span><b>${title}</b><small>${description}</small></span><span aria-hidden="true">${icon('chev')}</span></button>`).join('')}</div><footer><span>${icon('deck')} ${favorites.length?favorites.length+' favorite'+(favorites.length===1?'':'s')+' on your shelf':'Your next favorite belongs here'}</span><small>Your local watchlist stays on this device.</small></footer></section>`;
+}
+
 function accountRows() {
   return [
     { key: 'jellyfin', name: 'Jellyfin library', on: Jellyfin.connected(), who: `${Jellyfin.userName} · ${Jellyfin.server}` },
@@ -3173,10 +3180,11 @@ function updateText(s) {
   }
 }
 
-// Loading follows readiness; animation never adds a minimum startup delay.
+// Loading follows readiness; start the short entrance when the native window becomes visible.
 function replaySplash(el=$('#splash')){if(!el||el.hidden)return;el.getAnimations?.({subtree:true}).forEach(animation=>{animation.cancel();animation.play();});}
-window.native?.onWindowShown?.(()=>replaySplash());
 let splashExitTimer=null;
+let splashShownAt=null,splashReady=false;
+window.native?.onWindowShown?.(()=>{splashShownAt=Date.now();replaySplash();if(splashReady)hideSplash();});
 function splash(msg){
   const el=$('#splash');if(!el)return;
   clearTimeout(splashExitTimer);splashExitTimer=null;
@@ -3187,8 +3195,10 @@ function splash(msg){
 }
 function hideSplash(){
   const el=$('#splash');if(!el||el.hidden||el.classList.contains('out'))return;
-  clearTimeout(splashExitTimer);el.setAttribute('aria-busy','false');el.classList.add('out');
   const reduced=App.settings?.reduceMotion||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  splashReady=true;clearTimeout(splashExitTimer);
+  if(!reduced&&window.native?.onWindowShown){if(splashShownAt===null)return;const remaining=900-(Date.now()-splashShownAt);if(remaining>0){splashExitTimer=setTimeout(hideSplash,remaining);return;}}
+  el.setAttribute('aria-busy','false');el.classList.add('out');
   splashExitTimer=setTimeout(()=>{if(el.classList.contains('out'))el.hidden=true;splashExitTimer=null;},reduced?0:280);
 }
 function startupFailed(error){
@@ -4887,7 +4897,7 @@ const Views = {
     const opt = (list, val) => list.map(([v, l]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${l}</option>`).join('');
     return `<div class="settings-layout"><nav class="set-nav" aria-label="Settings sections"><div class="set-identity"><img class="set-wordmark" src="brand/wordmark.svg" alt="AniDeck"><small>Your next watch, on deck.</small></div><h1>Settings</h1><div id="set-menu"></div><p class="set-autosave">Your preferences save automatically.</p></nav><div class="settings">
       <div class="set-card set-account"><h3>Account</h3><p class="set-section-intro">Your identity, your list, your library. Connect a tracker to keep your anime in sync; Jellyfin is optional.</p>
-        <div class="acct-social"><div><b>Your AniDeck profile</b><p>Make it yours, or sign in on another device with your private key. Your local watchlist stays on this device.</p></div><div class="row gap"><button class="btn ghost sm" data-act="aniEdit">Edit profile</button><button class="btn ghost sm" data-act="aniFavorites">Favorite anime</button><button class="btn ghost sm" data-act="localRecovery">Sign-in & recovery</button></div></div><div class="acct-list">${trackerRows()}
+        ${accountProfileCard()}<div class="acct-list">${trackerRows()}
         <div class="acct-row"><span class="avatar">${icon('grid')}</span>
           <div class="grow"><b>Jellyfin library</b><div class="desc">${Jellyfin.connected() ? `${esc(Jellyfin.userName)} · ${esc(Jellyfin.server)}` : 'Optional · connect your own media server and library'}</div></div>
           <button class="btn ghost sm" data-act="${Jellyfin.connected() ? 'jellyLogout' : 'jellyLogin'}">${Jellyfin.connected() ? 'Disconnect' : 'Connect library'}</button></div></div>

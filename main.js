@@ -146,6 +146,21 @@ function createWindow() {
       })()`);
       if (!result.main || !result.testBuild || result.version !== app.getVersion() || !result.loginVisible || !result.shellHidden || !result.signedOut || !result.emptyLibrary || !result.emptyServer || !result.controls || !result.modules) throw Error('Packaged fresh-profile smoke check failed: '+JSON.stringify(result));
       console.log('AniDeck fresh-profile checks: '+JSON.stringify(result));
+      win.webContents.send('window:shown');
+      const visualArg=process.argv.find(arg=>arg.startsWith('--anideck-visuals='));
+      const visualDir=visualArg?path.resolve(visualArg.slice('--anideck-visuals='.length)):null;
+      if(visualDir){
+        fs.mkdirSync(visualDir,{recursive:true});
+        await new Promise(resolve=>setTimeout(resolve,100));
+        const first=await win.webContents.executeJavaScript("({transform:getComputedStyle(document.querySelector('.splash-deal i')).transform,visible:!document.querySelector('#splash').hidden,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches})");
+        await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
+        fs.writeFileSync(path.join(visualDir,'AniDeck-launch-frame-1.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await new Promise(resolve=>setTimeout(resolve,300));
+        const second=await win.webContents.executeJavaScript("({transform:getComputedStyle(document.querySelector('.splash-deal i')).transform,visible:!document.querySelector('#splash').hidden})");
+        fs.writeFileSync(path.join(visualDir,'AniDeck-launch-frame-2.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        if(!first.visible||!second.visible||(!first.reduced&&first.transform===second.transform))throw Error('Launch animation did not advance across visible frames');
+        console.log('AniDeck launch animation: '+JSON.stringify({visible:true,advanced:first.transform!==second.transform,reducedMotion:first.reduced}));
+      }
       // Exercise the real guest/setup controls with cloud/catalog reads isolated.
       // Never create a backend profile or use an existing provider session in this test.
       const setup = await win.webContents.executeJavaScript(`(async()=>{
@@ -166,6 +181,11 @@ function createWindow() {
       })()`);
       if(Object.values(setup).some(value=>value!==true))throw Error('Packaged setup flow check failed: '+JSON.stringify(setup));
       console.log('AniDeck isolated guest setup checks: '+JSON.stringify(setup));
+      if(visualDir){
+        await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
+        await new Promise(resolve=>setTimeout(resolve,300));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+      }
       if(process.argv.includes('--anideck-checks')){
         const report=await win.webContents.executeJavaScript('(async()=>{await SystemChecks.open();return SystemChecks.last;})()');
         if(!report?.rows?.length)throw Error('System checks did not produce a report');
@@ -376,6 +396,7 @@ ipcMain.handle('media:stop', () => mediaRelay.stop());
 app.on('before-quit', () => { mediaRelay.stop().catch(()=>{}); });
 const castCall = fn => async (_event, ...args) => { try { return { ok: true, value: await fn(...args) }; } catch (error) { return { ok: false, error: error.message }; } };
 ipcMain.handle('cast:start', castCall(() => casting.start()));
+ipcMain.handle('cast:pairing', castCall(enabled => casting.setPairing(enabled)));
 ipcMain.handle('cast:status', castCall(() => casting.status()));
 ipcMain.handle('cast:connect', castCall(code => casting.connect(code)));
 ipcMain.handle('cast:load', castCall(media => casting.load(media)));

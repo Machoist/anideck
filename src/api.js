@@ -549,12 +549,13 @@ const Kitsu = {
     return d ? { id: d.id, progress: d.attributes.progress || 0, status: d.attributes.status, reconsuming: !!d.attributes.reconsuming, rating: d.attributes.ratingTwenty ? d.attributes.ratingTwenty / 2 : null } : null;
   },
   // Saves status, progress and score together (score is 1-10, stored by Kitsu as 2-20).
-  async saveEntry(animeId, { status, progress, reconsuming, rating }) {
+  async saveEntry(animeId, { status, progress, reconsuming, rating, ifMissing=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to Kitsu');
     const account=this.userId;
     const attributes = { status, progress: Math.max(0, Number(progress) || 0), reconsuming: !!reconsuming,...(Number(rating)>0?{ratingTwenty:Math.max(2,Math.min(20,Math.round(Number(rating)*2)))}:{}) };
     const existing = await this.entry(animeId);
     if(this.userId!==account||!this.loggedIn())throw Error('Kitsu account changed. Start again.');
+    if(existing&&ifMissing)return {...existing,unchanged:true};
     if (existing) {
       await this.call(`/edge/library-entries/${existing.id}`, { method: 'PATCH', json: { data: { id: existing.id, type: 'libraryEntries', attributes } } });
       return;
@@ -799,10 +800,10 @@ const AniList = {
   fromEntry(e) {
     return { id: e.id, status: AL_BACK[e.status] || 'current', reconsuming: e.status === 'REPEATING', progress: e.progress || 0, rating: e.score || null, updatedAt: e.updatedAt ? new Date(e.updatedAt * 1000).toISOString() : '' };
   },
-  async entry(id) {
+  async entry(id, {fresh=false}={}) {
     if (!this.loggedIn()) return null;
     const mediaId = await this.mediaId(id);
-    if (this.coll && Date.now() - this.collAt < 30000) { // the whole list was just fetched: read it from there
+    if (!fresh && this.coll && Date.now() - this.collAt < 30000) { // the whole list was just fetched: read it from there
       const hit = this.coll.find((e) => String(e.anime?.id) === `al:${mediaId}`);
       if (hit) return { id: hit.id, status: hit.status, reconsuming: hit.reconsuming, progress: hit.progress, rating: hit.rating, updatedAt: hit.updatedAt };
     }
@@ -818,8 +819,9 @@ const AniList = {
     this.coll = null;
     return this.fromEntry(d.SaveMediaListEntry);
   },
-  async saveEntry(id, { status, progress, reconsuming, rating }) {
+  async saveEntry(id, { status, progress, reconsuming, rating, ifMissing=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
+    if(ifMissing){const account=this.userId,existing=await this.entry(id,{fresh:true});if(this.userId!==account||!this.loggedIn())throw Error('AniList account changed. Start again.');if(existing)return {...existing,unchanged:true};}
     return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0),...(Number(rating)>0?{scoreRaw:Math.max(1,Math.min(100,Math.round(Number(rating)*10)))}:{}) });
   },
   async setStatus(id, status) {

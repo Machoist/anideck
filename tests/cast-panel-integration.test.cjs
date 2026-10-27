@@ -7,6 +7,7 @@ test('real panel footer unpairs the real receiver and reopening stays unpaired',
  const doc={getElementById:id=>nodes[id]||null,querySelector:()=>panel,querySelectorAll:()=>[]};
  const App={settings:{},nav(view){navigated=view;},modal(html){nodes={};for(const m of html.matchAll(/id="([^"]+)"/g))nodes[m[1]]=make();panel=make();},closeModal(){nodes={};panel=null;}};
  const native={};for(const method of ['start','status','disconnect','stop','command'])native[method]=async(...args)=>({ok:true,value:await backend[method](...args)});
+ native.pairing=async enabled=>({ok:true,value:backend.setPairing(enabled)});
  const ctx={App,Player:{ctx:null,el:null,video:null,tick(){throw Error('empty player')}},window:{native:{cast:native}},document:doc,icon:()=>'',esc:String,epLabel:()=>'',toast(){},setTimeout(){},setInterval(){return 1},clearInterval(){}};
  const cast=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/cast.js'),'utf8')+'\nCast',ctx);cast.showAddresses=()=>{};
  await cast.open();assert.equal(panel.dataset.state,'connected');nodes['cast-choose'].onclick();assert.equal(navigated,'home');assert.equal(cast.ready,true);await cast.open();await nodes['cast-disconnect'].onclick();assert.equal(backend.status().screen,null);assert.equal(panel.dataset.state,'waiting');

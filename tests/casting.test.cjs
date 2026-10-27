@@ -12,6 +12,15 @@ test('receiver connects only through the PC code and expires stale codes',async 
  cast.disconnect();assert.equal((await request('/state',undefined,a.body.token)).body.connected,false);
  const b=await request('/hello',{});time+=120001;assert.throws(()=>cast.connect(b.body.code),/incorrect or expired/);
 });
+
+test('closing pairing invalidates unused codes, hides them in state and preserves an active cast',async t=>{
+ const {cast,request,base}=await setup(t);const a=(await request('/hello',{})).body;cast.setPairing(false);
+ assert.equal((await request('/state',undefined,a.token)).body.pairing,false);assert.throws(()=>cast.connect(a.code),/Open Cast/);
+ assert.equal((await request('/hello',{})).body.code,null);cast.setPairing(true);assert.throws(()=>cast.connect(a.code),/expired/);
+ const b=(await request('/hello',{})).body;cast.connect(b.code);cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false});cast.setPairing(false);
+ const state=(await request('/state',undefined,b.token)).body;assert.equal(state.connected,true);assert(state.media);assert.equal(state.pairing,false);
+ for(const file of ['wordmark.svg','mark.svg']){const response=await fetch(base+'/'+file);assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/svg/);assert.match(await response.text(),/<svg/);}
+});
 test('cast media relays playlists, keys and byte ranges without leaking upstream URLs or headers',async t=>{
  const received=[];
  const upstream=http.createServer((req,res)=>{received.push({url:req.url,headers:req.headers});

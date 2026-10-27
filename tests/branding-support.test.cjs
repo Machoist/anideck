@@ -13,7 +13,7 @@ test('installer and app use AniDeck while upgrade identity stays stable and rele
 });
 test('About opens only the configured HTTPS Ko-fi page and clearly handles a missing URL',async()=>{
  let support='';const start=appSource.indexOf('  async settings() {'),end=appSource.indexOf('\n  },',start);
- const context={URL,App:{settings:{},libraries:[],update:{}},window:{native:{config:async()=>({koFiUrl:support}),get:async()=>'',version:async()=> 'test'}},Tracker:{name:'AniList'},Jellyfin:{connected:()=>false},Requests:{enabled:()=>false},ACCENTS:{},KEY_ACTIONS:[],CHANGELOG:[{v:'test'}],GITHUB_URL:'https://example.com',icon:()=>'',esc:x=>String(x??''),trackerRows:()=>'',shuffleLabel:()=>'',updateText:()=>''};
+ const context={URL,App:{settings:{},libraries:[],update:{}},window:{native:{config:async()=>({koFiUrl:support}),get:async()=>'',version:async()=> 'test'}},Tracker:{name:'AniList'},Jellyfin:{connected:()=>false},Requests:{enabled:()=>false},ACCENTS:{},KEY_ACTIONS:[],CHANGELOG:[{v:'test'}],GITHUB_URL:'https://example.com',icon:()=>'',esc:x=>String(x??''),trackerRows:()=>'',accountProfileCard:()=>'',shuffleLabel:()=>'',updateText:()=>''};
  vm.runInNewContext(appSource.slice(appSource.indexOf('function spotlightDuration('),appSource.indexOf('function queueArtworkScore(')),context);
  const render=vm.runInNewContext('({'+appSource.slice(start,end)+'\n}}).settings',context);
  for(const invalid of ['', 'javascript:alert(1)','http://ko-fi.com/creator','https://ko-fi.com.evil.example/creator','https://user:password@ko-fi.com/creator']){

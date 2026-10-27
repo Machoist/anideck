@@ -8,10 +8,10 @@ function fixture(){
   httpUncached:async(url,options={})=>{calls.push({url,options});if(url.includes('anilist'))return {data:{Page:{media:[{id:1}]},Viewer:{id:'private-id'}}};if(url.includes('kitsu'))return {data:[{id:'private-id'}]};return {ok:true,features:['friends','messages','watch-invites','anideck-accounts','discussions','profile-favorites']};}};
  const api=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/system-checks.js'),'utf8')+'\nSystemChecks',ctx);return {api,ctx,calls};
 }
-test('readiness checks perform bounded public reads, keep manual checks distinct, and do not change local data',async()=>{
+test('readiness checks perform bounded public reads, exclude internal acceptance checklists, and do not change local data',async()=>{
  const f=fixture(),before=JSON.stringify(f.ctx.LocalTracker.coll),data=await f.api.collect();assert.equal(f.calls.length,3);assert.equal(JSON.stringify(f.ctx.LocalTracker.coll),before);
- assert(f.calls.every(c=>!c.options.headers?.Authorization&&c.options.allowChallenge===false));assert.equal(data.rows.filter(r=>r.status==='manual').length,4);assert.equal(data.rows.find(r=>r.id==='profile').status,'skipped');
- assert.equal(data.rows.find(r=>r.id==='cloud').status,'pass');assert.equal(data.rows.find(r=>r.id==='friends').status,'manual');
+ assert(f.calls.every(c=>!c.options.headers?.Authorization&&c.options.allowChallenge===false));assert.equal(data.rows.filter(r=>r.status==='manual').length,0);assert.equal(data.rows.find(r=>r.id==='profile').status,'skipped');
+ assert.equal(data.rows.find(r=>r.id==='cloud').status,'pass');assert.equal(data.rows.find(r=>r.id==='friends'),undefined);
  const report=f.api.report(data);for(const secret of ['private-id','private-token','Private local title','https://cloud.fixture'])assert(!report.includes(secret));
 });
 test('network errors never leak raw URLs, tokens or provider messages into the report',async()=>{

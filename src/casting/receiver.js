@@ -37,7 +37,7 @@ function listenForCommands(){
  // The regular state poll remains available to browsers or networks without event streams.
  stream.onerror=()=>{stream.close();if(events===stream)events=null;};
 }
-async function hello(){events?.close();events=null;token=null;const r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code.slice(0,3)+' '+r.code.slice(3);message.textContent='The code expires in two minutes.';listenForCommands();}
+async function hello(){events?.close();events=null;token=null;const r=await api('/hello',{name:/Silk/i.test(navigator.userAgent)?'Fire TV · Silk':'TV browser'});token=r.token;expires=Date.now()+r.expiresIn*1000;revision=-1;document.getElementById('code').textContent=r.code?r.code.slice(0,3)+' '+r.code.slice(3):'';message.textContent='The code expires in two minutes.';listenForCommands();}
 async function tick(){
  if(starting)return;starting=true;
  try{
@@ -45,13 +45,14 @@ async function tick(){
   let s=await api('/state');
   lastContact=Date.now();
   if(!s.connected&&media)stop();
-  if(!s.connected&&(wasConnected||Date.now()>expires)){
+  if(!s.connected&&s.pairing!==false&&(wasConnected||Date.now()>expires)){
    await api('/leave',{}).catch(()=>{});await hello();s=await api('/state');
   }
   wasConnected=!!s.connected;
-  document.getElementById('code').hidden=s.connected;
-  document.getElementById('instructions').textContent=s.connected?'On your PC, choose a show in AniDeck and press Play. Your episode will appear here automatically. To watch on the PC instead, choose Continue on this PC in Cast to TV.':'In AniDeck on your PC, open Cast to TV and enter this code.';
-  message.textContent=s.connected?'Connected · waiting for your episode':'The code expires in two minutes.';
+  document.getElementById('code').hidden=s.connected||s.pairing===false;
+  if(s.pairing===false&&!s.connected)expires=0;
+  document.getElementById('instructions').textContent=s.connected?'On your PC, choose a show in AniDeck and press Play. Your episode will appear here automatically. To watch on the PC instead, choose Continue on this PC in Cast to TV.':s.pairing===false?'Open Cast to TV in AniDeck on your PC to show a new connection code.':'In AniDeck on your PC, open Cast to TV and enter this code.';
+  message.textContent=s.connected?'Connected · waiting for your episode':s.pairing===false?'Ready when you are. Pairing is closed on your PC.':'The code expires in two minutes.';
   const heading=document.getElementById('receiver-heading');if(heading)heading.textContent=s.connected?'Your next episode goes here.':'Make yourself comfortable.';
   const restore=s.connected&&s.media&&!s.completed&&s.media.id!==media?.id;
   if(s.completed){if(media)stop();notice('Episode finished. Choose your next episode in AniDeck.');}
