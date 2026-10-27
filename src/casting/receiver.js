@@ -51,7 +51,7 @@ async function tick(){
   let s=await api('/state');
   lastContact=Date.now();
   if(!s.connected&&media)stop();
-  if(!s.connected&&s.pairing!==false&&(wasConnected||Date.now()>expires)){
+  if(!s.connected&&s.pairing!==false&&(wasConnected||!s.code||Date.now()>expires)){
    await api('/leave',{}).catch(()=>{});await hello();s=await api('/state');
   }
   wasConnected=!!s.connected;

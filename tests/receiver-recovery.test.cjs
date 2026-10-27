@@ -20,6 +20,8 @@ test('refresh resumes a paired TV using the same tab session and last playback p
 
 test('unused TV code disappears when pairing closes and returns with a new code on reopening',async t=>{const f=await fixture(t);f.cast.disconnect();f.cast.setPairing(false);await f.tick();assert.equal(f.nodes.code.hidden,true);assert.match(f.nodes.instructions.textContent,/Open Cast to TV/);f.cast.setPairing(true);await f.tick();assert.equal(f.nodes.code.hidden,false);assert.match(f.nodes.code.textContent,/\d{3} \d{3}/);f.cast.connect(f.nodes.code.textContent);await f.tick();assert.equal(f.nodes.code.hidden,true);});
 
+test('quickly closing and reopening pairing replaces the code even when the TV misses the closed state',async t=>{const f=await fixture(t);f.cast.disconnect();await f.tick();const previous=f.nodes.code.textContent;f.cast.setPairing(false);f.cast.setPairing(true);await f.tick();assert.notEqual(f.nodes.code.textContent,previous);f.cast.connect(f.nodes.code.textContent);await f.tick();assert.equal(f.cast.status().screen.connected,true);});
+
 test('receiver reloads the same command revision after a transient connection loss at its last reported position',async t=>{
  const f=await fixture(t);f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false,at:17});await f.tick();f.video.currentTime=240;await f.tick();
  f.offline(true);await f.tick();assert.equal(f.receiver.getMedia(),null);assert.equal(f.video.paused,true);
