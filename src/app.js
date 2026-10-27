@@ -3195,7 +3195,7 @@ function splash(msg){
 }
 function hideSplash(){
   const el=$('#splash');if(!el||el.hidden||el.classList.contains('out'))return;
-  const reduced=App.settings?.reduceMotion||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduced=App.settings?.reduceMotion;
   splashReady=true;clearTimeout(splashExitTimer);
   if(!reduced&&window.native?.onWindowShown){if(splashShownAt===null)return;const remaining=900-(Date.now()-splashShownAt);if(remaining>0){splashExitTimer=setTimeout(hideSplash,remaining);return;}}
   el.setAttribute('aria-busy','false');el.classList.add('out');

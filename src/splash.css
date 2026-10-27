@@ -27,12 +27,9 @@
 @keyframes deckLoadingRelay{0%,65%,100%{opacity:.45;transform:translateX(var(--card-x)) rotate(var(--card-r))}25%,40%{opacity:1;transform:translate(var(--card-x),-4px) rotate(var(--card-r))}}
 @media(max-width:700px){.splash-signature{width:min(330px,100%)}.splash-center{transform:translateY(-10px)}.splash-ambient::before,.splash-ambient::after{width:240px;height:330px;left:calc(50% - 120px);top:calc(50% - 165px)}.splash-deal i{--deal-x:-60px}.splash-deal i:nth-child(3){--deal-x:60px}.splash-status{margin-top:24px}.splash .splash-msg{font-size:11px}}
 .reduce-motion .splash-deal{display:none}.reduce-motion .splash-pulse i{opacity:.7;transform:translateX(var(--card-x)) rotate(var(--card-r))}.reduce-motion .splash .brand-letters{filter:none;opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){.splash-deal{display:none}.splash-pulse i{opacity:.7;transform:translateX(var(--card-x)) rotate(var(--card-r))}.splash .brand-letters{filter:none;opacity:1;transform:none}}
 .reduce-motion .splash .brand-d,.reduce-motion .splash .brand-card-back path{stroke-dashoffset:0}
-@media(prefers-reduced-motion:reduce){.splash .brand-d,.splash .brand-card-back path{stroke-dashoffset:0}}
 
 /* Keep the primary mark alive throughout loading, including long connections. */
 .splash:not(.out):not(.failed) .brand-d{animation:brandOutlineIn .65s .36s cubic-bezier(.3,.1,.2,1) forwards,deckMarkBreathe 2.8s 1.1s ease-in-out infinite}
 @keyframes deckMarkBreathe{0%,100%{opacity:1;filter:drop-shadow(0 0 3px rgba(183,168,255,.18))}50%{opacity:.65;filter:drop-shadow(0 0 12px rgba(183,168,255,.65))}}
 .reduce-motion .splash .brand-d{animation:none!important;opacity:1}
-@media(prefers-reduced-motion:reduce){.splash .brand-d{animation:none!important;opacity:1}}

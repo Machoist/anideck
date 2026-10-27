@@ -13,8 +13,6 @@ body:has(.player:not([hidden])) .home-brand{display:none}
 .splash-ambient::after{transform:translate(-110px,20px) rotate(-13deg)}
 .splash-center{width:min(480px,calc(100vw - 48px));display:grid;justify-items:center;text-align:center;transform:translateY(-18px);transition:transform .28s ease,opacity .28s ease}
 .splash-signature{width:min(400px,100%);line-height:0}.splash-wordmark{display:block;width:100%;height:auto;overflow:visible}
-.splash-deal{display:block;position:relative;width:64px;height:72px;margin:0 auto 28px}.splash-deal i{position:absolute;inset:4px 12px;border:2px solid #b7a8ff;border-radius:9px;background:#252132;transform-origin:50% 90%;animation:splashDeal 1.8s ease-in-out infinite;--fan:0deg}.splash-deal i:first-child{--fan:-24deg;animation-delay:-.12s}.splash-deal i:last-child{--fan:24deg;animation-delay:.12s}.splash-deal i:nth-child(2)::after{content:"";position:absolute;left:14px;top:23px;border-left:11px solid #e4ddff;border-top:7px solid transparent;border-bottom:7px solid transparent}
-@keyframes splashDeal{0%,100%{transform:rotate(var(--fan)) translateY(0)}50%{transform:rotate(calc(var(--fan) * .35)) translateY(-9px)}}
 .splash .brand-letters{animation:brandLettersIn .6s cubic-bezier(.2,.8,.2,1) both}
 .splash .brand-card-back path{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .65s .1s cubic-bezier(.3,.1,.2,1) forwards}
 .splash .brand-d{stroke-dasharray:1;stroke-dashoffset:1;animation:brandOutlineIn .75s .16s cubic-bezier(.3,.1,.2,1) forwards}
@@ -30,7 +28,6 @@ body:has(.player:not([hidden])) .home-brand{display:none}
 @keyframes brandPulse{0%,65%,100%{opacity:.25;transform:scale(.9)}30%{opacity:.9;transform:scale(1.15)}}
 @media(max-width:700px){.home-brand{top:24px;left:18px}.home-brand img{width:130px}.splash-signature{width:min(320px,100%)}.splash-center{transform:translateY(-10px)}.splash-foot{bottom:24px;font-size:9px}.topbar .top-brand .brand-wordmark{width:104px}}
 .reduce-motion .splash *,.reduce-motion .home-brand{animation:none!important;transition:none!important}.reduce-motion .splash .brand-d,.reduce-motion .splash .brand-card-back path{stroke-dashoffset:0}.reduce-motion .splash.out .splash-center{transform:translateY(-18px)}
-@media(prefers-reduced-motion:reduce){.splash,.splash *,.home-brand{animation:none!important;transition:none!important}.splash .brand-d,.splash .brand-card-back path{stroke-dashoffset:0}.splash.out .splash-center{transform:translateY(-18px)}}
 
 /* Home shortcut: a crisp hover surface and a deck-closing arrival on Home. */
 .home-fab{border-radius:12px;background:rgba(22,21,30,.86);border-color:rgba(255,255,255,.13);box-shadow:0 3px 12px rgba(0,0,0,.18);animation:none;transition:background .2s,border-color .2s,transform .2s}

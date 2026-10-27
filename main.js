@@ -88,9 +88,11 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       backgroundThrottling: !smokeTest,
+      offscreen: smokeTest,
     },
   });
   mainWin = win;
+  if(smokeTest){win.webContents.on('paint',()=>{});win.webContents.setFrameRate(30);}
   win.once('ready-to-show', () => { if(smokeTest)return;if (getStore().windowMaximized) win.maximize(); win.show(); win.webContents.send('window:shown'); });
 
   const remember = () => {
@@ -146,20 +148,25 @@ function createWindow() {
       })()`);
       if (!result.main || !result.testBuild || result.version !== app.getVersion() || !result.loginVisible || !result.shellHidden || !result.signedOut || !result.emptyLibrary || !result.emptyServer || !result.controls || !result.modules) throw Error('Packaged fresh-profile smoke check failed: '+JSON.stringify(result));
       console.log('AniDeck fresh-profile checks: '+JSON.stringify(result));
+      // Wake the hidden smoke window's compositor before timing real CSS animation.
+      await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
       win.webContents.send('window:shown');
       const visualArg=process.argv.find(arg=>arg.startsWith('--anideck-visuals='));
       const visualDir=visualArg?path.resolve(visualArg.slice('--anideck-visuals='.length)):null;
       if(visualDir){
         fs.mkdirSync(visualDir,{recursive:true});
         await new Promise(resolve=>setTimeout(resolve,100));
-        const first=await win.webContents.executeJavaScript("({transform:getComputedStyle(document.querySelector('.splash-deal i')).transform,visible:!document.querySelector('#splash').hidden,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches})");
-        await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
-        fs.writeFileSync(path.join(visualDir,'AniDeck-launch-frame-1.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const first=await win.webContents.executeJavaScript("({transform:getComputedStyle(document.querySelector('.splash-deal i')).transform,visible:!document.querySelector('#splash').hidden,reduced:!!App.settings.reduceMotion,windowsReducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches})");
         await new Promise(resolve=>setTimeout(resolve,300));
         const second=await win.webContents.executeJavaScript("({transform:getComputedStyle(document.querySelector('.splash-deal i')).transform,visible:!document.querySelector('#splash').hidden})");
-        fs.writeFileSync(path.join(visualDir,'AniDeck-launch-frame-2.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
-        if(!first.visible||!second.visible||(!first.reduced&&first.transform===second.transform))throw Error('Launch animation did not advance across visible frames');
-        console.log('AniDeck launch animation: '+JSON.stringify({visible:true,advanced:first.transform!==second.transform,reducedMotion:first.reduced}));
+        if(!first.visible||!second.visible||(!first.reduced&&first.transform===second.transform))throw Error('Launch animation did not advance across visible frames: '+JSON.stringify({first,second}));
+        console.log('AniDeck launch animation: '+JSON.stringify({visible:true,advanced:first.transform!==second.transform,reducedMotion:first.reduced,windowsReducedMotion:first.windowsReducedMotion}));
+        // Capturing a hidden native window may itself take longer than the short entrance.
+        // Verify time advancement above, then hold only this isolated preview for capture.
+        await win.webContents.executeJavaScript("splash('Opening your deck');splashReady=false;replaySplash();");
+        await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
+        await new Promise(resolve=>setTimeout(resolve,700));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-launch-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
       }
       // Exercise the real guest/setup controls with cloud/catalog reads isolated.
       // Never create a backend profile or use an existing provider session in this test.
@@ -185,6 +192,18 @@ function createWindow() {
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
+        const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
+        try{
+          receiverServer.setPairing(false);await tv.loadURL('http://127.0.0.1:'+receiverStatus.port);
+          const codeVisible=()=>tv.webContents.executeJavaScript("!document.getElementById('code').hidden");
+          await new Promise(resolve=>setTimeout(resolve,250));if(await codeVisible())throw Error('Closed pairing still shows a TV code');
+          receiverServer.setPairing(true);await new Promise(resolve=>setTimeout(resolve,1200));if(!await codeVisible())throw Error('Opening pairing did not show a fresh TV code');
+          receiverServer.setPairing(false);await new Promise(resolve=>setTimeout(resolve,1200));if(await codeVisible())throw Error('Closing pairing did not clear the TV code');
+          const branded=await tv.webContents.executeJavaScript("[...document.querySelectorAll('.receiver-brand img')].every(img=>img.complete&&img.naturalWidth>0)");if(!branded)throw Error('TV brand assets did not load');
+          fs.writeFileSync(path.join(visualDir,'AniDeck-TV-waiting-preview.png'),(await tv.webContents.capturePage()).toPNG());
+          console.log('AniDeck native TV setup: '+JSON.stringify({brandLoaded:true,closedCodeHidden:true,reopenedCodeVisible:true,closedAgainHidden:true}));
+        }finally{tv.destroy();await receiverServer.stop();}
       }
       if(process.argv.includes('--anideck-checks')){
         const report=await win.webContents.executeJavaScript('(async()=>{await SystemChecks.open();return SystemChecks.last;})()');
