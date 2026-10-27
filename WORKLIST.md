@@ -2,14 +2,20 @@
 
 Updated 27 October 2026. This file is the resumable checklist; earlier development notes are historical.
 
+## 27 October — navigation clipping fixed; import count clarified
+
+Current Windows installer and portable ZIP: **preview-65eb624**, source **65eb624**, **426 tests pass**. Package audit, final packaged native regression checks, ZIP integrity and exact installer/ZIP runtime equality pass. Source snapshot refreshed. UI geometry uses real 1440px, 640px and 360px viewport widths; controls clear My list's eyebrow/title and move naturally with the main scroll. Narrow screenshot reviewed. Standard pages reserve the navigation row; hero layouts retain their existing overlay, and Schedule accounts for the reserved row height.
+
+Account now offers **Review local list for AniList/Kitsu** and explains that the title count is saved on this device; already-listed titles are kept unchanged. The local copy intentionally remains after import. The user reports that the live AniList import succeeded. Independent destination readback (progress/status/rating/rewatch, existing-entry preservation and safe repeat) remains pending; Kitsu live acceptance remains pending. No production list/profile/message writes were performed by this verification. Gio and physical Mac remain deferred. Release notification remains planned.
+
 ## Saved and verified
 
 - App source through `3de4263` is backed up on GitHub `main`. All 48 previously local commits were pushed.
-- Current local Windows installer and portable ZIP: `preview-3de4263`. 425 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
+- Current local Windows installer and portable ZIP: `preview-65eb624`. 426 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
 - [Windows test build](https://github.com/Machoist/anideck/actions/runs/40459268760) and [Mac test build](https://github.com/Machoist/anideck/actions/runs/40459268720) both succeeded for `3de4263`. Successful CI does not establish physical device acceptance.
 - Latest UI work is complete: progressive profile rendering, labeled most-watched genres and next milestone, fluid milestone navigation, compact Social requests/refresh, opaque three-card shuffle with matching reveal size, and equal-height Tonight/Horizon widgets.
 - Profile customization, recovery-key sign-in, consent-based message requests, notification preferences, local-list import adapters and isolated optional Jellyfin functionality are implemented. The live checks below remain necessary.
-- Subsequent changes add agent documentation and one regression test; current source suite has 426 passing tests. App runtime and existing packages still correspond to `3de4263` (425 tests at packaging). No public release or release tag was created.
+- Current package includes the navigation spacing/import-copy fixes and the policy regression test; source `65eb624`, 426 tests passing. Earlier CI artifact checks below describe their stated historical revisions. No public release or release tag was created.
 
 ## 27 October — CI artifact inspection and Mac label fix
 
@@ -27,7 +33,7 @@ Evaluation: useful for bounded supervised tasks; independent accuracy has not be
 
 ## Next, in order
 
-1. **AniList selected by user:** review the live local-list import preview, then perform a deliberate approved import and destination readback. Kitsu follows separately. The real installed app was opened, but desktop automation was stopped with Escape before the review; no import was submitted. If sign-in is required, the user must complete it. Test live provider sign-in as part of acceptance. Verify status, progress, ratings, rewatch values and preservation of existing entries. Fixture-HTTP adapter coverage passes; no live provider list was changed during automated checks.
+1. **AniList import reported successful by user.** Local titles remain intentionally; the account count is saved-on-device data, not a pending-import count. Next live acceptance: confirm the destination status/progress/rating/rewatch, existing-entry preservation and safe repeat/readback. Kitsu live sign-in/import acceptance remains pending. Fixture checks pass; no live provider mutation was performed by automated verification.
 2. Test recovery-key sign-in and profile presentation on a physical second device; verify private Jellyfin playback and isolation from anime discovery and Social.
 3. Test physical TV picture, sound, captions, codecs, LAN connectivity and recovery during media playback. Same-tab refresh, pairing retention, centered wordmark and pairing-code lifecycle pass packaged checks; media decoding remains simulated in protocol tests.
 4. Verify real OS desktop alerts and two-account request/accept/decline, No messages and notification timing. Backend permission tests and UI bindings pass in isolation.
