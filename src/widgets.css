@@ -77,3 +77,7 @@
 
 /* Match adjacent dashboard modules: Tonight fills the same row as On the horizon. */
 .ad-widgets>.ad-widget--tonight{align-self:stretch}
+
+/* Reserve the full card fan envelope on hover and keep it clear of the copy. */
+.ad-deal{gap:20px}.ad-deal-art{flex:0 0 152px;width:152px;margin-left:12px}.ad-deal-copy{min-width:0}.ad-widget--roulette:hover .ad-deal:not(.dealing) .ad-deal-art span:first-child{transform:translateX(-30px) rotate(-20deg)}.ad-widget--roulette:hover .ad-deal:not(.dealing) .ad-deal-art span:nth-child(2){transform:translateX(30px) rotate(20deg)}
+@container deck-module (max-width:400px){.ad-deal{gap:14px}.ad-deal-art{flex-basis:120px;width:120px;margin-left:10px}.ad-deal-art span{width:54px;height:80px;left:calc(50% - 27px)}.ad-deal-copy .btn{max-width:100%;padding-inline:10px}}

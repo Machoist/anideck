@@ -140,7 +140,7 @@ function profileHeroSnapshot(cd,{self=true}={}){
   return tags+milestone;
 }
 function paintProfileIdentity(user,{self=true}={}){
-  ProfilePresentation.paint(user,{self});const handle=$('#pf2-handle');
+  ProfilePresentation.paint(user,{self});const avatar=$('#pf-avatar');if(avatar&&user&&typeof user.avatar==='string')avatar.innerHTML=user.avatar?`<img src="${esc(user.avatar)}" alt="Profile picture">`:icon('user');const handle=$('#pf2-handle');
   if(handle){handle.textContent=user?.handle?'@'+user.handle:'';handle.hidden=!user?.handle;}
   const name=$('#pf-name');if(name&&user?.name)name.textContent=user.name;
 }
@@ -202,15 +202,7 @@ function paintProfile(cd, { self = true, rarity = null } = {}) {
   $('#pf2-nowlist').innerHTML = cd.watching.length ? cd.watching.map((w, i) => { const k = w.ep ? Math.min(1, w.pr / w.ep) : 0; return `<button class="pf2-wcard" data-act="anime" data-id="${esc(w.id)}" data-titles="${esc(JSON.stringify(w.titles || []))}" style="--i:${i}" title="${esc(w.t)}">
     <span class="pf2-wcard-art">${w.p ? `<img src="${esc(w.p)}" alt="" loading="lazy">` : ''}<span class="pf2-wcard-go">${icon(self ? 'play' : 'info', self ? 'fill' : '')}</span><i><b style="width:${Math.round(k * 100)}%"></b></i></span><b>${esc(w.t)}</b><small>Ep ${w.pr}${w.ep ? ` of ${w.ep}` : ''}</small></button>`; }).join('')
     : `<p class="pf2-note">Nothing in Watching right now.</p>`;
-  // milestones (with how many AniDeck watchers have each, when AniDeck cloud is on)
-  const unlocked = MILESTONES.filter(([id]) => cd.badges.includes(id)).length;
-  $('#pf2-badge-count').textContent = `${unlocked} of ${MILESTONES.length}`;
-  $('#pf2-badgelist').innerHTML = MILESTONES.map(([id, ic, name, desc, need, m], i) => {
-    const have = cd.metrics?.[m] || 0, done = cd.badges.includes(id), k = Math.min(1, have / need);
-    const share = rarity?.total ? (rarity.counts[id] || 0) / rarity.total : null;
-    const rare = share == null ? '' : `<span class="pf2-tcard-rare ${share < 0.05 ? 'rare' : ''}">${done && (rarity.counts[id] || 0) <= 1 ? 'Only you so far' : `${share < 0.01 && share > 0 ? '<1' : Math.round(share * 100)}% of AniDeck watchers`}${share < 0.05 && (rarity.counts[id] || 0) > 1 ? ' · Rare' : ''}</span>`;
-    return `<div class="pf2-tcard ${done ? 'done' : ''}" style="--i:${i}" title="${esc(desc)}"><span class="pf2-tcard-ic">${icon(ic, ic === 'play' ? 'fill' : '')}</span><b>${esc(name)}</b><small>${esc(desc)}</small>${rare}${done ? '<span class="pf2-tcard-stamp">Unlocked</span>' : `<span class="pf2-tcard-prog"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="f" cx="18" cy="18" r="15" stroke-dasharray="${(k * 94.2).toFixed(1)} 100"/></svg><em>${Math.min(have, need).toLocaleString()}/${need.toLocaleString()}</em></span>`}</div>`;
-  }).join('');
+  paintProfileMilestones(cd,rarity);
   // activity
   const act = cd.activity || {}, today = new Date(); today.setHours(0, 0, 0, 0);
   const W = 26, start = new Date(today); start.setDate(start.getDate() - today.getDay() - (W - 1) * 7);
@@ -231,6 +223,18 @@ function paintProfile(cd, { self = true, rarity = null } = {}) {
   $('#pf2-months').innerHTML = months;
   $('#pf-heat').innerHTML = cells;
   $('#pf-streak').textContent = `Last 26 weeks · ${Object.keys(act).filter((k) => Date.parse(k) >= +start).length} active days`;
+}
+
+function paintProfileMilestones(cd,rarity=null) {
+  // milestones (with how many AniDeck watchers have each, when AniDeck cloud is on)
+  const unlocked = MILESTONES.filter(([id]) => cd.badges.includes(id)).length;
+  $('#pf2-badge-count').textContent = `${unlocked} of ${MILESTONES.length}`;
+  $('#pf2-badgelist').innerHTML = MILESTONES.map(([id, ic, name, desc, need, m], i) => {
+    const have = cd.metrics?.[m] || 0, done = cd.badges.includes(id), k = Math.min(1, have / need);
+    const share = rarity?.total ? (rarity.counts[id] || 0) / rarity.total : null;
+    const rare = share == null ? '' : `<span class="pf2-tcard-rare ${share < 0.05 ? 'rare' : ''}">${done && (rarity.counts[id] || 0) <= 1 ? 'Only you so far' : `${share < 0.01 && share > 0 ? '<1' : Math.round(share * 100)}% of AniDeck watchers`}${share < 0.05 && (rarity.counts[id] || 0) > 1 ? ' · Rare' : ''}</span>`;
+    return `<div class="pf2-tcard ${done ? 'done' : ''}" style="--i:${i}" title="${esc(desc)}"><span class="pf2-tcard-ic">${icon(ic, ic === 'play' ? 'fill' : '')}</span><b>${esc(name)}</b><small>${esc(desc)}</small>${rare}${done ? '<span class="pf2-tcard-stamp">Unlocked</span>' : `<span class="pf2-tcard-prog"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="f" cx="18" cy="18" r="15" stroke-dasharray="${(k * 94.2).toFixed(1)} 100"/></svg><em>${Math.min(have, need).toLocaleString()}/${need.toLocaleString()}</em></span>`}</div>`;
+  }).join('');
 }
 
 /* ---------------- comparing two cards ---------------- */
@@ -331,14 +335,14 @@ const Cloud = {
 
 /* ---------------- your stats, kept for a few minutes ---------------- */
 async function myCard(rid) {
-  const who = `${Tracker.name}:${Tracker.userName}`, kept = App.profileCache?.who === who ? App.profileCache : null;
+  const service=Tracker.svc,owner=Cloud.ident(),who=`${owner}:${Tracker.name}:${service.userId||''}`,kept=App.profileCache?.who===who?App.profileCache:null;
   const fetchAll = () => Promise.all([Tracker.profileStats().catch(() => null), Tracker.list('', 0, 500).catch(() => null)]);
   let st = null, listRes = null, stale = false;
   if (kept && Date.now() - kept.at < 5 * 60000) ({ st, listRes } = kept);
   else {
     [st, listRes] = await fetchAll();
     if ((!st || !listRes) && !App.stale(rid)) { await new Promise((r) => setTimeout(r, 1500)); const [s2, l2] = await fetchAll(); st = st || s2; listRes = listRes || l2; }
-    if (st && listRes) App.profileCache = { who, at: Date.now(), st, listRes };
+    if (st && listRes&&Cloud.ident()===owner&&Tracker.svc===service) App.profileCache = { who, at: Date.now(), st, listRes };
     else if (kept) { st = st || kept.st; listRes = listRes || kept.listRes; stale = true; }
     else stale = true;
   }
@@ -380,12 +384,12 @@ function paintCircleActivity(rid,mine) {
   <section><header><h4>${icon('checkCircle')}From their lists</h4><small>Completed picks</small></header>${snapshots.length?snapshots.map(({person,show})=>`<article class="pf2-circle-listpick"><span aria-hidden="true">${icon('checkCircle')}</span><div>${anime(show,`<b>${esc(show.t)}</b>`,'pf2-circle-title')}<p>On ${friend(person)}’s completed list</p></div></article>`).join(''):'<p class="pf2-circle-note">Completed titles from shared lists will show up here.</p>'}</section></div>
   <p class="pf2-circle-footnote">${icon('info')}${state.partial?'Some shared cards couldn’t load. ':''}${updated?'Latest card shared '+esc(updated)+'. ':''}A look at your friends’ shared lists, updated when they share their profiles.</p>`;
 }
-async function paintSocial(rid) {
+async function paintSocial(rid,identityTask=null) {
   const box = $('#pf2-social');if(!box||!Cloud.enabled())return;box._circle=null;
   const who=Cloud.ident(),current=()=>box.isConnected&&!App.stale(rid)&&Cloud.ident()===who;
   box.hidden=false;box.innerHTML='<div class="pf2-soc-loading"><span class="skel"></span><span class="skel"></span></div>';
   if(Cloud.who!==who)Cloud.me=undefined;let me=Cloud.me,data=null;
-  try{if(me===undefined)me=await Cloud.loadMe();if(!current())return;if(me)data=await Cloud.friends();}
+  try{if(identityTask)me=await identityTask;else if(me===undefined)me=await Cloud.loadMe();if(!current())return;if(me)data=await Cloud.friends();}
   catch(error){if(current())box.innerHTML=`<div class="pf2-social-summary"><span class="pf2-social-mark" aria-hidden="true">${icon('chat')}</span><div class="pf2-social-copy"><h3>Your circle</h3><p>Your circle is available from Friends.</p></div><button class="btn ghost" data-act="friendsOpen">Open Social ${icon('chev')}</button></div>`;return;}
   if(!current())return;const friends=data?.friends||[],preview=friends.slice(0,4);
   const avatars=preview.map(u=>`<span class="pf2-summary-avatar" title="${esc(u.name||u.handle)}">${u.avatar?`<img src="${esc(u.avatar)}" alt="${esc(u.name||u.handle)}" loading="lazy">`:`<span role="img" aria-label="${esc(u.name||u.handle)}">${esc((u.name||u.handle||'?')[0])}</span>`}</span>`).join('');
@@ -494,6 +498,20 @@ function sharingSettings() {
   requestAnimationFrame(()=>{if(form.isConnected)$('#wf-x').focus();});
 }
 
+/* Paint independent data as soon as it is ready; social/rarity never gate the main profile. */
+async function loadOwnProfile(rid) {
+ App.updateWho();if(!Tracker.loggedIn())return;const owner=Cloud.ident(),service=Tracker.svc,current=()=>!App.stale(rid)&&Cloud.ident()===owner&&Tracker.svc===service;
+ let identity=Cloud.who===owner?Cloud.me:undefined,card=App.myCardWho===owner&&App.myCardTracker===service?App.myCard:null,rarity=null;
+ const showIdentity=user=>{if(!current()||user===undefined)return;identity=user;paintProfileIdentity(user,{self:true});AniFavorites.paint(user,true);};
+ const display=value=>{if(!current())return;const view={...value,...(identity?{name:identity.name||value.name,avatar:identity.avatar??value.avatar}:{})};paintProfile(view,{self:true,rarity});if(identity!==undefined)showIdentity(identity);};
+ if(card)display(card);else{drawHand([0,0,0,0,0],0);if(identity!==undefined)showIdentity(identity);}
+ const identityTask=(Cloud.enabled()?Cloud.loadMe():Promise.resolve(null)).then(user=>{showIdentity(user);return user;}).catch(()=>undefined);
+ paintSocial(rid,identityTask).catch(()=>{});
+ if(Cloud.enabled())Cloud.milestones().then(value=>{if(!current())return;rarity=value;if(card)paintProfileMilestones(card,rarity);}).catch(()=>{});
+ const statsTask=myCard(rid).then(result=>{if(!current())return;card=result.card;App.myCard=card;App.myCardWho=owner;App.myCardTracker=service;display(card);paintCircleActivity(rid,card);const hero=$('.pf2-hero');hero?.querySelector('.pf2-busy')?.remove();if(result.stale&&hero)hero.insertAdjacentHTML('beforeend',`<div class="pf2-busy">${icon('info')}<span>${esc(Tracker.name)} is busy right now${result.kept?', so these are your last saved stats':', so some stats couldn’t load'}.</span><button class="link-btn" data-act="pfRetry">Try again</button></div>`);if(!result.stale)identityTask.then(()=>{if(current())Cloud.publish(card).catch(()=>{});});});
+ await Promise.allSettled([identityTask,statsTask]);
+}
+
 /* ---------------- views ---------------- */
 Object.assign(VIEW_TITLES, { watcher: 'Watcher' });
 Object.assign(Views, {
@@ -503,26 +521,7 @@ Object.assign(Views, {
       <div class="row gap" style="margin-top:14px"><button class="btn primary" data-act="kitsuLogin">Sign in to Kitsu</button><button class="btn" data-act="anilistLogin">Sign in to AniList</button></div></section></div>`;
     return profileMarkup({ self: true });
   },
-  async profileAfter(_p, rid) {
-    App.updateWho();
-    if (!Tracker.loggedIn()) return;
-    drawHand([0, 0, 0, 0, 0], 0);
-    paintSocial(rid);
-    const { card, stale, kept } = await myCard(rid);
-    if (App.stale(rid)) return;
-    App.myCard = card; App.myCardWho = Cloud.ident();
-    paintCircleActivity(rid,card);
-    const hero = $('.pf2-hero');
-    hero?.querySelector('.pf2-busy')?.remove();
-    if (stale && hero) hero.insertAdjacentHTML('beforeend', `<div class="pf2-busy">${icon('info')}<span>${esc(Tracker.name)} is busy right now${kept ? ', so these are your last saved stats' : ', so some stats couldn’t load'}.</span><button class="link-btn" data-act="pfRetry">Try again</button></div>`);
-    const rarity = Cloud.enabled() ? await Cloud.milestones().catch(() => null) : null;
-    if (App.stale(rid)) return;
-    let identity=null;try{identity=await Cloud.loadMe();}catch{}if(App.stale(rid))return;
-    paintProfileIdentity(identity,{self:true});if(identity){card.name=identity.name||card.name;card.avatar=identity.avatar||'';const image=$('#pf-avatar img');if(image)image.remove();}
-    AniFavorites.paint(identity,true);
-    paintProfile(card, { self: true, rarity });
-    if (!stale) Cloud.publish(card);
-  },
+  async profileAfter(_p,rid) { return loadOwnProfile(rid); },
   async watcher({ handle = '' } = {}) { return profileMarkup({ self: false, handle }); },
   async watcherAfter({ handle = '' } = {}, rid) {
     const fail = (msg) => { const h = $('.pf2-hero'); h?.insertAdjacentHTML('beforeend', `<div class="pf2-busy">${icon('info')}<span>${esc(msg)}</span></div>`); };
