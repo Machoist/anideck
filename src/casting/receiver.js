@@ -19,14 +19,14 @@ function connectionLost(){stop();message.textContent='Connection lost. Keep AniD
 function checkConnection(){if(media&&Date.now()-lastContact>=8000)connectionLost();}
 async function play(){const selected=media;if(!selected)return;try{await video.play();if(media!==selected)return;needsInteraction=false;activate.hidden=true;notice('');}catch{if(media!==selected)return;needsInteraction=true;notice('Press Select on your TV remote to start the episode.');activate.textContent='▶ Play on TV';activate.hidden=false;activate.focus();}}
 activate.onclick=()=>{video.requestFullscreen?.().catch(()=>{});return play();};
-function load(next){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
+function load(next,autoplay=true){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
  for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);if(track.track)track.track.mode='showing';}
  if(next.isHLS&&window.Hls&&Hls.isSupported()){
   hls=new Hls({maxBufferLength:60,backBufferLength:30});hls.on(Hls.Events.ERROR,(_,data)=>{if(data.fatal){playbackError='This stream could not play on the TV. Try another server or quality.';notice(playbackError);}});hls.loadSource(next.url);hls.attachMedia(video);
  }else if(!next.isHLS||video.canPlayType('application/vnd.apple.mpegurl'))video.src=next.url;
  else{playbackError='This TV browser does not support this video format.';notice(playbackError);return;}
- play();
+ if(autoplay)play();
 }
 video.addEventListener('error',()=>{if(media){playbackError='The TV could not play this video format. Try a different quality or server.';notice(playbackError);}});
 video.addEventListener('playing',()=>{if(!playbackError)notice('');});
@@ -53,14 +53,16 @@ async function tick(){
   document.getElementById('instructions').textContent=s.connected?'On your PC, choose a show in AniDeck and press Play. Your episode will appear here automatically. To watch on the PC instead, choose Continue on this PC in Cast to TV.':'In AniDeck on your PC, open Cast to TV and enter this code.';
   message.textContent=s.connected?'Connected · waiting for your episode':'The code expires in two minutes.';
   const heading=document.getElementById('receiver-heading');if(heading)heading.textContent=s.connected?'Your next episode goes here.':'Make yourself comfortable.';
-  if(s.revision!==revision){revision=s.revision;
-   if(s.connected&&s.media&&s.media.id!==media?.id)load(s.media);
+  const restore=s.connected&&s.media&&!s.completed&&s.media.id!==media?.id;
+  if(s.completed){if(media)stop();notice('Episode finished. Choose your next episode in AniDeck.');}
+  if(s.revision!==revision||restore){revision=s.revision;
+   if(restore)load({...s.media,at:s.resumeAt??s.media.at},s.paused!==true);
    else if(s.action==='stop')stop();
    if(media&&s.seekRevision&&s.seekRevision!==lastSeek){lastSeek=s.seekRevision;pendingSeek=Math.min(s.seekTime,Number.isFinite(video.duration)?Math.max(0,video.duration-.25):s.seekTime);try{video.currentTime=pendingSeek;}catch{}}
    if(media&&s.paused===true)video.pause();
-   else if(media&&s.action==='play')play();
+   else if(media&&s.action==='play'&&!restore)play();
   }
-  if(media&&s.connected)await api('/playback',{mediaId:media.id,time:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
+  if(media&&s.connected)await api('/playback',{mediaId:media.id,revision,time:video.readyState>=1?video.currentTime:(pendingSeek??media.at??0),duration:Number.isFinite(video.duration)?video.duration:0,paused:video.paused,ended:video.ended,error:playbackError,needsInteraction,loading:video.readyState<3&&!video.ended});
  }catch(error){connectionLost();if(error.status===401)token=null;}
  finally{starting=false;if(tickAgain){tickAgain=false;tick();}}
 }

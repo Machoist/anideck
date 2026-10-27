@@ -24,11 +24,11 @@ function rewritePlaylist(text, base, register) {
 }
 function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch, now=Date.now }={}) {
  let server, starting, current=null, revision=0;
- const screens=new Map(), assets=new Map(),assetIndex=new Map(),listeners=new Map();
+ const screens=new Map(), assets=new Map(),assetIndex=new Map(),listeners=new Map(),transfers=new Set();
  const notify=token=>{for(const response of listeners.get(token)||[]){if(!response.destroyed)response.write('data: '+revision+'\n\n');}};
  let addressCache=[],addressAt=-Infinity;
  const localAddresses=()=>{if(now()-addressAt>=5000){addressCache=addresses();addressAt=now();}return addressCache;};
- const clearAssets=()=>{assets.clear();assetIndex.clear();};
+ const clearAssets=()=>{for(const controller of transfers)controller.abort();transfers.clear();assets.clear();assetIndex.clear();};
  const publicScreen=s=>({name:s.name, connected:current===s.token, online:now()-s.seen<15000, playback:s.playback});
  const status=()=>({running:!!server?.listening, port:server?.address()?.port||port, urls:server?.listening?localAddresses().map(a=>`http://${a}:${server.address().port}`):[], screen:current&&screens.has(current)?publicScreen(screens.get(current)):null});
  const cleanup=()=>{const active=screens.get(current);if(active&&now()-active.seen>=15000)disconnect();for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
@@ -42,6 +42,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   const a=assets.get(url.pathname.slice(7)),token=url.searchParams.get('token');
   if(!a||token!==a.token||token!==current)return json(res,403,{error:'Cast session ended'});
   const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),20000);
+  transfers.add(controller);
   res.on('close',()=>controller.abort());
   try {
    const headers={...a.headers};if(req.headers.range)headers.Range=req.headers.range;
@@ -59,10 +60,10 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
     const out={'Content-Type':type,'Cache-Control':'no-store'};
     for(const key of ['content-length','content-range','accept-ranges']){const value=upstream.headers.get(key);if(value)out[key]=value;}
     res.writeHead(upstream.status,out);
-    if(req.method==='HEAD')res.end();else await pipeline(Readable.fromWeb(upstream.body),res);
+    if(req.method==='HEAD')res.end();else await pipeline(Readable.fromWeb(upstream.body),res,{signal:controller.signal});
    }
   }catch(error){if(!res.headersSent)json(res,502,{error:'Could not fetch this video. Try resolving the episode again.'});else res.destroy();}
-  finally{clearTimeout(timeout);}
+  finally{clearTimeout(timeout);transfers.delete(controller);}
  }
  async function handle(req,res){
   cleanup();
@@ -96,11 +97,17 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   }
 
   if(req.method==='POST'&&url.pathname==='/leave'){if(current===token)disconnect();screens.delete(token);return json(res,200,{ok:true});}
-  if(req.method==='GET'&&url.pathname==='/state')return json(res,200,{...screen.state,connected:current===token});
+  if(req.method==='GET'&&url.pathname==='/state'){
+   const reported=screen.playback,matching=reported.mediaId===screen.state.media?.id;
+   return json(res,200,{...screen.state,connected:current===token,resumeAt:matching?reported.time:screen.state.media?.at,completed:!!(matching&&reported.ended&&reported.revision===screen.state.revision)});
+  }
   if(req.method==='POST'&&url.pathname==='/playback'){
    const data=await body(req);
    if(current!==token||data.mediaId!==screen.state.media?.id)return json(res,409,{error:'Old playback session'});
-   screen.playback={time:Math.max(0,Number(data.time)||0),duration:Math.max(0,Number(data.duration)||0),paused:!!data.paused,ended:!!data.ended,error:String(data.error||'').slice(0,200),mediaId:data.mediaId,needsInteraction:!!data.needsInteraction,loading:!!data.loading};
+   if(Number.isInteger(data.revision)&&data.revision!==screen.state.revision)return json(res,200,{ok:true,ignored:true});
+   const seconds=value=>Number.isFinite(Number(value))?Math.max(0,Number(value)):0;
+   screen.playback={time:seconds(data.time),duration:seconds(data.duration),paused:!!data.paused,ended:!!data.ended,error:String(data.error||'').slice(0,200),mediaId:data.mediaId,revision:Number.isInteger(data.revision)?data.revision:null,needsInteraction:!!data.needsInteraction,loading:!!data.loading};
+   if(screen.playback.revision===screen.state.revision)screen.state.paused=screen.playback.paused;
    return json(res,200,{ok:true});
   }
   return json(res,404,{error:'Not found'});
@@ -126,7 +133,17 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   screen.state={revision:++revision,action:'load',paused:false,seekRevision:0,media:{id,url:register(url,current,safeHeaders),title:String(title).slice(0,300),at:Math.max(0,Number(at)||0),isHLS:!!isHLS,subtitles:subtitles.slice(0,1).map(s=>({url:register(s.url,current,Object.fromEntries(Object.entries(s.headers||safeHeaders).filter(([key])=>/^(referer|origin|user-agent|authorization|cookie)$/i.test(key)))),label:String(s.label||'Subtitles').slice(0,80),language:s.language||'und'}))}};
   notify(current);return {id};
  }
- function command(action,value){const screen=screens.get(current);if(!screen)throw new Error('No TV connected.');if(!['play','pause','seek','stop'].includes(action))throw new Error('Unknown cast command');screen.state={...screen.state,revision:++revision,action,value:Math.max(0,Number(value)||0)};if(action==='play'||action==='pause')screen.state.paused=action==='pause';if(action==='seek'){screen.state.seekTime=screen.state.value;screen.state.seekRevision=revision;}if(action==='stop'){screen.state.media=null;screen.playback={};clearAssets();}notify(current);return status();}
+ function command(action,value){
+  const screen=screens.get(current);if(!screen)throw new Error('No TV connected.');
+  if(!['play','pause','seek','stop'].includes(action))throw new Error('Unknown cast command');
+  screen.state={...screen.state,revision:++revision,action,value:Number.isFinite(Number(value))?Math.max(0,Number(value)):0};
+  if(action==='play'||action==='pause')screen.state.paused=action==='pause';
+  if(action==='play'&&screen.playback.ended&&screen.playback.mediaId===screen.state.media?.id){screen.state.seekTime=0;screen.state.seekRevision=revision;}
+  if(action==='play'||action==='seek')screen.playback={...screen.playback,ended:false};
+  if(action==='seek'){screen.state.seekTime=screen.state.value;screen.state.seekRevision=revision;}
+  if(action==='stop'){screen.state.media=null;screen.playback={};clearAssets();}
+  notify(current);return status();
+ }
  function disconnect(){const screen=screens.get(current);if(screen){screen.state={revision:++revision,action:'stop',media:null};screen.playback={};}const previous=current;current=null;clearAssets();if(previous)notify(previous);return status();}
  async function stop(){disconnect();screens.clear();const s=server;server=null;if(s){s.closeAllConnections?.();await new Promise(resolve=>s.close(resolve));}return status();}
  return {start,status:()=>{cleanup();return status();},connect,load,command,disconnect,stop};
