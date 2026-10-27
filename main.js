@@ -272,6 +272,8 @@ function createWindow() {
         await new Promise(resolve=>setTimeout(resolve,250));
         const socialFriends=await win.webContents.executeJavaScript("(()=>{const button=document.querySelector('#social-friend-list [data-act=wfOpen]');if(!button)throw Error('Social friend missing');button.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:400,clientY:300}));return {menu:!!document.querySelector('#profile-actions-menu'),profile:!!document.querySelector('#profile-actions-menu [data-action=wfOpen]'),message:!!document.querySelector('#profile-actions-menu [data-action=friendsMessage]'),compare:!!document.querySelector('#profile-actions-menu [data-action=friendsCompare]')};})()");
         if(Object.values(socialFriends).some(v=>v!==true))throw Error('Profile right click menu failed: '+JSON.stringify(socialFriends));
+        await new Promise(resolve=>setTimeout(resolve,200));
+        await win.webContents.executeJavaScript("if(!document.querySelector('#profile-actions-menu'))throw Error('Profile menu closed before interaction');");
         fs.writeFileSync(path.join(visualDir,'AniDeck-social-friends-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         await win.webContents.executeJavaScript("ProfileActions.close();Social.select('settings');");await new Promise(resolve=>setTimeout(resolve,200));
         fs.writeFileSync(path.join(visualDir,'AniDeck-social-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
