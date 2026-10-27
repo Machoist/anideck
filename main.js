@@ -246,6 +246,28 @@ function createWindow() {
         await new Promise(resolve=>setTimeout(resolve,350));
         fs.writeFileSync(path.join(visualDir,'AniDeck-new-message-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         await win.webContents.executeJavaScript("App.closeModal();");
+        const friendsSize=win.getContentSize();win.setContentSize(1920,1080);
+        await win.webContents.executeJavaScript(`(async()=>{
+          window.__friendsLayoutOriginal={request:Friends.request,valid:Friends.valid,markRead:Friends.markRead};Friends.valid=()=>true;Friends.markRead=async()=>{};
+          Friends.request=async()=>({peer:{handle:'sora',name:'Sora'},messages:Array.from({length:70},(_,i)=>({id:'layout-'+i,text:'Sample conversation '+(i+1),mine:i%2===0,at:Date.now()-70000+i*1000})),nextCursor:null});
+          document.querySelector('#main').innerHTML=await Views.friends();document.querySelector('.af-page-actions').hidden=false;
+          Friends.rows=[{handle:'sora',name:'Sora',last:{text:'What should we watch next?',at:Date.now()}}];Friends.social={friends:[{handle:'sora'}],incoming:[],outgoing:[]};Friends.renderRoster(document.querySelector('#af-content'),{handle:'mira',name:'Mira'},Friends.social);
+          document.querySelector('#main').scrollTop=0;
+        })()`);
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const friendsWelcome=await win.webContents.executeJavaScript("(()=>{const main=document.querySelector('#main'),box=document.querySelector('.af-layout').getBoundingClientRect(),area=main.getBoundingClientRect();return {usesHeight:box.bottom>area.bottom-40&&box.bottom<=area.bottom,outerFits:main.scrollHeight<=main.clientHeight+1,tall:box.height>820};})()");
+        if(Object.values(friendsWelcome).some(v=>v!==true))throw Error('Friends leaves unused window space: '+JSON.stringify(friendsWelcome));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-friends-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript("Friends.openThread('sora');");
+        await new Promise(resolve=>setTimeout(resolve,250));
+        const friendsThread=await win.webContents.executeJavaScript("(()=>{const main=document.querySelector('#main'),box=document.querySelector('.af-layout').getBoundingClientRect(),draft=document.querySelector('#af-compose').getBoundingClientRect(),messages=document.querySelector('#af-messages');return {composerVisible:draft.bottom<=box.bottom&&draft.top>box.top,historyScrolls:messages.scrollHeight>messages.clientHeight,outerFits:main.scrollHeight<=main.clientHeight+1};})()");
+        if(Object.values(friendsThread).some(v=>v!==true))throw Error('Friends thread layout failed: '+JSON.stringify(friendsThread));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-friends-chat-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        win.setContentSize(640,720);await new Promise(resolve=>setTimeout(resolve,200));
+        const friendsNarrow=await win.webContents.executeJavaScript("(()=>{const main=document.querySelector('#main'),box=document.querySelector('.af-layout').getBoundingClientRect(),draft=document.querySelector('#af-compose').getBoundingClientRect();return {composerVisible:draft.bottom<=box.bottom+1,noHorizontalOverflow:main.scrollWidth<=main.clientWidth+1};})()");
+        if(Object.values(friendsNarrow).some(v=>v!==true))throw Error('Narrow Friends layout failed: '+JSON.stringify(friendsNarrow));
+        console.log('AniDeck Friends window layout: '+JSON.stringify({friendsWelcome,friendsThread,friendsNarrow}));
+        await win.webContents.executeJavaScript("Object.assign(Friends,window.__friendsLayoutOriginal);document.querySelector('#main').innerHTML='';");win.setContentSize(...friendsSize);
         const receiverServer=createCasting({port:0,host:'127.0.0.1'}),receiverStatus=await receiverServer.start();
         const tv=new BrowserWindow({show:false,width:1280,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true}});tv.webContents.on('paint',()=>{});tv.webContents.setFrameRate(30);
         try{
