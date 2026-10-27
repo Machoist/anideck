@@ -4071,3 +4071,6 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
 
 /* Release notes use compact actions rather than full-width modal controls. */
 .wn-panel>footer{align-items:center;gap:10px;padding-top:16px}.wn-panel>footer>.btn{flex:none;width:auto;min-width:0;min-height:34px;height:34px;padding:0 13px;border-radius:9px;font-size:12px;line-height:1.2;box-shadow:none}.wn-panel>footer>#wn-project{border-color:transparent;background:none;color:var(--muted);padding-left:0}.wn-panel>footer>#wn-project:hover{color:var(--accent)}.wn-panel>footer>.btn .ic{width:13px;height:13px}.wn-heading>#wn-close{width:30px;height:30px;min-height:30px;border-radius:8px;flex:none}.wn-heading>#wn-close .ic{width:15px;height:15px}
+
+/* One clean mystery card; no visible card backs or outlines behind it. */
+.ad-deal-art span:not(:last-child){display:none}.ad-deal-art span:last-child{background:var(--panel-2);border-color:rgba(var(--accent-rgb),.3);box-shadow:0 10px 22px #0002}

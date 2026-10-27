@@ -61,6 +61,7 @@ function watcherCard(st, entries, act, who = {}) {
     counts, total: counts.reduce((a, b) => a + b, 0) || entries.length,
     habits: { streak, longest, best: best ? [best, act[best]] : null, perDay },
     genres: allGenres.slice(0, 12),
+    watchedGenres: (()=>{const weights=new Map();for(const e of entries){const progress=Math.max(0,Number(e.progress)||0);if(progress)for(const genre of e.anime.genres||[])weights.set(genre,(weights.get(genre)||0)+progress);}return [...weights].sort((a,b)=>b[1]-a[1]).slice(0,3);})(),
     scores, mean: rated.length ? rated.reduce((s, e) => s + Number(e.rating), 0) / rated.length : 0,
     gap: gaps.length ? gaps.reduce((s, g) => s + g.d, 0) / gaps.length : null,
     kind: [...gaps].sort((a, b) => b.d - a.d).filter((g) => g.d > 0.5).slice(0, 2), harsh: [...gaps].sort((a, b) => a.d - b.d).filter((g) => g.d < -0.5).slice(0, 2),
@@ -87,7 +88,7 @@ function profileMarkup({ self = true, handle = '' } = {}) {
     : `<button class="btn ghost ad2-btn" data-act="profileNav">${icon('arrowLeft')}Your profile</button><button class="btn ghost ad2-btn" id="wf-friend-btn" hidden></button>`;
   return `<div class="page profile pf2 ${self ? '' : 'pf2-peer-profile'}">
     <section class="pf2-hero pf3-hero pf-in" style="--d:0ms"><div id="pf-banner" class="profile-cover" hidden></div>
-      <header class="pf3-topline"><span class="ad-eyebrow">${self?'YOUR':'AN ANIDECK'} WATCHER CARD</span>${self?`<button class="btn primary" data-act="aniEdit">${icon('pencil')}Customize profile</button>`:''}</header>
+      <header class="pf3-topline">${self?`<button class="btn primary" data-act="aniEdit">${icon('pencil')}Customize profile</button>`:''}</header>
       <div class="pf2-id" ${self?'':'tabindex="0" aria-label="Profile actions: press Shift+F10"'}>
         <div class="pf2-ava"><svg class="pf2-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="55"/><circle class="pf2-ring-fill" id="pf2-ring" cx="60" cy="60" r="55" stroke-dasharray="0 400"/></svg>
           <span class="avatar xl" id="pf-avatar">${icon('user', 'pf-ph')}${self && Tracker.avatar ? `<img src="${esc(Tracker.avatar)}" alt="">` : ''}</span><span class="pf2-lvl" id="pf2-lvl">Lv 1</span></div>
@@ -131,10 +132,12 @@ function drawHand(vals, total, self = true) {
   }).join('');
 }
 function profileHeroSnapshot(cd,{self=true}={}){
-  const watching=(cd.watching||[]).find(a=>/^(al:)?[1-9][0-9]*$/.test(String(a.id))),genres=(cd.genres||[]).slice(0,3);
-  const tags=genres.length?`<div class="pf3-genre-notes" aria-label="Most watched genres">${genres.map(([label])=>`<span>${esc(label)}</span>`).join('')}</div>`:'';
-  const rotation=watching?`<button class="pf3-rotation" data-act="anime" data-id="${esc(watching.id)}">${watching.p?`<img src="${esc(watching.p)}" alt="" loading="lazy">`:`<span class="pf3-rotation-art">${icon('video')}</span>`}<span><small>${self?'ON YOUR':'ON THEIR'} ROTATION</small><b>${esc(watching.t)}</b><em>${Number(watching.pr)||0}${Number(watching.ep)>0?' / '+Number(watching.ep):''} watched</em></span>${icon('chev')}</button>`:`<div class="pf3-rotation-empty"><span class="ad-eyebrow">${self?'YOUR':'THEIR'} TASTE, TAKING SHAPE</span><p>${genres.length?'The genres that keep finding their way onto this deck.':self?'Your watching titles and favorite genres will appear here as you track.':'More of their taste appears when they share their watchlist.'}</p>${self?'<button class="link-btn" data-act="listTab" data-tab="current">Open your watching list →</button>':''}</div>`;
-  return tags+rotation;
+  const genres=(cd.watchedGenres||cd.genres||[]).slice(0,3),label=cd.watchedGenres?'Most watched genres':'Top genres';
+  const tags=`<div class="pf3-genre-group"><span class="ad-eyebrow">${label}</span>${genres.length?`<div class="pf3-genre-notes" aria-label="${label}">${genres.map(([name])=>`<span>${esc(name)}</span>`).join('')}</div>`:`<p>${self?'Log episodes to discover your most watched genres.':'No watched genres shared yet.'}</p>`}</div>`;
+  if(!cd.metrics)return tags+'<div class="pf3-milestone pf3-milestone-private"><span class="ad-eyebrow">Milestones</span><p>Progress appears with a shared watcher card.</p></div>';
+  const progress=MILESTONES.map(([id,glyph,name,description,need,metric])=>({id,glyph,name,description,need,have:Math.max(0,Number(cd.metrics[metric])||0)})),next=progress.filter(m=>m.have<m.need).sort((a,b)=>b.have/b.need-a.have/a.need)[0],earned=progress.filter(m=>m.have>=m.need).length;
+  const milestone=next?`<button class="pf3-milestone" data-act="pfMilestones" aria-label="${esc(next.name)}: ${next.have} of ${next.need}. View milestones"><span class="pf3-milestone-mark">${icon(next.glyph)}</span><span class="pf3-milestone-copy"><small>${self?'NEXT MILESTONE':'MILESTONE IN REACH'}</small><b>${esc(next.name)}</b><span>${esc(next.description)}</span><span class="pf3-milestone-progress"><i><em style="width:${Math.min(100,next.have/next.need*100)}%"></em></i><small>${next.have} / ${next.need}</small></span></span>${icon('chev')}</button>`:`<button class="pf3-milestone" data-act="pfMilestones"><span class="pf3-milestone-mark">${icon('spark')}</span><span class="pf3-milestone-copy"><small>THE MILESTONE COLLECTION</small><b>${earned} milestones unlocked</b><span>Explore the achievements on this profile.</span></span>${icon('chev')}</button>`;
+  return tags+milestone;
 }
 function paintProfileIdentity(user,{self=true}={}){
   ProfilePresentation.paint(user,{self});const handle=$('#pf2-handle');
@@ -561,9 +564,10 @@ Object.assign(Views, {
 {
   const act = App.act;
   App.act = async function (name, d, el) {
-    if (!['profileNav', 'wfJoin', 'wfOpen', 'wfCopy', 'wfAccept', 'wfRemove', 'wfRemoveAsk', 'wfAddHandle', 'wfSettings', 'wfRefresh', 'wfPlan'].includes(name)) return act.call(this, name, d, el);
+    if (!['profileNav', 'wfJoin', 'wfOpen', 'wfCopy', 'wfAccept', 'wfRemove', 'wfRemoveAsk', 'wfAddHandle', 'wfSettings', 'wfRefresh', 'wfPlan', 'pfMilestones'].includes(name)) return act.call(this, name, d, el);
     try {
       switch (name) {
+        case 'pfMilestones': {const target=$('#pf2-badges');target?.scrollIntoView({behavior:App.settings.reduceMotion?'auto':'smooth',block:'start'});if(target){target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}return;}
         case 'profileNav': return this.nav('profile');
         case 'wfJoin': await Cloud.ensure().catch((e) => { throw e; }); return joinDialog();
         case 'wfOpen': return this.nav('watcher', { handle: d.handle });
