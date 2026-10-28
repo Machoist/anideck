@@ -53,7 +53,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, ''), m = req.method;
     try {
-      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions','profile-customization','profile-favorites','profile-presentation','message-requests'] });
+      if (path === '/v1/health') return json({ ok: true, version:3, features:['friends','messages','blocks','media-friends','message-controls','anime-cards','watch-invites','anideck-accounts','discussions','discussion-topics','profile-customization','profile-favorites','profile-presentation','message-requests'] });
 
       // Exchange provider credentials or a device recovery key for a signed AniDeck session.
       if (path === '/v1/session' && m === 'POST') {

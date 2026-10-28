@@ -4077,3 +4077,7 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
 
 /* Solid card faces preserve the shuffle without showing outlines through overlapping cards. */
 .ad-deal-art{isolation:isolate}.ad-deal-art span{background:var(--bg);box-shadow:0 8px 18px #0002}.ad-deal-art span:last-child{background:var(--bg);border-color:rgba(var(--accent-rgb),.35);box-shadow:0 10px 22px #0003}
+
+/* The original wordmark stays prominent; its English name supplies a readable caption. */
+.logo-english{font-family:var(--font);font-size:clamp(12px,1vw,15px);font-weight:500;line-height:1.5;letter-spacing:.025em;color:#e2dce9;margin:8px 0 3px;max-width:52ch;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.yn-text .logo-english{margin:-3px 0 1px;font-size:13px}.slide-text .logo-english{font-size:13px}

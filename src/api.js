@@ -404,15 +404,27 @@ const Kitsu = {
       url: `https://kitsu.app/anime/${a.slug || d.id}`,
     };
   },
+  async discoveryData(response){
+    if(!ANIME_ONLY)return response.data||[];
+    let rows=(response.data||[]).filter(d=>String(d.attributes?.subtype||'').toLowerCase()!=='music');
+    const missing=rows.filter(d=>!d.relationships?.mappings?.data);
+    if(missing.length){
+      const ids=missing.map(d=>String(d.id));const extra=await this.call('/edge/anime'+qs({'filter[id]':ids.join(','),include:'mappings','page[limit]':Math.min(20,ids.length)}));
+      const exact=new Map((extra.data||[]).filter(d=>ids.includes(String(d.id))).map(d=>[String(d.id),d]));
+      rows=rows.map(d=>exact.has(String(d.id))?{...d,relationships:{...d.relationships,mappings:exact.get(String(d.id)).relationships?.mappings}}:d);
+      response={...response,included:[...(response.included||[]),...(extra.included||[])]};
+    }
+    return CatalogEligibility.filter(rows,response.included||[]);
+  },
   async search(text, limit = 20) {
-    const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit })}`);
-    return (r.data || []).map((d) => this.toAnime(d));
+    const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit, include: 'mappings' })}`);
+    return (await this.discoveryData(r)).map((d) => this.toAnime(d));
   },
   // Search with genres attached (for the search page filters).
   async searchWithGenres(text, limit = 20) {
-    const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit, include: 'categories', 'fields[categories]': 'title' })}`);
+    const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit, include: 'categories,mappings', 'fields[categories]': 'title' })}`);
     const cats = Object.fromEntries((r.included || []).filter((x) => x.type === 'categories').map((x) => [x.id, x.attributes?.title]));
-    return (r.data || []).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) }));
+    return (await this.discoveryData(r)).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) }));
   },
   // Full details for a show page (adds genres).
   // Show details rarely change; remembered for 10 minutes so re-opening or refreshing a page doesn't wait on Kitsu.
@@ -458,12 +470,12 @@ const Kitsu = {
   },
   async seasonal(limit = 20) {
     const { season, year } = this.currentSeason();
-    const r = await this.call(`/edge/anime${qs({ 'filter[season]': season, 'filter[seasonYear]': year, 'filter[subtype]': 'TV,ONA', sort: 'popularityRank', 'page[limit]': limit })}`);
-    return (r.data || []).map((d) => this.toAnime(d));
+    const r = await this.call(`/edge/anime${qs({ 'filter[season]': season, 'filter[seasonYear]': year, 'filter[subtype]': 'TV,ONA', sort: 'popularityRank', 'page[limit]': limit, include: 'mappings' })}`);
+    return (await this.discoveryData(r)).map((d) => this.toAnime(d));
   },
   async popularAiring(limit = 20) {
-    const r = await this.call(`/edge/anime${qs({ 'filter[status]': 'current', sort: 'popularityRank', 'page[limit]': limit })}`);
-    return (r.data || []).map((d) => this.toAnime(d));
+    const r = await this.call(`/edge/anime${qs({ 'filter[status]': 'current', sort: 'popularityRank', 'page[limit]': limit, include: 'mappings' })}`);
+    return (await this.discoveryData(r)).map((d) => this.toAnime(d));
   },
   // Browse the catalog with filters. Returns { items, total }.
   async browse({ genre, year, season, format, status, sort }, offset = 0, limit = 20) {
@@ -477,25 +489,25 @@ const Kitsu = {
       'filter[status]': status || undefined,
       'filter[ageRating]': 'G,PG,R',
       sort: sortMap[sort || ''] || 'popularityRank',
-      'page[limit]': limit, 'page[offset]': offset,
-      include: 'categories', 'fields[categories]': 'title', // genres, so "Hide NSFW shows" can drop ecchi
+      'page[limit]': limit, include: 'mappings', 'page[offset]': offset,
+      include: 'categories,mappings', 'fields[categories]': 'title', // genres, so "Hide NSFW shows" can drop ecchi
     })}`);
     const cats = Object.fromEntries((r.included || []).filter((x) => x.type === 'categories').map((x) => [x.id, x.attributes?.title]));
-    return { items: (r.data || []).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) })), total: r.meta?.count ?? null };
+    return { items: (await this.discoveryData(r)).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) })), total: r.meta?.count ?? null };
   },
   // A random anime from the most popular ~2000 (safe-for-work ratings only).
   async random() {
     for (let tries = 0; tries < 3; tries++) {
       const offset = Math.floor(Math.random() * 2000);
       const r = await this.call(`/edge/anime${qs({ sort: 'popularityRank', 'filter[subtype]': 'TV,movie,ONA,OVA', 'filter[ageRating]': 'G,PG,R', 'page[limit]': 1, 'page[offset]': offset })}`);
-      const a = r.data?.[0] && this.toAnime(r.data[0]);
+      const eligible=await this.discoveryData(r);const a=eligible[0]&&this.toAnime(eligible[0]);
       if (a) return a;
     }
     return null;
   },
   async trending() {
-    const r = await this.call('/edge/trending/anime?limit=20').catch(() => ({ data: [] }));
-    return (r.data || []).map((d) => this.toAnime(d));
+    const r = await this.call('/edge/trending/anime?limit=20&include=mappings').catch(() => ({ data: [] }));
+    return (await this.discoveryData(r)).map((d) => this.toAnime(d));
   },
   // Exact lookup from another database's id (e.g. myanimelist/anime 5114, anilist/anime 21, anidb 69).
   async byExternal(site, externalId) {
@@ -780,7 +792,7 @@ const AniList = {
     const t = m.title || {};
     const value = {
       id: m.id, malId: m.idMal || null,
-      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji),
+      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'',
       synopsis: m.description || '', banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
       genres: m.genres || [], score: m.averageScore || null, status: (m.status || '').toLowerCase().replace(/_/g, ' '),
       season: m.season && m.seasonYear ? `${m.season[0]}${m.season.slice(1).toLowerCase()} ${m.seasonYear}` : '', year: m.seasonYear ? String(m.seasonYear) : '',
@@ -1057,6 +1069,26 @@ const AniZip = {
     return p;
   },
 };
+// Discovery requires an exact AniList/MAL crosswalk; batch lookups avoid per-poster requests.
+const CatalogEligibility={cache:new Map(),pending:new Map(),timer:null,running:false,loadPromise:null,saveTimer:null,
+ async load(){if(!this.loadPromise)this.loadPromise=(async()=>{const saved=await window.native.get('catalogEligibilityV1');for(const [key,hit] of Object.entries(saved||{}).slice(0,1500)){if(/^(al|mal):[1-9][0-9]*$/.test(key)&&hit?.until>Date.now()&&hit.until<=Date.now()+6*3600000)this.cache.set(key,hit);}})().catch(()=>{});return this.loadPromise;},
+ persist(){clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>window.native.set('catalogEligibilityV1',Object.fromEntries(this.cache)).catch(()=>{}),300);},
+ lookup(key){const hit=this.cache.get(key);if(hit&&hit.until>Date.now())return Promise.resolve(hit.media);if(this.pending.has(key))return this.pending.get(key).promise;let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});this.pending.set(key,{promise,resolve,reject});if(!this.running&&!this.timer)this.timer=setTimeout(()=>this.flush(),120);return promise;},
+ async flush(){this.timer=null;if(this.running)return;this.running=true;const work=[...this.pending.entries()].slice(0,50);if(!work.length){this.running=false;return;}
+  const ids=work.filter(([k])=>k.startsWith('al:')).map(([k])=>Number(k.slice(3))),mals=work.filter(([k])=>k.startsWith('mal:')).map(([k])=>Number(k.slice(4)));
+  try{const defs=[],parts=[],vars={};if(ids.length){defs.push('$ids:[Int]');parts.push('byId:Page(perPage:50){media(id_in:$ids,type:ANIME){id idMal type format}}');vars.ids=ids;}if(mals.length){defs.push('$mals:[Int]');parts.push('byMal:Page(perPage:50){media(idMal_in:$mals,type:ANIME){id idMal type format}}');vars.mals=mals;}
+   const data=await AniList.gql('query('+defs.join(',')+'){'+parts.join(' ')+'}',vars,false),media=[...(data.byId?.media||[]),...(data.byMal?.media||[])];
+   for(const [key,job] of work){const id=Number(key.slice(key.indexOf(':')+1)),found=media.find(m=>(key.startsWith('al:')?m.id:m.idMal)===id&&m.type==='ANIME'&&m.format!=='MUSIC')||null;this.cache.set(key,{media:found,until:Date.now()+6*3600000});this.pending.delete(key);job.resolve(found);}
+   if(this.cache.size>1500)this.cache.delete(this.cache.keys().next().value);this.persist();
+  }catch(error){for(const [key,job] of work){this.pending.delete(key);job.reject(error);}}
+  this.running=false;if(this.pending.size&&!this.timer)this.timer=setTimeout(()=>this.flush(),120);
+ },
+ async filter(rows,included){await this.load();const mappings=new Map(included.filter(x=>x.type==='mappings').map(x=>[String(x.id),x]));const checked=await Promise.all(rows.map(async row=>{
+   const refs=(row.relationships?.mappings?.data||[]).map(r=>mappings.get(String(r.id))).filter(Boolean);
+   const exact=refs.find(r=>r.attributes?.externalSite==='anilist/anime')||refs.find(r=>r.attributes?.externalSite==='myanimelist/anime');const id=String(exact?.attributes?.externalId||'');if(!/^[1-9][0-9]*$/.test(id))return null;
+   const match=await this.lookup((exact.attributes.externalSite==='anilist/anime'?'al:':'mal:')+id);return match?row:null;
+  }));return checked.filter(Boolean);}
+};
 // Optional on-device tracking. No provider credentials or network writes are needed.
 const LocalTracker = {
   enabled:false,userId:'',userName:'Your profile',avatar:'',token:'',coll:[],queue:Promise.resolve(),
@@ -1223,6 +1255,7 @@ const Trakt = {
   },
   // HD wide artwork for a title (used for carousel banners when nothing better exists).
   async fanartFor(title, year) {
+    if(ANIME_ONLY)return []; // A title-only lookup can return an unrelated live-action series.
     try {
       const r = await http(`${TRAKT_BASE}/search/show,movie${qs({ query: title, extended: 'images', limit: 5 })}`, { headers: this.headers() });
       const items = (r || []).map((x) => x.show || x.movie).filter(Boolean);

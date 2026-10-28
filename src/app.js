@@ -2618,6 +2618,11 @@ function trimLogo(src) {
   logoCache.set(src, p);
   return p;
 }
+const titleLogoCache=new Map();
+function logoHeading(title,alId,englishTitle='',className=''){
+ const logo=titleLogoCache.get(String(alId));
+ return `<h1 class="${className} ${logo?'has-logo':alId?'logo-pending':''}" aria-label="${esc(title)}" data-english-title="${esc(englishTitle)}">${logo?`<span class="sr-only">${esc(title)}</span><img class="hero-logo ready" src="${esc(logo.url)}" alt="${esc(title)}" style="--logo-ar:${Number(logo.ratio).toFixed(3)}">`:esc(title)}</h1>${logo&&englishTitle?`<p class="logo-english">${esc(englishTitle)}</p>`:''}`;
+}
 async function findTitleLogo(metadata) {
   const candidates=[...new Set([...(Array.isArray(metadata?.logos)?metadata.logos:[]),metadata?.logo].filter(Boolean))].slice(0,6);
   for(const src of candidates){
@@ -2628,35 +2633,23 @@ async function findTitleLogo(metadata) {
   }
   return null;
 }
-function showLogo(h1, alId, season) {
-  if (!h1) return;
-  // The title stays hidden until we know whether there's a logo, so the name never flashes up huge first.
-  const reveal = () => { clearTimeout(t); h1.classList.remove('logo-pending'); };
-  const t = setTimeout(reveal, 1200);
-  if (!alId) return reveal();
-  h1.classList.add('logo-pending');
-  AniZip.get(alId).then(async (z) => {
-    if (!z || !h1.isConnected) return reveal();
-    const logo = await findTitleLogo(z);
-    // Portrait wordmarks become tiny vertical strips in a landscape hero.
-    // Keep the readable catalog title rather than stretching or rotating the artwork.
-    if (!logo || !Number.isFinite(logo.ratio) || logo.ratio < 1.1 || !h1.isConnected) return reveal();
-    const img = new Image();
-    img.className = 'hero-logo'; img.alt = h1.getAttribute?.('aria-label') || h1.textContent.trim(); img.decoding = 'async';
-    // Sized by its shape: wide logos fill the width, squarer ones the height, so none come out tiny.
-    img.style.setProperty('--logo-ar', Math.max(.6, Math.min(8, logo.ratio || 3)).toFixed(3));
-    img.onload = () => {
-      if (!h1.isConnected) return;
-      h1.classList.add('has-logo');
-      h1.innerHTML = `<span class="sr-only">${esc(img.alt)}</span>`;
-      h1.prepend(img);
-      if (season > 1) h1.insertAdjacentHTML(h1.classList.contains?.('yn-title')?'beforebegin':'afterend', `<div class="hero-eyebrow">Season ${season}</div>`);
-      reveal();
-      requestAnimationFrame(() => img.classList.add('ready'));
-    };
-    img.onerror = reveal;
-    img.src = logo.url;
-  }).catch(reveal);
+function showLogo(h1, alId, season, englishTitle='') {
+ if(!h1)return;
+ englishTitle=englishTitle||h1.dataset?.englishTitle||'';
+ let timer;const reveal=()=>{clearTimeout(timer);h1.classList.remove('logo-pending');};
+ const caption=()=>{
+  if(englishTitle){let label=h1.nextElementSibling;if(!label?.classList.contains('logo-english')){label=document.createElement('p');label.className='logo-english';h1.insertAdjacentElement('afterend',label);}label.textContent=englishTitle;}
+  if(season>1&&!h1.previousElementSibling?.classList.contains('hero-eyebrow'))h1.insertAdjacentHTML('beforebegin',`<div class="hero-eyebrow">Season ${season}</div>`);
+ };
+ const cached=titleLogoCache.get(String(alId));
+ if(cached&&h1.querySelector?.('.hero-logo')){caption();reveal();return;}
+ const attach=logo=>{
+  if(!h1.isConnected)return reveal();
+  const img=new Image();img.className='hero-logo';img.alt=h1.getAttribute?.('aria-label')||h1.textContent.trim();img.decoding='async';img.style.setProperty('--logo-ar',Math.max(.6,Math.min(8,logo.ratio)).toFixed(3));
+  img.onload=()=>{if(!h1.isConnected)return;titleLogoCache.set(String(alId),logo);if(titleLogoCache.size>128)titleLogoCache.delete(titleLogoCache.keys().next().value);h1.classList.add('has-logo');h1.innerHTML=`<span class="sr-only">${esc(img.alt)}</span>`;h1.prepend(img);caption();reveal();requestAnimationFrame(()=>img.classList.add('ready'));};img.onerror=reveal;img.src=logo.url;
+ };
+ timer=setTimeout(reveal,1200);if(!alId)return reveal();h1.classList.add('logo-pending');if(cached)return attach(cached);
+ AniZip.get(alId).then(async metadata=>{if(!h1.isConnected)return reveal();const logo=await findTitleLogo(metadata);if(!logo||!h1.isConnected)return reveal();attach(logo);}).catch(reveal);
 }
 
 // Hovering a title for a moment starts loading what its page needs, so the click opens almost instantly.
@@ -2862,7 +2855,7 @@ function ynHero(it) {
       ${it.wait != null ? `<div class="yn-wait" role="timer">${it.wait > 0
         ? `<span class="yn-wait-label">${esc(it.ep)} comes out in</span><b class="yn-clock" data-clock="${it.wait}">${esc(countdownText(it.wait))}</b><small>${esc(new Date(it.wait).toLocaleString(undefined, { weekday: 'long', hour: 'numeric', minute: '2-digit' }))}</small>`
         : `<span class="yn-wait-label">${esc(it.ep)} isn’t out yet</span><small>It’ll show up here once it airs.</small>`}</div>` : ''}
-      <div class="yn-actions">${it.wait != null ? '' : `<button class="btn primary yn-play" ${play}>${icon('play', 'fill')}${it.pct ? 'Resume' : 'Play'}</button>`}<button class="btn ghost glass" ${open}>Episodes & details</button></div>
+      <div class="yn-actions">${it.wait != null ? '' : `<button class="btn primary yn-play" ${play}>${icon('play', 'fill')}${it.pct ? 'Resume' : 'Play'}</button>`}<button class="btn ghost glass" ${open}>Episodes & Details</button></div>
       ${it.pct ? `<div class="yn-progress" title="${Math.round(it.pct)}% watched"><div style="width:${Math.round(it.pct)}%"></div></div>` : ''}
     </div>`;
 }
@@ -2929,7 +2922,7 @@ function bindYourNext(rid) {
   const dress=async(it,version)=>{
     const {al,art}=await findArt(it);
     if(stale(version))return;
-    if(al){showTint(sec,al.color);showLogo(sec.querySelector('.yn-title'),al.id,it.kind==='lib'?it.season:seasonNumberIn(al.title||''));}else sec.querySelector('.yn-title')?.classList.remove('logo-pending');
+    if(al){showTint(sec,al.color);showLogo(sec.querySelector('.yn-title'),al.id,it.kind==='lib'?it.season:seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}else sec.querySelector('.yn-title')?.classList.remove('logo-pending');
     if(!art)return;
     const image=sec.querySelector('.yn-bg');if(image){image.src=art;image.hidden=false;image.classList.remove('soft');}
     sec.querySelector('.yn-poster-fallback')?.remove();
@@ -3679,7 +3672,7 @@ const Views = {
       if (al && !App.stale(rid)) {
         slide.querySelector('.slide-text h1').textContent = al.title || slide.querySelector('.slide-text h1').textContent;
         slide.querySelector('.slide-meta').textContent = [al.score ? `★ ${al.score}%` : '', al.format, al.year, al.episodes ? `${al.episodes} eps` : '', ...(al.genres || []).slice(0, 2)].filter(Boolean).join(' · ');
-        showLogo(slide.querySelector('.slide-text h1'), al.id, seasonNumberIn(al.title || ''));
+        showLogo(slide.querySelector('.slide-text h1'), al.id, seasonNumberIn(al.title || ''),al.englishTitle||al.title||'');
       }
       const fan = JSON.parse(img.dataset.fan || 'null');
       let kc = ''; // Kitsu's cover, once looked up
@@ -3945,7 +3938,7 @@ const Views = {
         <div class="hero-inner">
           <div class="hero-poster">${posterImg ? `<img src="${esc(posterImg)}" alt="">` : ''}</div>
           <div class="hero-text">
-            <h1>${esc(title)}</h1>
+            ${logoHeading(title,al?.id,al?.englishTitle||al?.title||'')}
             <div class="meta-line">${meta}</div>
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="${anime ? 'anime' : 'show'}">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">
@@ -3973,7 +3966,7 @@ const Views = {
   showAfter({ tab = 'episodes' }, rid) {
     App.paintSelection();
     upgradeBackdrop(rid);
-    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, App.showCtx?.n);
+    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, App.showCtx?.n,App.showAl?.englishTitle||App.showAl?.title||'');
     fillMissingThumbs(rid);
     if ($('#related-box')) fillRelated(rid);
     if ($('#show-social')) fillSocial(tab, rid);
@@ -4193,7 +4186,7 @@ const Views = {
         <div class="hero-inner">
           <div class="hero-poster">${poster ? `<img src="${esc(poster)}" alt="">` : ''}</div>
           <div class="hero-text">
-            <h1>${esc(title)}</h1>
+            ${logoHeading(title,al?.id,al?.englishTitle||al?.title||'')}
             <div class="meta-line">${metaLine({ rating, next: al?.next, rest: [esc(al?.format || a.subtype || 'TV'), esc(a.year || ''), total ? `${total} eps` : '', esc(statusText)] })}</div>
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="anime">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">
@@ -4225,7 +4218,7 @@ const Views = {
     if ($('#soon2-stack')) soonPrequels(rid);
     const soon = $('.soon-clock');
     if (soon) { clearInterval(App.soonTimer); App.soonTimer = setInterval(() => { if (!soon.isConnected) return clearInterval(App.soonTimer); soon.textContent = countdownText(Number(soon.dataset.clock)); }, 1000); }
-    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''));
+    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
     if ($('#related-box')) fillRelated(rid);
     if ($('#show-social')) return fillSocial(tab, rid);
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
@@ -4815,12 +4808,13 @@ const Views = {
     if (q.length < 2) return;
     const f = (App.params.f ||= {});delete f.inLibrary;
     // Gather results: Kitsu (anime), Trakt (movies & TV), plus matching items already in your library.
-    let anime = [], tv = [];
+    let anime = [], tv = [], catalogError=null;
     await Promise.all([
-      Kitsu.searchWithGenres(q, 20).then((r) => { anime = sfw(r); }).catch(() => Kitsu.search(q, 20).then((r) => { anime = sfw(r); }).catch(() => {})),
+      Kitsu.searchWithGenres(q, 20).then((r) => { anime = sfw(r); }).catch(() => Kitsu.search(q, 20).then((r) => { anime = sfw(r); }).catch(error => {catalogError=error;})),
       Trakt.search(q, 20).then((r) => { tv = r.filter((x) => !x.genres.includes('anime')); }).catch(() => {}),
     ]);
     if (App.stale(rid)) return;
+    if(catalogError&&!anime.length){$('#s-grid').innerHTML=`<div class="empty"><b>Couldn’t verify anime results</b><p>${esc(catalogError.message||'The anime catalog is temporarily unavailable.')}</p><button class="btn ghost" data-act="retry">Try again</button></div>`;return;}
     App.traktCache = { ...(App.traktCache || {}), ...Object.fromEntries(tv.map((x) => [x.id, x])) };
     const reqs = new Set((await Requests.list()).map((r) => r.kitsuId));
     const statusOf = (s) => (/current|returning|production/.test(s || '') ? 'airing' : /finished|ended|canceled|released/.test(s || '') ? 'finished' : /upcoming|unreleased|tba|planned|rumored|post production/.test(s || '') ? 'upcoming' : '');
