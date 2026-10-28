@@ -23,7 +23,7 @@ const Player = {
   audioIndex: null, subIndex: null, subMode: 'off', // 'text' | 'burn' | 'off'
   playSessionId: '', segments: [], tracked: false, reportTimer: null, idleTimer: null,
   nextTimer: null, onClose: null, bound: false, duration: 0,
-  server: 'jellyfin', remote: false, pendingServer: null, serverSeq: 0, // 'jellyfin' | 'anikoto' | 'animepahe' | 'anipm'
+  server: 'jellyfin', remote: false, pendingServer: null, serverSeq: 0, // 'jellyfin' | 'anikoto' | 'hianime' | 'aniwatch'
 
   bind() {
     if (this.bound) return; this.bound = true;
@@ -135,6 +135,7 @@ const Player = {
   },
 
   async open(ctx, onClose) {
+    if(ctx.provider==='animepahe')ctx={...ctx,provider:'hianime',streamUrl:null};
     this.bind();
     applySubStyle(this.el); // Settings → Subtitles
     // Opened from a title page: the player wears that show's colour too.
@@ -380,7 +381,7 @@ const Player = {
     const audio = this.ctx.audio || App.settings.showAudio?.[sid] || (App.settings.audioLang === 'eng' ? 'dub' : 'sub');
     let s;
     try {
-      s = await window.native.resolveStream({ provider: server, title: this.ctx.series?.Name || episode.SeriesName || '',
+      s = await window.native.resolveStream({ provider: remotePlaybackProvider(server), title: this.ctx.series?.Name || episode.SeriesName || '',
         episodeNum: episode.IndexNumber || 1, audio, prefetch,
         seasonNumber: episode.ParentIndexNumber ?? this.ctx.season?.IndexNumber ?? 1,
         episodeTitle: /^Episode \d+$/i.test(episode.Name || '') ? '' : episode.Name || '',
@@ -413,6 +414,7 @@ const Player = {
 
   // Moves playback to another server at the same spot. The current stream keeps playing until the new one is found.
   async switchServer(id) {
+    if(id==='animepahe')id='hianime';
     if (id === 'jellyfin' && (!Jellyfin.connected() || this.ctx?.remoteOnly)) return;
     $p('p-server-menu').hidden = true;
     if (id === this.server && !this.pendingServer) return;

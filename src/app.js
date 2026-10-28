@@ -1,17 +1,18 @@
 
 
 let activeStreamingServer = 'jellyfin';
-function remotePlaybackProvider(server = activeStreamingServer) { return server === 'jellyfin' ? 'anikoto' : server; }
+function remotePlaybackProvider(server = activeStreamingServer) { return server === 'jellyfin' ? 'anikoto' : server==='animepahe'?'hianime':server; }
 let lastServerError = null;
 const EXTERNAL_SERVERS = [
   { id: 'jellyfin', num: '#0', name: 'Jellyfin (Local)' },
   { id: 'anikoto', num: '#1', name: 'Anikoto' },
-  { id: 'animepahe', num: '#2', name: 'animepahe' },
+  { id: 'hianime', num: '#2', name: 'HiAnime' },
   { id: 'aniwatch', num: '#3', name: 'AniWatch' }
 ];
 const SRV_STACK_ICON = '<span class="srv-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="6" rx="1"/><rect x="2" y="14" width="20" height="6" rx="1"/><circle cx="6" cy="7" r="1" fill="currentColor"/><circle cx="6" cy="17" r="1" fill="currentColor"/></svg></span>';
 
 function getServerLabel(srv, allowLocal = true) {
+  if(srv==='animepahe')srv='hianime';
   allowLocal = allowLocal && Jellyfin.connected();
   if (!allowLocal && srv === 'jellyfin') srv = 'anikoto';
   const found = EXTERNAL_SERVERS.find(s => s.id === srv) || EXTERNAL_SERVERS[0];
@@ -19,6 +20,7 @@ function getServerLabel(srv, allowLocal = true) {
 }
 
 function renderWatchOnMenu(srv, allowLocal = true) {
+  if(srv==='animepahe')srv='hianime';
   allowLocal = allowLocal && Jellyfin.connected();
   if (!allowLocal && srv === 'jellyfin') srv = 'anikoto';
   const list = allowLocal ? EXTERNAL_SERVERS : EXTERNAL_SERVERS.filter(s => s.id !== 'jellyfin');
@@ -914,7 +916,7 @@ const App = {
       case 'thread': return this.nav('thread', { id: d.id });
       case 'epRange': return this.nav('show', { ...this.params, range: d.range }, false);
      case 'setServer': {
-        activeStreamingServer = d.srv || 'jellyfin';
+        activeStreamingServer = d.srv==='animepahe'?'hianime':d.srv || 'jellyfin';
         lastServerError = null; // Removed the hardcoded fake anipm 404 error!
         document.querySelectorAll('.chip-menu').forEach((x) => { x.hidden = true; });
         const allowLoc = this.view !== 'anime';
@@ -2404,7 +2406,7 @@ function progressCard({ editable, kitsuId, total, title, label, num, of, pct, no
   </div>`;
 }
 
-// "Anikoto", "animepahe", "Jellyfin" — for the line under the play button.
+// "Anikoto", "HiAnime", "Jellyfin" — for the line under the play button.
 function shortServerName(id) { return (EXTERNAL_SERVERS.find((s) => s.id === id)?.name || id).replace(/ \(Local\)$/, ''); }
 
 // Shown on regular (non-anime) show and movie pages.

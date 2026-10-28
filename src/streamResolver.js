@@ -60,9 +60,7 @@ function ensureStreamHeaderHook() {
         requestHeaders['Referer'] = requestHeaders['Referer'] || 'https://kwik.si/';
         requestHeaders['Origin'] = requestHeaders['Origin'] || 'https://kwik.si';
         requestHeaders['User-Agent'] = CHROME_UA;
-      } else if (u.hostname.includes('animepahe')) {
-        requestHeaders['Referer'] = 'https://animepahestore.net/';
-        requestHeaders['User-Agent'] = CHROME_UA;
+
       } else if (u.hostname.includes('ani.pm')) {
         requestHeaders['Referer'] = 'https://ani.pm/';
         requestHeaders['User-Agent'] = CHROME_UA;
@@ -93,20 +91,8 @@ function unpackPacker(str) {
   }
 }
 
-function parseProviderJson(value, url) {
-  let text = String(value || '').replace(/^\uFEFF/, '').trim();
-  const pre = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-  if (pre) text = pre[1].replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  if (/^</.test(text)) {
-    const challenge = /just a moment|cf-chl|challenge-platform|ddos-guard|captcha|checking your browser|access denied/i.test(text);
-    throw new Error(challenge ? 'AnimePahe requires a browser verification check. Try again after completing verification, or choose another server.' : 'AnimePahe returned a web page instead of search data. This mirror or API endpoint is unavailable. Try another server.');
-  }
-  try { return JSON.parse(text); }
-  catch { throw new Error('AnimePahe returned unreadable search data. Try another server or retry shortly.'); }
-}
-
 class StreamResolver {
-  constructor() { this.interactive = false; this.providerCooldowns = new Map(); this.prefetchedStreams = new Map(); this.activeTasks = new Set(); this.pendingStreams = new Map(); }
+  constructor() { this.prefetchedStreams = new Map(); this.activeTasks = new Set(); this.pendingStreams = new Map(); }
 
   init() {
     ensureStreamHeaderHook();
@@ -134,7 +120,6 @@ class StreamResolver {
     const controller = new AbortController();
     const worker = Object.create(this);
     worker.signal = controller.signal;
-    worker.interactive = false; // Playback and prefetch must never open a verification prompt.
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
@@ -186,7 +171,8 @@ class StreamResolver {
   async resolveUncached(params = {}) {
     this.signal?.throwIfAborted();
     ensureStreamHeaderHook();
-    const provider = String(params.provider || 'animepahe').toLowerCase();
+    const requested=String(params.provider||'anikoto').toLowerCase();
+    const provider=requested==='animepahe'?'hianime':requested; // Retired selections migrate without contacting the old site.
     const title = String(params.title || '').trim();
     const episodeNum = params.episodeNum == null ? 1 : Number(params.episodeNum);
     if (!Number.isInteger(episodeNum) || episodeNum < 1) throw new Error('Invalid episode number');
@@ -199,18 +185,8 @@ class StreamResolver {
     let res, resolvedProvider=provider;
     if (provider === 'anikoto') res = await this.resolveAnikoto(title, episodeNum, audio, params);
     else if (provider === 'aniwatch') res = await this.resolveAniWatch(title, episodeNum, audio, params);
-    else if (provider === 'animepahe') {
-      try{
-        if((this.providerCooldowns.get(provider)||0)>Date.now()){const error=Error('Source is temporarily unavailable');error.code='PROVIDER_COOLDOWN';throw error;}
-        res=await this.resolveAnimePahe(title,episodeNum,audio);
-      }catch(error){
-        this.signal?.throwIfAborted();if(error.name==='AbortError')throw error;
-        if(error.code!=='PROVIDER_COOLDOWN')this.providerCooldowns.set(provider,Date.now()+(error.code==='PROVIDER_VERIFICATION_REQUIRED'?300000:60000));
-        try{res=await this.resolveAnikoto(title,episodeNum,audio,params);resolvedProvider='anikoto';}
-        catch(alternate){this.signal?.throwIfAborted();if(alternate.name==='AbortError')throw alternate;const unavailable=Error('No compatible stream is available for this episode right now. Try again shortly or select another server.');unavailable.code='SOURCE_UNAVAILABLE';throw unavailable;}
-      }
-    }
-    else if (provider === 'anipm') throw new Error('Ani.pm is unavailable: its playback integration has not been implemented. Choose Anikoto or AnimePahe.');
+    else if (provider === 'hianime') res = await this.resolveAniWatch(title,episodeNum,audio,params,'hianime');
+    else if (provider === 'anipm') throw new Error('Ani.pm is unavailable: its playback integration has not been implemented. Choose Anikoto or HiAnime.');
     else throw new Error('Unsupported streaming provider: ' + provider);
     if (!res?.streamUrl) throw new Error('No playable stream found on ' + provider);
     this.signal?.throwIfAborted();
@@ -374,11 +350,12 @@ class StreamResolver {
     }
   }
 
-  async resolveAniWatch(title, episodeNum, audio, request = {}) {
-    const provider = require('./aniwatch');
+  async resolveAniWatch(title, episodeNum, audio, request = {}, providerId='aniwatch') {
+    const provider = require(providerId==='hianime'?'./hianime':'./aniwatch');
+    const label=providerId==='hianime'?'HiAnime':'AniWatch';
     const season = request.seasonNumber == null ? 1 : Number(request.seasonNumber);
-    if (!Number.isInteger(season) || season < 1) throw new Error('AniWatch specials require their own title');
-    const pageKey=JSON.stringify([title,season]);
+    if (!Number.isInteger(season) || season < 1) throw new Error(label+' specials require their own title');
+    const pageKey=JSON.stringify([providerId,title,season]);
     const savedPage=aniwatchPages.get(pageKey);
     let match=savedPage&&Date.now()-savedPage.at<1800000?savedPage.match:null;
     const slot = acquireAnikotoSession();
@@ -398,22 +375,22 @@ class StreamResolver {
     const evaluate = async code => {
       let timer;
       try { return await Promise.race([wc.executeJavaScript(code, true), new Promise((_,reject) => {
-        timer = setTimeout(() => reject(new Error('AniWatch page script timed out')), 5000);
+        timer = setTimeout(() => reject(new Error(label+' page script timed out')), 5000);
       })]); } finally { clearTimeout(timer); }
     };
     const inspect = () => evaluate(`(${provider.inspectPage.toString()})()`);
     const waitFor = async (key, stage) => {
-      console.log('[StreamResolver] AniWatch stage:', stage);
+      console.log('[StreamResolver] '+label+' stage:', stage);
       const until = Date.now() + 10000;
       do {
         this.signal?.throwIfAborted();
-        if (win.isDestroyed()) throw new Error('AniWatch window closed');
+        if (win.isDestroyed()) throw new Error(label+' window closed');
         const data = await inspect();
-        if (data.challenge) throw new Error('AniWatch requires browser verification. Choose another server or try again later.');
+        if (data.challenge) throw new Error(label+' is temporarily unavailable. Choose another server.');
         if (data[key].length || (key==='titles'&&data.emptySearch)) return data;
         await new Promise(resolve => setTimeout(resolve, 100));
       } while (Date.now() < until);
-      throw new Error(`AniWatch timed out at ${stage} stage`);
+      throw new Error(`${label} timed out at ${stage} stage`);
     };
     ses.webRequest.onBeforeSendHeaders({urls:['*://*/*']}, (details, callback) => {
       if (captureEnabled && !captured && /\.(m3u8|mp4)(\?|$)/i.test(details.url) && !/preview|thumb|\/ads?\//i.test(details.url)) {
@@ -423,7 +400,20 @@ class StreamResolver {
       }
       callback({cancel:false,requestHeaders:details.requestHeaders});
     });
+    const completeStream=async stream=>{
+      if(providerId!=='hianime')return stream;
+      let subtitles=[];
+      for(let attempt=0;attempt<4;attempt++){
+        this.signal?.throwIfAborted();const frames=wc.mainFrame?.framesInSubtree||[wc];
+        const groups=await Promise.race([Promise.all(frames.slice(0,12).map(frame=>frame.executeJavaScript(`(${discoverSubtitleTracks.toString()})()`,true).catch(()=>[]))),new Promise(resolve=>setTimeout(()=>resolve([]),500))]);
+        subtitles=[...new Map(groups.flat().filter(t=>t?.url).map(t=>[t.url,t])).values()].slice(0,20);if(subtitles.length)break;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,150));
+      }
+      return {...stream,subtitles:subtitles.map(t=>({...t,headers:stream.headers||{}}))};
+    };
     try {
+      let embeds;
+      if(providerId==='hianime'){embeds=await provider.metadata(async url=>{this.signal?.throwIfAborted();const response=await net.fetch(url,{headers:{'User-Agent':CHROME_UA,Referer:provider.BASE+'/'},signal:this.signal?AbortSignal.any([this.signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)});if(!response.ok)throw Error('HiAnime catalog request unavailable');return response.text();},title,episodeNum,audio,request);}
+      else {
       if(!match){
         let lastError;
         for(const query of provider.searchTerms(title)){
@@ -441,13 +431,14 @@ class StreamResolver {
       const episodeData = await waitFor('servers', 'audio');
       if(aniwatchPages.size>=100)aniwatchPages.delete(aniwatchPages.keys().next().value);
       aniwatchPages.set(pageKey,{at:Date.now(),match});
-      const embeds = provider.chooseEmbeds(episodeData.servers, audio);
+      embeds = provider.chooseEmbeds(episodeData.servers, audio);
+      }
       let lastError;
       for (const embed of embeds) {
         this.signal?.throwIfAborted();
         captureEnabled = false; captured = null;
         allowedOrigins.add(new URL(embed).origin);
-        console.log('[StreamResolver] AniWatch player:', new URL(embed).hostname, audio);
+        console.log('[StreamResolver] '+label+' player:', new URL(embed).hostname, audio);
         try {
           captureEnabled = true;
           await loadAnikotoPage(win, embed);
@@ -455,7 +446,7 @@ class StreamResolver {
           const visited = new Set([embed]);
           while (Date.now() < until) {
             this.signal?.throwIfAborted();
-            if (captured) return captured;
+            if (captured) return await completeStream(captured);
             const player = await evaluate(`(() => {
               const frame = [...document.querySelectorAll('iframe[src]')].find(f => f.offsetWidth > 200 && /^https:/.test(f.src));
               const play = document.querySelector('.jw-icon-display, .vjs-big-play-button, .play-button, .btn-play, video');
@@ -468,7 +459,7 @@ class StreamResolver {
               const error = /can't find the file|file (?:was |has been )?(?:removed|deleted)|error code:\s*410/i.test(document.body?.innerText || '');
               return {frame:frame?.src,click,error};
             })()`);
-            if (captured) return captured;
+            if (captured) return await completeStream(captured);
             if (player.error) throw new Error('The embedded player reports this file is unavailable');
             if (player.frame && !visited.has(player.frame) && visited.size < 4) {
               visited.add(player.frame); allowedOrigins.add(new URL(player.frame).origin);
@@ -502,345 +493,8 @@ class StreamResolver {
     return ['1080p', '720p', '480p'];
   }
 
-  async resolveAnimePahe(title, episodeNum, audio) {
-    // animepahe.com currently redirects to animepahe.pw. Avoid dead HTML-only mirrors.
-    const baseDomains = ['https://animepahe.pw','https://animepahe.com'];
-
-    let lastError = null;
-
-    for (const base of baseDomains) {
-      this.signal?.throwIfAborted();
-      try {
-        const searchUrl = `${base}/api?m=search&q=${encodeURIComponent(title)}`;
-
-        const searchJson = await this.fetchJsonWithCloudflareBypass(searchUrl, base, 20000);
-        const hits = searchJson?.data;
-        if (!Array.isArray(hits) || !hits.length) throw new Error('AnimePahe: No API hits');
-
-        const normTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const match = hits.find((h) => String(h.title || '').toLowerCase().replace(/[^a-z0-9]/g, '') === normTitle);
-        if (!match) throw new Error('AnimePahe: No exact title match for ' + title);
-        const animeSession = match.session;
-
-        const relUrl = `${base}/api?m=release&id=${encodeURIComponent(animeSession)}&sort=episode_asc&page=1`;
-        let relJson = await this.fetchJsonWithCloudflareBypass(relUrl, base, 20000);
-        if (!relJson?.data?.length) throw new Error('AnimePahe: No episodes');
-
-        let epObj = relJson.data.find((e) => Number(e.episode) === episodeNum);
-        if (!epObj && relJson.last_page > 1) {
-          for (let p = 2; p <= Math.min(relJson.last_page, 10); p++) {
-            const pageJson = await this.fetchJsonWithCloudflareBypass(
-              `${base}/api?m=release&id=${encodeURIComponent(animeSession)}&sort=episode_asc&page=${p}`,
-              base,
-              20000
-            );
-            epObj = (pageJson?.data || []).find((e) => Number(e.episode) === episodeNum);
-            if (epObj) break;
-          }
-        }
-        if (!epObj) throw new Error('AnimePahe: Requested episode ' + episodeNum + ' was not found in the checked release pages');
-
-        const playPageUrl = `${base}/play/${encodeURIComponent(animeSession)}/${encodeURIComponent(epObj.session)}`;
-        const html = await this.fetchTextWithCloudflareBypass(playPageUrl, base, 20000);
-
-        const buttonRegex = /<button[^>]+data-src=["']([^"']+)["'][^>]*>/gi;
-        const candidates = [];
-        let m;
-        while ((m = buttonRegex.exec(html)) !== null) {
-          const tag = m[0];
-          const src = m[1];
-          const isDub = /data-audio=["']eng["']/i.test(tag);
-          const resMatch = tag.match(/data-resolution=["'](\d+)["']/i);
-          const resolution = resMatch ? Number(resMatch[1]) : 720;
-          candidates.push({ src, isDub, resolution });
-        }
-
-        if (!candidates.length) {
-          throw new Error('AnimePahe: Cannot verify the requested audio on this episode');
-        }
-
-        const wantDub = audio === 'dub';
-        const pool = candidates.filter((c) => c.isDub === wantDub);
-        if (!pool.length) throw new Error('AnimePahe: Requested ' + audio + ' audio is unavailable');
-        const chosenList = pool.sort((a, b) => b.resolution - a.resolution);
-        const kwikUrl = chosenList[0].src;
-
-        const kwikHtml = await this.fetchTextWithCloudflareBypass(kwikUrl, base, 20000);
-        const unpacked = unpackPacker(kwikHtml);
-        if (unpacked) {
-          const m3u8Match = unpacked.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/i);
-          if (m3u8Match) {
-            return {
-              streamUrl: m3u8Match[0],
-              isHLS: true,
-              headers: { Referer: 'https://kwik.si/', Origin: 'https://kwik.si', 'User-Agent': CHROME_UA }
-            };
-          }
-        }
-
-        return await this.sniffUrlInHiddenWindow(kwikUrl, base);
-      } catch (err) {
-        this.signal?.throwIfAborted();
-        if(['PROVIDER_VERIFICATION_CANCELLED','PROVIDER_VERIFICATION_REQUIRED'].includes(err.code))throw err;
-        console.warn(`[StreamResolver] AnimePahe failed with ${base}:`, err.message);
-        lastError = err;
-        // Continue to next domain
-      }
-    }
-
-    throw lastError || new Error('No playable stream found for AnimePahe');
-  }
-
-  // Opens the page in a hidden window and waits for it to request a video (.m3u8 / .mp4).
-  // Helps the page along: follows an embedded player iframe, clicks the wanted episode on list pages
-  // (when searchOpts is given), or presses a play button.
-  async sniffUrlInHiddenWindow(targetUrl, refererBase = '', searchOpts = null, timeoutMs = 15000) {
-    return new Promise((resolve, reject) => {
-      let settled = false, hops = 0;
-      const partName = 'persist:anishelf-web';
-      const ses = session.fromPartition(partName);
-      const episodeNum = searchOpts ? Number(searchOpts.episodeNum) || 1 : 0; // 0 = don't look for episode links
-
-      const win = this.createResolverWindow({
-        show: false,
-        width: 1280,
-        height: 720,
-        webPreferences: {
-          partition: partName,
-          contextIsolation: true,
-          nodeIntegration: false,
-          sandbox: true,
-          autoplayPolicy: 'no-user-gesture-required'
-        }
-      });
-
-      win.webContents.setAudioMuted(true);
-      win.webContents.setUserAgent(CHROME_UA);
-
-      const finish = (err, result) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        try { ses.webRequest.onBeforeRequest(null); } catch {} // stop watching the partition's traffic
-        try {
-          if (!win.isDestroyed()) win.destroy();
-        } catch {}
-        if (err) reject(err);
-        else resolve(result);
-      };
-
-      // Catch the stream as soon as the page (or its player iframe) requests it
-      const listener = (details, callback) => {
-        const u = details.url;
-        if (!settled && /\.(m3u8|mp4)(\?.*)?$/i.test(u) && !u.includes('preview') && !u.includes('thumb')) {
-          console.log('[StreamSniffer] Captured media stream:', u);
-          finish(null, {
-            streamUrl: u,
-            isHLS: /\.m3u8/i.test(u),
-            headers: { Referer: refererBase || new URL(targetUrl).origin + '/', 'User-Agent': CHROME_UA }
-          });
-        }
-        callback({ cancel: false });
-      };
-      ses.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, listener);
-
-      win.webContents.on('did-finish-load', () => {
-        if (settled || win.isDestroyed() || ++hops > 5) return; // don't wander forever
-        // Give the page's scripts a moment, then look for a player
-        setTimeout(async () => {
-          if (settled || win.isDestroyed()) return;
-          try {
-            const found = await win.webContents.executeJavaScript(`
-              (function (ep) {
-                const v = document.querySelector('video[src^="http"], video source[src^="http"]');
-                if (v) return { type: 'video', url: v.src };
-                const frame = [...document.querySelectorAll('iframe[src^="http"]')].find((f) => f.offsetWidth > 200);
-                if (frame) return { type: 'iframe', url: frame.src };
-                if (ep) {
-                  const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-                  const want = [String(ep), 'ep ' + ep, 'ep. ' + ep, 'episode ' + ep];
-                  const items = [...document.querySelectorAll('[data-number], .ep-item, .episode-item, a')];
-                  const hit = items.find((el) => el.dataset.number === String(ep)) || items.find((el) => want.includes(norm(el.textContent)));
-                  if (hit) { hit.click(); return { type: 'clicked' }; }
-                }
-                const play = document.querySelector('.play-button, .vjs-big-play-button, .jw-icon-display, .btn-play, video');
-                if (play && !play.dataset.anideckStarted) { play.dataset.anideckStarted = '1'; return { stage: 'player', click: clickTarget(play) }; }
-                return null;
-              })(${episodeNum});
-            `);
-            if (settled || win.isDestroyed() || !found) return;
-            if (found.type === 'video') {
-              finish(null, {
-                streamUrl: found.url,
-                isHLS: /\.m3u8/i.test(found.url),
-                headers: { Referer: refererBase || new URL(targetUrl).origin + '/', 'User-Agent': CHROME_UA }
-              });
-            } else if (found.type === 'iframe') {
-              // An embed page isn't playable itself: open it and keep listening for its stream
-              win.loadURL(found.url, { httpReferrer: win.webContents.getURL(), userAgent: CHROME_UA }).catch(() => {});
-            }
-          } catch {}
-        }, 2500);
-      });
-
-      win.once('closed', () => finish(this.signal?.reason || new Error('Stream window closed')));
-      const timer = setTimeout(() => {
-        finish(new Error('Stream sniffer timed out waiting for media stream.'));
-      }, timeoutMs);
-
-      win.loadURL(targetUrl, { httpReferrer: refererBase || undefined, userAgent: CHROME_UA }).catch((e) => finish(e));
-    });
-  }
-
-  async fetchTextWithCloudflareBypass(url, referer = '', timeoutMs = 15000, expectJson = false) {
-    let browserAttempted=false;
-    try {
-      const res = await net.fetch(url, {
-        headers: {
-          'User-Agent': CHROME_UA,
-          'Accept': expectJson ? 'application/json' : 'text/html,application/json,*/*;q=0.8',
-          ...(expectJson ? { 'X-Requested-With': 'XMLHttpRequest' } : {}),
-          'Accept-Language': 'en-US,en;q=0.9',
-          ...(referer ? { Referer: referer + '/' } : {})
-        },
-        bypassCustomProtocolHandlers: true,
-        signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)
-      });
-      const text = await res.text();
-      if (/^\s*</.test(text) && /just a moment|cf-chl|challenge-platform|ddos-guard|captcha|checking your browser/i.test(text)) {
-        browserAttempted=true;return await this.fetchViaHiddenBrowser(url, referer, expectJson);
-      }
-      if (!res.ok && res.status >= 400) { const error = new Error(`AnimePahe request failed (HTTP ${res.status}). Try another server.`); error.httpStatus = res.status; throw error; }
-      return text;
-    } catch (err) {
-      this.signal?.throwIfAborted();
-      if (err.httpStatus||browserAttempted) throw err;
-      if (err.name === 'AbortError') {
-        throw new Error(`Timeout fetching: ${url} (${timeoutMs}ms)`);
-      }
-      return await this.fetchViaHiddenBrowser(url, referer, expectJson);
-    }
-  }
-
-  async fetchJsonWithCloudflareBypass(url, referer = '', timeoutMs = 15000) {
-    const text = await this.fetchTextWithCloudflareBypass(url, referer, timeoutMs, true);
-    return parseProviderJson(text, url);
-  }
-
-  async waitForProviderVerification(win){
-    let shown=false;
-    for(let attempt=0;attempt<180;attempt++){
-      this.signal?.throwIfAborted();
-      if(win.isDestroyed()){const error=Error('AnimePahe verification was closed. Retry playback to open it again, or choose another server.');error.code='PROVIDER_VERIFICATION_CANCELLED';throw error;}
-      const title=await win.webContents.executeJavaScript('document.title').catch(()=>'');
-      const challenge=/just a moment|ddos-guard|attention required|cloudflare|challenge|blocked|captcha|under attack|checking your browser/i.test(title);
-      if(title?.trim()&&!challenge){if(shown)win.hide();return;}
-      if(challenge&&!shown){shown=true;win.show();win.focus();}
-      if(!shown&&attempt>=39)break;
-      await new Promise(resolve=>setTimeout(resolve,500));
-    }
-    throw Error('AnimePahe verification did not finish. Retry and complete the browser check, or choose another server.');
-  }
-
-  async fetchViaHiddenBrowser(url, referer = '', expectJson = false) {
-    if(this.interactive===false){const error=Error('AnimePahe needs browser verification. Play the episode to complete it, or choose another server.');error.code='PROVIDER_VERIFICATION_REQUIRED';throw error;}
-    const origin = new URL(url).origin;
-    const partName = 'persist:anishelf-web';
-    const win = this.createResolverWindow({
-      show: false, // Shown explicitly before starting provider navigation
-      width: 1280,
-      height: 720,
-      webPreferences: {
-        partition: partName,
-        contextIsolation: true,
-        sandbox: true,
-        userAgent: CHROME_UA,
-        // Add realistic viewport settings to help bypass Cloudflare
-        deviceMetricsOverride: {
-          width: 1280,
-          height: 720,
-          deviceScaleFactor: 1,
-          mobile: false
-        }
-      }
-    });
-
-    // Show before navigation: challenge pages may never finish their initial load.
-    // Only foreground playback reaches here; prefetch must never interrupt the user.
-    win.show();win.focus();
-    try {
-      win.loadURL(origin + '/').catch(() => {});
-
-      await this.waitForProviderVerification(win);
-
-      // Wait additional time to ensure page fully loads after Cloudflare resolution
-      await new Promise((r) => setTimeout(r, 1000));
-
-      // Try a more comprehensive approach for getting content from the browser window
-      const content = await win.webContents.executeJavaScript(`
-        (async function() {
-          try {
-            // Wait for page to be fully loaded
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Check if this is still a Cloudflare challenge page
-            const pageTitle = document.title;
-            if (/cloudflare|challenge|blocked|captcha|under attack|checking your browser/i.test(pageTitle.toLowerCase())) {
-              console.warn('Still on Cloudflare challenge page after waiting');
-              return null;
-            }
-
-            // Try to get content directly from window.location.href or fetch response
-            const response = await fetch(${JSON.stringify(url)}, {
-              headers: {
-                'Accept': ${JSON.stringify(expectJson ? 'application/json' : 'application/json, text/html, */*')},
-                ...( ${JSON.stringify(expectJson)} ? { 'X-Requested-With': 'XMLHttpRequest' } : {}),
-                'User-Agent': '${CHROME_UA}'
-              },
-              credentials: 'include'
-            });
-
-            if (!response.ok) {
-              console.warn('Network error during fetch:', response.status);
-              return null;
-            }
-
-            return await response.text();
-          } catch (err) {
-            console.warn('Error in browser fetch:', err.message);
-            // Fallback to simple page content as last resort
-            try {
-              return document.documentElement.outerHTML || document.body.innerText || '';
-            } catch {
-              return '';
-            }
-          }
-        })()
-      `, true);
-
-      if (content && content.length > 0) {
-        return content;
-      }
-
-      // If the direct fetch failed, fallback to simpler approach
-      return await win.webContents.executeJavaScript(`
-        (async function() {
-          try {
-            const html = document.documentElement.outerHTML || document.body.innerText || '';
-            return html;
-          } catch (err) {
-            console.warn('Cannot extract content from page:', err.message);
-            return '';
-          }
-        })()
-      `, true);
-    } finally {
-      if (!win.isDestroyed()) win.destroy();
-    }
-  }
 }
 
 const instance = new StreamResolver();
 module.exports = StreamResolver;
 module.exports.resolve = (params) => instance.resolve(params);
-module.exports.parseProviderJson = parseProviderJson;
