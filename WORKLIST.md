@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 28 October — consistent titles, Discussion refresh, fuller synopses and coherent review cards
+
+Current installer/portable: **preview-dea6a98**, runtime source **dea6a98** (also c6569b3), **487 tests pass**. Package audit, full isolated native checks, ZIP integrity and exact installer/portable runtime equality pass. Screenshots reviewed in outputs/title-format-final/; all activity/posts are fixtures, not live account writes.
+
+- Shared artwork frames reserve the same logo/caption rows across titles, with consistent left alignment and wide/narrow dimensions. Exact-ID logo lookup remains independent of AniList metadata success. Native checks cover both primary and alternate logos, fixed-frame/caption geometry and repeat tab renders.
+- Discussion has a cleaner compact empty state, one primary creation action and three working starters (Episode discussion, Theories & predictions, Favorite moments). These seed a new topic, not pre-existing public threads. Existing topics/replies remain. Worker topic-pagination deployment is still pending explicit authorization; no production deployment/migration performed.
+- Synopsis enrichment now checks a third catalog: MyAnimeList via Jikan, only using an exact MAL ID when AniList/Kitsu have no meaningful synopsis. Returned identity is validated; calls queue at roughly one per 1.1 seconds, shared requests deduplicate, useful results cache for 24 hours in-session, failures remain retryable. Details enrich asynchronously, poster previews share the fallback, and source attribution appears. No prequel/title-search plot substitution. Live Jikan public probe timed out; live success remains acceptance, not claimed. Unmapped titles have a finished unavailable state rather than indefinite loading.
+- AnimePahe defect found: production kept verification hidden while telling the user to complete it. A detected challenge now shows/focuses the browser window, allows up to 90 seconds, then resumes the request. Closing stops mirror retries. Public homepage returned HTTP 403 verification; fixture tests pass, but no live challenge was solved and live episode playback is not verified.
+- Review cards now have distinct purposes: Activity = totals, estimated time and weekday rhythm across the selected period; Taste = genre episode counts, studios and most logged title. Removed misleading Your week and season-only copy for month/year/all-time views. Counts group title IDs rather than display names; future events are excluded. Canvas content tests and actual rendered Activity/Taste images reviewed.
+- Other pending acceptance remains: future natural local-list episode advance, ordinary AniList saves after cooldown, Kitsu live import, second-device recovery, private Jellyfin, physical TV and OS alerts. Gio and physical Mac stay deferred. New checkpoint CI not yet inspected. No release/tag/installed-app replacement; preserve readme-preview.html and Desktop/anitrack cache.
+
 ## 28 October — attached logo captions and artwork during metadata failures
 
 Current Windows installer/portable: **preview-16eb889**, source **16eb889**, **480 tests pass**. Package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass.
