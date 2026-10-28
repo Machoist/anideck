@@ -2615,6 +2615,16 @@ function trimLogo(src) {
   logoCache.set(src, p);
   return p;
 }
+async function findTitleLogo(metadata) {
+  const candidates=[...new Set([...(Array.isArray(metadata?.logos)?metadata.logos:[]),metadata?.logo].filter(Boolean))].slice(0,6);
+  for(const src of candidates){
+    try{
+      const logo=await trimLogo(src);
+      if(logo&&Number.isFinite(logo.ratio)&&logo.ratio>=1.1)return logo;
+    }catch{} // An unavailable source must not prevent trying the other exact-ID artwork.
+  }
+  return null;
+}
 function showLogo(h1, alId, season) {
   if (!h1) return;
   // The title stays hidden until we know whether there's a logo, so the name never flashes up huge first.
@@ -2623,8 +2633,8 @@ function showLogo(h1, alId, season) {
   if (!alId) return reveal();
   h1.classList.add('logo-pending');
   AniZip.get(alId).then(async (z) => {
-    if (!z?.logo || !h1.isConnected) return reveal();
-    const logo = await trimLogo(z.logo);
+    if (!z || !h1.isConnected) return reveal();
+    const logo = await findTitleLogo(z);
     // Portrait wordmarks become tiny vertical strips in a landscape hero.
     // Keep the readable catalog title rather than stretching or rotating the artwork.
     if (!logo || !Number.isFinite(logo.ratio) || logo.ratio < 1.1 || !h1.isConnected) return reveal();

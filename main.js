@@ -230,6 +230,34 @@ function createWindow() {
           fs.writeFileSync(path.join(visualDir,'AniDeck-title-fallback-'+width+'-'+title.replace(/[^a-z0-9]+/gi,'-')+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         }
         win.setMinimumSize(...logoMinimum);win.setContentSize(...logoWindowSize);
+        const artFixturesArg=process.argv.find(arg=>arg.startsWith('--anideck-logo-fixtures='));
+        if(artFixturesArg){
+          const fixtureRoot=path.resolve(artFixturesArg.slice('--anideck-logo-fixtures='.length));
+          const art={alternate:'data:image/png;base64,'+fs.readFileSync(path.join(fixtureRoot,'alternate.png')).toString('base64'),primary:'data:image/png;base64,'+fs.readFileSync(path.join(fixtureRoot,'primary.png')).toString('base64'),backdrop:'data:image/jpeg;base64,'+fs.readFileSync(path.join(fixtureRoot,'backdrop.jpg')).toString('base64')};
+          const priorSize=win.getContentSize(),priorMinimum=win.getMinimumSize();win.setMinimumSize(320,400);
+          for(const [width,provider] of [[1360,'alternate'],[640,'alternate'],[1360,'primary']]){
+            win.setContentSize(width,860);
+            const artworkCheck=await win.webContents.executeJavaScript(`(async()=>{
+              const art=${JSON.stringify(art)},provider=${JSON.stringify(provider)},previous=AniZip.get;
+              try{
+                const portrait=document.createElement('canvas');portrait.width=60;portrait.height=300;const ctx=portrait.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(5,5,50,290);
+                const title=provider==='alternate'?'JUJUTSU KAISEN Season 2':'Frieren: Beyond Journey’s End Season 2';
+                const item={kind:'remote',title,ep:'Episode 2',num:2,kitsu:'al:42',resolvedBackdrop:art.backdrop};
+                document.querySelector('#main').innerHTML=yourNextHero([item,{...item,title:'Next in your queue',ep:'Episode 3',num:3}]);document.querySelector('#main').scrollTop=0;
+                AniZip.get=async()=>({logos:provider==='alternate'?[portrait.toDataURL(),art.alternate]:[art.primary,art.alternate]});
+                const heading=document.querySelector('.yn-title');showLogo(heading,42,2);
+                for(let n=0;n<100&&!heading.querySelector('.hero-logo.ready');n++)await new Promise(r=>setTimeout(r,20));
+                const img=heading.querySelector('.hero-logo'),r=img?.getBoundingClientRect();
+                return {width:innerWidth,loaded:!!img?.classList.contains('ready'),landscape:!!r&&r.width/r.height>1.1,visibleSize:!!r&&r.width>=200&&r.height>=35,noOverflow:document.querySelector('#main').scrollWidth<=document.querySelector('#main').clientWidth+1};
+              }finally{AniZip.get=previous;}
+            })()`);
+            if(artworkCheck.width!==width||Object.entries(artworkCheck).some(([key,value])=>key!=='width'&&value!==true))throw Error('Alternate artwork failed: '+JSON.stringify(artworkCheck));
+            console.log('AniDeck exact-ID logo artwork: '+JSON.stringify({provider,...artworkCheck}));
+            await new Promise(resolve=>setTimeout(resolve,250));
+            fs.writeFileSync(path.join(visualDir,'AniDeck-logo-'+provider+'-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+          }
+          win.setMinimumSize(...priorMinimum);win.setContentSize(...priorSize);
+        }
         const queueContrast=await win.webContents.executeJavaScript(`(()=>{
           const main=document.querySelector('#main');main.innerHTML='<section class="yn" style="background:linear-gradient(110deg,#fff,#e7e2fa);min-height:560px"><aside class="yn-queue"><div class="yn-qhead">Your queue <span>2</span></div><div class="yn-qlist"><button class="yn-item on"><span class="yn-thumb"></span><span class="yn-meta"><b>JUJUTSU KAISEN Season 2</b><small>Episode 2</small></span></button><button class="yn-item"><span class="yn-thumb"></span><span class="yn-meta"><b>Hell’s Paradise</b><small>Episode 13</small></span></button></div></aside></section>';main.scrollTop=0;
           const small=getComputedStyle(main.querySelector('.yn-meta small')),card=getComputedStyle(main.querySelector('.yn-item.on'));

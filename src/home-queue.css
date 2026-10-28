@@ -41,3 +41,7 @@
 .yn-actions .glass:hover{background:rgba(43,36,57,.9);border-color:rgba(255,255,255,.4)}
 @media(max-width:1000px){.yn-title{max-width:22ch;font-size:clamp(30px,5vw,44px)}.yn-title .hero-logo{--logo-w:min(360px,75vw);--logo-h:110px}}
 @media(max-width:420px){.yn-title{font-size:30px}.yn-actions .btn{padding:10px 14px}.yn-title-season{font-size:10px}}
+
+/* Artwork remains first choice; unavailable art gets a title lockup, not a UI heading. */
+.yn-title:not(.has-logo) .yn-title-name{font-family:Impact,"Arial Narrow",var(--display);font-weight:400;text-transform:uppercase;letter-spacing:.025em;line-height:1.05;color:#fff;-webkit-text-stroke:.35px rgba(218,206,255,.7);text-shadow:2px 3px 0 rgba(75,58,112,.7),0 6px 24px rgba(0,0,0,.55)}
+.yn-title:not(.has-logo) .yn-title-name::after{content:'';display:block;width:54px;height:3px;margin-top:14px;background:linear-gradient(90deg,#ded3ff,#a88bdd);clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)}

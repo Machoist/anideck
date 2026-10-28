@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../src/app.js'),'utf8');
-const fn=source.slice(source.indexOf('function showLogo('),source.indexOf('// Hovering a title',source.indexOf('function showLogo(')));
+const fn=source.slice(source.indexOf('async function findTitleLogo('),source.indexOf('// Hovering a title',source.indexOf('function showLogo(')));
 async function render(ratio,{reject=false,connected=true}={}){
  const classes=new Set(['logo-pending']),node={isConnected:connected,textContent:'JUJUTSU KAISEN Season 2',classList:{add:v=>classes.add(v),remove:v=>classes.delete(v)},prepend:im=>node.image=im,insertAdjacentHTML:()=>node.season=true};
  const context={Number,Math,setTimeout:()=>1,clearTimeout(){},AniZip:{get:async()=>{if(reject)throw Error('Unavailable');return {logo:'fixture'};}},trimLogo:async()=>({ratio,url:'fixture'}),esc:s=>s,requestAnimationFrame:f=>f(),Image:class{style={setProperty(){}};classList={add(){}};set src(_){this.onload();}}};
@@ -20,4 +20,11 @@ test('queue title treatment separates seasons for any title and safely renders u
  const title=vm.runInNewContext(source.slice(start,end)+';queueTitleMarkup',{esc:s=>String(s).replaceAll('<','&lt;')});
  for(const name of ['JUJUTSU KAISEN Season 2','Tokyo Revengers Season 3','Frieren: Beyond Journey’s End 2nd Season']){const html=title(name);assert(html.includes('yn-title-season'));assert(html.includes('yn-title-name'));}
  assert(!title('ONE PIECE').includes('yn-title-season'));assert(title('<unsafe>').includes('&lt;unsafe>'));
+});
+
+test('logo selection tries alternate exact-ID artwork after portrait, invalid or failed assets',async()=>{
+ const start=source.indexOf('async function findTitleLogo('),end=source.indexOf('function showLogo(',start),seen=[];
+ const pick=vm.runInNewContext(source.slice(start,end)+';findTitleLogo',{Set,Array,Number,trimLogo:async src=>{seen.push(src);if(src==='failed')throw Error('Unavailable');return {url:src,ratio:src==='wide'?3:.2};}});
+ assert.equal((await pick({logo:'portrait',logos:['portrait','failed','wide','wide']})).url,'wide');assert.deepEqual(seen,['portrait','failed','wide']);
+ seen.length=0;assert.equal(await pick({logos:['portrait','failed']}),null);assert.equal(await pick(null),null);
 });

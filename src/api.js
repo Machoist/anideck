@@ -1040,13 +1040,17 @@ const AniZip = {
     if (hit && Date.now() - hit.at < 6 * 3600000) return hit.p;
     const p = http(`https://api.ani.zip/mappings${qs({ anilist_id: alId })}`, { timeout: 8000 }).then((j) => {
       const img = (type) => (j?.images || []).find((i) => i.coverType === type)?.url || '';
+      // Exact provider mapping only: never search by title or borrow unrelated artwork.
+      const imdb=String(j?.mappings?.imdb_id||'');
+      const providerLogos=(j?.images||[]).filter(i=>i.coverType==='Clearlogo'&&typeof i.url==='string'&&/^https:\/\//i.test(i.url)).map(i=>i.url);
+      const logos=[...new Set([...providerLogos.filter(url=>!url.includes('/icons/')),...(/^tt[0-9]{5,12}$/.test(imdb)?[`https://images.metahub.space/logo/medium/${imdb}/img`]:[]),...providerLogos.filter(url=>url.includes('/icons/'))])];
       const episodes = {};
       for (const [k, e] of Object.entries(j?.episodes || {})) {
         const n = Number(k);
         if (!n || !e) continue; // specials are keyed "S1", "S2"…
         episodes[n] = { title: e.title?.en || e.title?.['x-jat'] || '', overview: e.overview || e.summary || '', image: e.image || '', airDate: e.airDate || '', runtime: e.runtime || e.length || null };
       }
-      return { episodes, fanart: img('Fanart'), banner: img('Banner'), logo: img('Clearlogo'), poster: img('Poster'),
+      return { episodes, fanart: img('Fanart'), banner: img('Banner'), logo: img('Clearlogo'), logos, poster: img('Poster'),
         tmdb: j?.mappings?.themoviedb_id || null, kitsu: j?.mappings?.kitsu_id || null, type: j?.mappings?.type || '' };
     }).catch(() => { this.cache.delete(String(alId)); return null; });
     this.cache.set(String(alId), { at: Date.now(), p });
