@@ -1,5 +1,12 @@
 # AniDeck worklist
 
+## 27 October — Social positioning refined
+
+Current Windows installer/ZIP: **preview-9397c9b**, source **9397c9b**, **426 tests pass**. Social starts 70px higher at widths >=1700px, where its centered heading clears Home/Back horizontally. Smaller windows keep the reserved navigation row. On tall desktop windows the welcome illustration/copy has a slightly higher optical center. No negative translation of the welcome content or conversation layout changes.
+
+Packaged fixture checks verify raised header/welcome, shortcut clearance, full-height workspace, visible composer, internal history scrolling and actual 640px no-overflow layout. Screenshot reviewed. Final delivered package passes audit, isolated startup/guest/public readiness, ZIP integrity and installer/portable runtime equality; source snapshot refreshed. Source fix pushed. No real profile/messages/list data changed. AniList readback, other live acceptance and release prompt remain on the worklist; Gio and physical Mac stay deferred.
+
+
 Updated 27 October 2026. This file is the resumable checklist; earlier development notes are historical.
 
 ## 27 October — navigation clipping fixed; import count clarified
@@ -11,11 +18,11 @@ Account now offers **Review local list for AniList/Kitsu** and explains that the
 ## Saved and verified
 
 - App source through `3de4263` is backed up on GitHub `main`. All 48 previously local commits were pushed.
-- Current local Windows installer and portable ZIP: `preview-65eb624`. 426 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
+- Current local Windows installer and portable ZIP: `preview-9397c9b`. 426 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
 - [Windows test build](https://github.com/Machoist/anideck/actions/runs/40459268760) and [Mac test build](https://github.com/Machoist/anideck/actions/runs/40459268720) both succeeded for `3de4263`. Successful CI does not establish physical device acceptance.
 - Latest UI work is complete: progressive profile rendering, labeled most-watched genres and next milestone, fluid milestone navigation, compact Social requests/refresh, opaque three-card shuffle with matching reveal size, and equal-height Tonight/Horizon widgets.
 - Profile customization, recovery-key sign-in, consent-based message requests, notification preferences, local-list import adapters and isolated optional Jellyfin functionality are implemented. The live checks below remain necessary.
-- Current package includes the navigation spacing/import-copy fixes and the policy regression test; source `65eb624`, 426 tests passing. Earlier CI artifact checks below describe their stated historical revisions. No public release or release tag was created.
+- Current package includes the navigation spacing/import-copy fixes and the policy regression test; source `9397c9b`, 426 tests passing. Earlier CI artifact checks below describe their stated historical revisions. No public release or release tag was created.
 
 ## 27 October — CI artifact inspection and Mac label fix
 
