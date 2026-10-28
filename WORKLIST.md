@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 28 October — uninterrupted playback fallback and clean layered icons
+
+Current installer/portable: **preview-f400759**, runtime source **f400759**, **493 tests pass**. Package audit, full isolated native UI/readiness/TV checks, native no-prompt resolver fixture, ZIP integrity and installer/portable runtime equality pass. Actual icon/review images inspected in outputs/playback-fallback-final/.
+
+- User confirmed previous verification window appeared, then explicitly rejected prompts during viewing. This supersedes previous instructions to manually complete CAPTCHA during playback. Default resolver and every playback/prefetch task are now non-interactive. AnimePahe challenge/unavailability tries Anikoto once, preserving exact title/season/episode and requested sub/dub through its existing matching guards. Returned actual provider updates player controls with a quiet Playing on label. No challenge automation/bypass. Explicit manual diagnostic helper remains separate and is never invoked interactively by playback.
+- Unavailable AnimePahe probes cool down in-session (five minutes for verification, one minute for other errors), preventing repeated interruptions/delays. Cancellation stops fallback. If the alternate cannot supply the requested episode/audio, report one clear unavailable error. Ten provider tests pass. Actual Electron --no-prompt check uses fixture providers and confirms provider=anikoto, episode 4/dub, zero verification windows. Live external fallback playback is still unverified; next user step is Play the same episode in this build, without completing a CAPTCHA.
+- Next-episode preparation now waits for the final 90 seconds instead of starting 15 seconds into playback, avoiding early competing traffic while retaining near-end preparation. Cannot guarantee zero third-party buffering. Regression covers early/near-end timing.
+- Small shared deck icons mask hidden rear edges with per-instance SVG mask IDs, so strokes do not show through the front card on different backgrounds. Review/export deck marks now use opaque faces. Native large/small icon gallery and actual review canvas inspected. Existing shuffle animation remains.
+- Worker remains deployed version a9472ad3-69b5-4552-8733-f2d2a02d4688; no new deployment/migration. Live Jikan synopsis availability and other account/device acceptance remain pending. Gio and physical Mac stay deferred. No public release/tag or installed-app replacement. Preserve readme-preview.html and Desktop/anitrack cache. New checkpoint CI not yet inspected.
+
 ## 28 October — verification window shown before navigation; ready for live retry
 
 Current installer/portable: **preview-537c6ad**, runtime source **537c6ad**, **489 tests pass**. Package audit, isolated packaged startup/readiness, ZIP integrity and installer/portable runtime equality pass. Earlier title/review/discussion UI assets remain unchanged and audited against source.
