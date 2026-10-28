@@ -243,19 +243,21 @@ function createWindow() {
         for(const width of [1360,360]){
           win.setContentSize(width,860);
           const bottomBar=await win.webContents.executeJavaScript(`(async()=>{
-            App.closeModal();await window.native.set('releaseBarDismissedVersion',null);ReleaseNotice.barDismissed.clear();
+            App.closeModal();await window.native.set('releaseBarDismissedVersion',null);ReleaseNotice.barDismissed.clear();ReleaseNotice.noticeVersion=null;
             App.applyUpdate({state:'available',currentVersion:'1.0.0',version:'1.1.0',url:'https://github.com/Machoist/anideck/releases/tag/v1.1.0',autoCheck:false});await ReleaseNotice.refreshBar();
             const bar=document.querySelector('#release-bar'),r=bar.getBoundingClientRect(),main=document.querySelector('#main').getBoundingClientRect(),view=document.querySelector('#release-bar-view').getBoundingClientRect(),close=document.querySelector('#release-bar-close').getBoundingClientRect();
             const navigator=document.querySelector('#shell .topbar');navigator.classList.add('auto-reveal');const navRect=navigator.getBoundingClientRect(),navigatorClear=r.bottom<=navRect.top;
-            const visible=!bar.hidden&&getComputedStyle(bar).display!=='none',reserved=r.bottom<=main.top,contained=r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight,actionsFit=view.right<=close.left;
+            const visible=!bar.hidden&&getComputedStyle(bar).display!=='none',reserved=main.top<8,contained=r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight,actionsFit=view.right<=close.left;
             document.querySelector('#player').hidden=false;const hiddenDuringPlayback=getComputedStyle(bar).display==='none';document.querySelector('#player').hidden=true;
+            const blocker=document.createElement('button');blocker.textContent='Profile action';blocker.style.cssText='position:fixed;right:20px;top:18px;width:120px;height:40px;z-index:40';document.querySelector('#main').appendChild(blocker);
+            ReleaseNotice.place();const shifted=bar.getBoundingClientRect(),blocked=blocker.getBoundingClientRect(),avoidsControls=shifted.bottom<=blocked.top||shifted.top>=blocked.bottom||shifted.right<=blocked.left||shifted.left>=blocked.right;blocker.remove();ReleaseNotice.place();
             await document.querySelector('#release-bar-view').onclick();const opensPrompt=!document.querySelector('#modal').hidden,hiddenDuringDialog=getComputedStyle(bar).display==='none';App.closeModal();
-            return {width:innerWidth,visible,reserved,contained,actionsFit,navigatorClear,upperRight:r.top<30&&(innerWidth<600||r.left>innerWidth/2),hiddenDuringPlayback,opensPrompt,hiddenDuringDialog};
+            return {width:innerWidth,visible,reserved,contained,actionsFit,navigatorClear,avoidsControls,upperRight:r.top<30&&(innerWidth<600||r.left>innerWidth/2),dark:getComputedStyle(bar).backgroundColor==='rgb(32, 29, 41)',hiddenDuringPlayback,opensPrompt,hiddenDuringDialog};
           })()`);
           if(bottomBar.width!==width||Object.entries(bottomBar).some(([key,value])=>key!=='width'&&value!==true))throw Error('Upper-right release notice failed: '+JSON.stringify(bottomBar));
           console.log('AniDeck upper-right release notice: '+JSON.stringify(bottomBar));
           await new Promise(resolve=>setTimeout(resolve,250));
-          fs.writeFileSync(path.join(visualDir,'AniDeck-top-update-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+          fs.writeFileSync(path.join(visualDir,'AniDeck-corner-update-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
           const dismissed=await win.webContents.executeJavaScript(`(async()=>{await document.querySelector('#release-bar-close').onclick();await ReleaseNotice.refreshBar();return document.querySelector('#release-bar').hidden&&(await window.native.get('releaseBarDismissedVersion'))==='1.1.0';})()`);
           if(!dismissed)throw Error('Bottom update dismissal was not retained');
         }
