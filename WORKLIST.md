@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 28 October — update notice moved clear of bottom navigator
+
+Current installer/ZIP: **preview-88fe259**, source **88fe259**, **463 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+- User clarified that the bottom belongs to AniDeck's navigator. Replaced the full-width bottom bar with a compact upper-right release notice, in its own slim reserved row above page content. Bottom navigator positioning is unchanged. View update/dismiss, per-version persistence, suppressed automatic popup after dismissal, About access and playback/dialog hiding remain.
+- Packaged geometry checks at actual 1360/360px deliberately reveal the real navigator and confirm the notice clears it and page content, stays upper-right/in bounds, fits its actions, opens the existing prompt and retains dismissal. Screenshots reviewed in `outputs/top-update-final/`. Forced 360px Settings content is still cramped; only notice/navigator clearance is asserted. No public release/tag or real account/list/browser action was created by verification.
+- Earlier bottom-bar checkpoint below is superseded. Live release acceptance, Tokyo Revengers progress-update acceptance, ordinary AniList save after cooldown, Kitsu and other physical/device acceptance remain pending. Gio and physical Mac remain deferred.
+
+
 ## 28 October — bottom update reminder
 
 Current installer/ZIP: **preview-15f71f0**, source **15f71f0**, **463 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
