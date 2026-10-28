@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 28 October — resumed: Tokyo Revengers counts match; adapter readback verified
+
+Runtime/installer unchanged: **preview-75882d2**, app source **75882d2**. Current repository validation: **468 tests pass** (two added adapter regressions); the existing installer was originally verified with 466 tests. No runtime edits or rebuild were needed this session.
+
+- Read only the saved local Tokyo Revengers title/progress fields: War of the Three Titans Arc is current, episode 2, no score, not rewatching. User confirmed AniList itself shows Planning / episode 2. The current counts therefore match and there is no newer local progress to import. Progress-only import intentionally preserves AniList's status/score. This confirms the current live count readback, not a newly observed advance from a lower provider count; leave a future natural episode increase as live acceptance rather than manufacturing progress.
+- Added one real-adapter import/readback regression per provider: local Completed/24 vs destination Planning/23 advances to 24, retains Planning and score 9, preserves the local list, omits status/rating write fields, and makes no duplicate write on retry. HTTP fixtures now model omitted AniList fields as unchanged and Kitsu PATCH as attribute merging. The provider counts/ratings in those tests are synthetic; no live tracker mutations were performed.
+- Last-night GitHub checkpoint **93f844b** completed Windows CI [40635665551](https://github.com/Machoist/anideck/actions/runs/40635665551) and Mac CI [40635665556](https://github.com/Machoist/anideck/actions/runs/40635665556) successfully, including Intel and Apple Silicon jobs. Physical Mac remains deferred. Those results describe 93f844b/466 tests, not the new test/doc checkpoint.
+- Installed archive metadata reports preview-88fe259; the saved latest installer remains preview-75882d2 (newer card/logging fixes). A portable running copy may differ; no app was installed or replaced here. Existing readme-preview.html remains untouched.
+- Next: second-device recovery/profile acceptance if a second device is available; normal AniList add/progress save after cooldown, Kitsu live sign-in/import, Jellyfin/TV and OS alert checks remain pending. Gio and physical Mac remain deferred. Release workflow is implemented; future actual public-release acceptance remains pending.
+
+
 ## 28 October — saved for the night; Home preview and logging fix
 
 Final installer/portable: **preview-75882d2**, app source **75882d2**, **466 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and exact installer/portable runtime equality pass. Updated source snapshot includes this worklist after the documentation checkpoint commit.
@@ -134,7 +145,7 @@ Evaluation: useful for bounded supervised tasks; independent accuracy has not be
 
 ## Next, in order
 
-1. **User-confirmed AniList import:** title/status/progress/score match in AniList; local copy retained intentionally. New rate-limit fix `preview-f046d54` needs a normal real-account add/progress retry after cooldown (do not intentionally flood AniList). Existing-entry preservation, duplicate prevention and rewatch have fixtures; extra live edge-case acceptance and Kitsu live sign-in/import remain pending. No live provider mutation was performed by automated verification.
+1. **AniList current import readback confirmed:** original title/status/progress/score import was user-confirmed; on resume, local Tokyo Revengers and AniList both have episode 2, with AniList Planning preserved intentionally. No newer count currently exists to import. Two added real-adapter fixtures verify newer-progress writes and unchanged status/score for AniList/Kitsu. Future natural live advancement, ordinary AniList save after cooldown and Kitsu live sign-in/import remain pending. Never fabricate watched progress for testing.
 2. Test recovery-key sign-in and profile presentation on a physical second device; verify private Jellyfin playback and isolation from anime discovery and Social.
 3. Test physical TV picture, sound, captions, codecs, LAN connectivity and recovery during media playback. Same-tab refresh, pairing retention, centered wordmark and pairing-code lifecycle pass packaged checks; media decoding remains simulated in protocol tests.
 4. Verify real OS desktop alerts and two-account request/accept/decline, No messages and notification timing. Backend permission tests and UI bindings pass in isolation.
