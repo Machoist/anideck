@@ -209,6 +209,37 @@ function createWindow() {
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const releaseWindowSize=win.getContentSize(),releaseMinimum=win.getMinimumSize();
+        win.setMinimumSize(320,400);
+        await win.webContents.executeJavaScript(`(()=>{globalThis.releasePreviewBackup={update:App.update,open:App.openRelease,params:App.params,presented:ReleaseNotice.presented,latest:ReleaseNotice.latest};globalThis.releasePreviewOpens=0;App.openRelease=async()=>{releasePreviewOpens++;return true;};})()`);
+        for(const width of [1360,360]){
+          win.setContentSize(width,860);
+          const releaseUI=await win.webContents.executeJavaScript(`(async()=>{
+            const sample={state:'available',currentVersion:'1.0.0',version:'1.1.0',url:'https://github.com/Machoist/anideck/releases/tag/v1.1.0',autoCheck:false};
+            App.closeModal();App.applyUpdate(sample);
+            const player=document.querySelector('#player');player.hidden=false;const deferred=await ReleaseNotice.show(sample,{force:true})===false;player.hidden=true;
+            await ReleaseNotice.show(sample,{force:true});
+            const card=document.querySelector('#modal-card').getBoundingClientRect(),later=document.querySelector('#release-later').getBoundingClientRect(),view=document.querySelector('#release-view').getBoundingClientRect();
+            return {width:innerWidth,deferred,contained:card.left>=0&&card.right<=innerWidth,buttonsFit:later.right<=view.left&&view.right<=card.right,manualCopy:document.querySelector('#modal-card').textContent.includes('GitHub'),noAutomaticOpen:releasePreviewOpens===0};
+          })()`);
+          if(releaseUI.width!==width||Object.entries(releaseUI).some(([key,value])=>key!=='width'&&value!==true))throw Error('Release prompt layout failed: '+JSON.stringify(releaseUI));
+          console.log('AniDeck release prompt UI: '+JSON.stringify(releaseUI));
+          await new Promise(resolve=>setTimeout(resolve,250));
+          fs.writeFileSync(path.join(visualDir,'AniDeck-release-prompt-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+          await win.webContents.executeJavaScript("document.querySelector('#release-later').click();");
+        }
+        win.setMinimumSize(...releaseMinimum);win.setContentSize(...releaseWindowSize);
+        const releaseAbout=await win.webContents.executeJavaScript(`(async()=>{
+          const sample={state:'available',currentVersion:'1.0.0',version:'1.1.0',url:'https://github.com/Machoist/anideck/releases/tag/v1.1.0',autoCheck:false};
+          await ReleaseNotice.show(sample,{force:true});await document.querySelector('#release-view').onclick();
+          App.params={section:'About'};document.querySelector('#main').innerHTML=await Views.settings();Views.settingsAfter();App.applyUpdate(sample);
+          return {manualCheck:!!document.querySelector('#upd-check'),viewRelease:!document.querySelector('#upd-release').hidden,openedOnlyOnClick:releasePreviewOpens===1,closedAfterOpen:document.querySelector('#modal').hidden};
+        })()`);
+        if(Object.values(releaseAbout).some(value=>value!==true))throw Error('Release About controls failed: '+JSON.stringify(releaseAbout));
+        console.log('AniDeck release About controls: '+JSON.stringify(releaseAbout));
+        await new Promise(resolve=>setTimeout(resolve,250));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-release-about.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript(`(async()=>{clearTimeout(ReleaseNotice.timer);ReleaseNotice.presented=releasePreviewBackup.presented;ReleaseNotice.latest=releasePreviewBackup.latest;App.openRelease=releasePreviewBackup.open;App.params=releasePreviewBackup.params;App.applyUpdate(releasePreviewBackup.update);await window.native.set('releaseNoticeVersion',null);delete globalThis.releasePreviewBackup;delete globalThis.releasePreviewOpens;})()`);
         const logoWindowSize=win.getContentSize(),logoMinimum=win.getMinimumSize();
         win.setMinimumSize(320,400);
         for(const [width,title] of [[1360,'JUJUTSU KAISEN Season 2'],[640,'JUJUTSU KAISEN Season 2'],[1360,'Frieren: Beyond Journey’s End Season 2'],[640,'ONE PIECE']]){
@@ -579,36 +610,29 @@ ipcMain.handle('artifact:save', async (event, artifact) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 
-// ---------- auto-updates (GitHub Releases) ----------
-let updateState = { state: 'idle' };
-function sendUpdate(state) {
-  updateState = state;
-  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('update:status', state);
+// ---------- release notifications (GitHub, manual installation) ----------
+let updateState={state:'idle'},releaseChecker=null;
+const updateMode=()=>({packaged:app.isPackaged,channel:readJson(CONFIG_FILE,{}).testBuild||require('./package.json').testBuild?'test':app.isPackaged?'release':'development',autoCheck:app.isPackaged&&!smokeTest&&!readJson(CONFIG_FILE,{}).testBuild&&!require('./package.json').testBuild});
+function sendUpdate(state){updateState={...state,...updateMode()};for(const w of BrowserWindow.getAllWindows())w.webContents.send('update:status',updateState);}
+function getReleaseChecker(){
+ if(!releaseChecker)releaseChecker=require('./src/release-check.cjs').createReleaseChecker({version:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),onState:sendUpdate});
+ return releaseChecker;
 }
-let autoUpdater = null;
-function setupUpdater() {
-  if (!app.isPackaged) return; // only installed copies update themselves
-  if (readJson(CONFIG_FILE, {}).testBuild || readJson(path.join(__dirname,'package.json'),{}).testBuild) { updateState = { state: 'test' }; return; } // test installers never auto-update
-  try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('checking-for-update', () => sendUpdate({ state: 'checking' }));
-  autoUpdater.on('update-available', (i) => sendUpdate({ state: 'downloading', version: i.version, percent: 0 }));
-  autoUpdater.on('update-not-available', () => sendUpdate({ state: 'latest' }));
-  autoUpdater.on('download-progress', (p) => sendUpdate({ ...updateState, state: 'downloading', percent: Math.round(p.percent) }));
-  autoUpdater.on('update-downloaded', (i) => sendUpdate({ state: 'ready', version: i.version }));
-  autoUpdater.on('error', (e) => sendUpdate({ state: 'error', message: e?.message || String(e) }));
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  setTimeout(check, 5000);
-  setInterval(check, 4 * 60 * 60 * 1000);
+function setupUpdater(){
+ const checker=getReleaseChecker();sendUpdate(checker.snapshot());
+ if(!updateMode().autoCheck)return;
+ setTimeout(()=>checker.check(),5000).unref();
+ setInterval(()=>checker.check(),4*60*60*1000).unref();
 }
-ipcMain.handle('update:state', () => ({ ...updateState, packaged: app.isPackaged }));
-ipcMain.handle('update:check', async () => {
-  if (!autoUpdater) return { ...updateState,state:updateState.state==='test'?'test':'unavailable',packaged:app.isPackaged };
-  try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpdate({ state: 'error', message: e.message }); }
-  return updateState;
-});
-ipcMain.handle('update:install', () => { if (autoUpdater && updateState.state === 'ready') autoUpdater.quitAndInstall(true, true); });
+ipcMain.handle('update:state',()=>({...getReleaseChecker().snapshot(),...updateMode()}));
+ipcMain.handle('update:check',async()=>({...await getReleaseChecker().check({force:true}),...updateMode()}));
+async function openCurrentRelease(){
+ const state=getReleaseChecker().snapshot();if(state.state!=='available'||!state.url)return false;
+ await shell.openExternal(state.url);return true;
+}
+ipcMain.handle('update:open',openCurrentRelease);
+// Keep the bridge name compatible; older renderers can only open release notes now.
+ipcMain.handle('update:install',openCurrentRelease);
 
 // ---------- Streaming ----------
 const StreamResolver = require('./src/streamResolver.js');

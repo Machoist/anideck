@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('native', {
   setFullscreen: (on) => ipcRenderer.invoke('win:fullscreen', on),
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
+  openRelease: () => ipcRenderer.invoke('update:open'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
   onUpdate: (cb) => ipcRenderer.on('update:status', (_e, s) => cb(s)),
 

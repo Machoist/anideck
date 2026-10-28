@@ -11,3 +11,5 @@ Read before changing the affected product behavior. These are existing requireme
 - Home/Back controls belong to the page and scroll away naturally. Preserve responsive layouts, contained opaque shuffle cards, matching shuffle/reveal dimensions and reduced-motion behavior.
 - TV branding uses the centered wordmark. Same-tab refresh must preserve valid pairing; closed pairing must not regenerate a code simply on refresh. Keep lifecycle/security checks intact.
 - Preserve the compatibility app ID and existing settings/session storage names. Do not rename them as cosmetic cleanup.
+
+- Release notifications check public stable GitHub releases and link to the exact AniDeck release page for manual installation. No unattended downloads or installs. Test/development builds check only on request; prompts defer during playback/dialogs/setup and are shown once per version.

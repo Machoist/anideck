@@ -509,19 +509,22 @@ const App = {
 
   /* ---------------- updates ---------------- */
   update: { state: 'idle' },
+  applyUpdate(s) {
+    this.update=s;
+    const banner=$('#update-banner');
+    if(banner){banner.hidden=s.state!=='available';banner.disabled=false;if(!banner.hidden)banner.innerHTML=`<b>New release available</b><span>v${esc(s.version)} · View on GitHub</span>`;}
+    const status=$('#upd-status');if(status)status.textContent=updateText(s);
+    const release=$('#upd-release');if(release){release.hidden=s.state!=='available';const version=release.querySelector('b');if(version)version.textContent='View release'+(s.version?' v'+s.version:'');}
+    if(typeof ReleaseNotice!=='undefined')ReleaseNotice.receive(s);
+  },
+  async openRelease(){
+    try{const opened=await window.native.openRelease();if(!opened)toast('Check for a newer release first.');return opened;}
+    catch{toast('Couldn’t open GitHub. Please try again.','bad');return false;}
+  },
   async bindUpdates() {
-    const apply = (s) => {
-      this.update = s;
-      const b = $('#update-banner');
-      if (s.state === 'ready') { b.hidden = false; b.innerHTML = `<b>Update ready</b><span>v${esc(s.version)} · Restart to install</span>`; b.disabled = false; }
-      else if (s.state === 'downloading') { b.hidden = false; b.innerHTML = `<b>Downloading update</b><span>v${esc(s.version || '')} · ${s.percent || 0}%</span>`; b.disabled = true; }
-      else b.hidden = true;
-      const st = $('#upd-status');
-      if (st) st.textContent = updateText(s);
-    };
-    $('#update-banner').onclick = () => { if (this.update.state === 'ready') window.native.installUpdate(); };
-    window.native.onUpdate(apply);
-    apply(await window.native.updateState());
+    $('#update-banner').onclick=()=>this.openRelease();
+    window.native.onUpdate(s=>this.applyUpdate(s));
+    this.applyUpdate(await window.native.updateState());
   },
 
   updateWho() {
@@ -3196,16 +3199,13 @@ function homeShelf(html, id) {
 }
 
 function updateText(s) {
-  const tb = s?.testBuild||App.config?.testBuild;
-  if(tb||s?.state==='test')return 'Install newer test builds manually. Automatic updates are off.';
-  switch (s?.state) {
-    case 'checking': return 'Checking for updates…';
-    case 'downloading': return `Downloading v${s.version || ''} (${s.percent || 0}%)`;
-    case 'ready': return `v${s.version} is ready. Restart to install.`;
-    case 'latest': return 'You’re on the latest version.';
-    case 'error': return `Update check failed: ${s.message || 'unknown error'}`;
-    case 'unavailable': return s?.packaged===false?'Development build · install a release to use automatic updates.':'Automatic updates aren’t available in this build.';
-    default: return s?.packaged === false ? 'Updates only work in the installed app.' : 'Checks for updates automatically.';
+  switch(s?.state){
+    case 'checking':return 'Checking GitHub for a newer release…';
+    case 'available':return `Version ${s.version} is available. View the release notes and downloads on GitHub.`;
+    case 'latest':return 'No newer public release was found.';
+    case 'unpublished':return 'No public release is available yet.';
+    case 'error':return s.message||'Couldn’t check GitHub. Try again later.';
+    default:return (s?.state==='test'||s?.channel==='test'||s?.testBuild||App.config?.testBuild)?'Test builds install manually. Automatic updates are off. Check GitHub for public releases.':s?.packaged===false?'Development build · check public releases manually.':'Checks GitHub automatically. Choose when to download and install.';
   }
 }
 
@@ -5015,8 +5015,8 @@ const Views = {
 
       <div class="set-card"><h3>About</h3>
         <div class="about-build"><img src="brand/mark.svg" alt="" aria-hidden="true"><div><b>AniDeck</b><p>Version ${esc(version)} <span class="about-channel">${cfg.testBuild?'Test build':App.update?.packaged===false?'Development':'Release build'}</span></p>${cfg.testBuild?`<small>Build ${esc(cfg.testBuild)}</small>`:''}</div></div>
-        ${cfg.testBuild?`<div class="about-row about-update-info">${icon('info')}<div class="grow"><b>Test-build updates</b><div class="desc" id="upd-status">${esc(updateText({...App.update,testBuild:cfg.testBuild}))}</div></div></div>`:`<button class="about-row" id="upd-check">${icon('refresh')}<div class="grow"><b>Check for updates</b><div class="desc" id="upd-status">${esc(updateText(App.update))}</div></div>${icon('chev')}</button>`}
-        ${App.update.state === 'ready' ? `<button class="about-row" id="upd-install">${icon('download')}<div class="grow"><b>Update ready</b><div class="desc">Restart to install v${esc(App.update.version || '')}</div></div>${icon('chev')}</button>` : ''}
+        <button class="about-row" id="upd-check">${icon('refresh')}<div class="grow"><b>Check for releases</b><div class="desc" id="upd-status">${esc(updateText(App.update))}</div></div>${icon('chev')}</button>
+        <button class="about-row" id="upd-release" ${App.update.state==='available'?'':'hidden'}>${icon('external')}<div class="grow"><b>View release${App.update.version?' v'+esc(App.update.version):''}</b><div class="desc">Read what’s changed and choose a download on GitHub</div></div>${icon('chev')}</button>
         <button class="about-row" id="wn-open">${icon('spark')}<div class="grow"><b>What’s new</b><div class="desc">Changes in version ${esc(version)}</div></div>${icon('chev')}</button>
         <button class="about-row" data-act="systemChecks">${icon('checkCircle')}<div class="grow"><b>System checks</b><div class="desc">Check saving, catalogs and account connections. Copy a report if something needs attention.</div></div>${icon('chev')}</button>
         <button class="about-row support-row" data-act="link" data-url="${esc(koFiUrl)}" ${koFiUrl ? '' : 'disabled'}>${icon('heart')}<div class="grow"><b>Support AniDeck on Ko-fi</b><div class="desc">${koFiUrl ? 'Help keep AniDeck growing. Thank you for your support.' : 'Support link coming soon'}</div></div>${icon('external')}</button>
@@ -5093,11 +5093,11 @@ const Views = {
     $('#wn-open').onclick = () => showWhatsNew();
     if($('#upd-check'))$('#upd-check').onclick=async()=>{
       const button=$('#upd-check'),status=$('#upd-status');button.disabled=true;status.textContent='Checking for updates…';
-      try{const state=await window.native.checkUpdate();if(status.isConnected)status.textContent=updateText(state);}
+      try{const state=await window.native.checkUpdate();App.applyUpdate(state);if(state.state==='available'&&typeof ReleaseNotice!=='undefined')await ReleaseNotice.show(state,{force:true});}
       catch(error){if(status.isConnected)status.textContent='Update check failed: '+error.message;}
       finally{if(button.isConnected)button.disabled=false;}
     };
-    if ($('#upd-install')) $('#upd-install').onclick = () => window.native.installUpdate();
+    if ($('#upd-release')) $('#upd-release').onclick = () => App.openRelease();
     const valid = (u) => !u || /^https:\/\/(canary\.|ptb\.)?(discord\.com|discordapp\.com)\/api\/webhooks\//.test(u);
     if ($('#hook-save')) $('#hook-save').onclick = async () => {
       const u = $('#hook').value.trim();

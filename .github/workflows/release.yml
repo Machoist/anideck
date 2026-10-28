@@ -1,6 +1,6 @@
 # Builds the Windows installer and publishes it as a GitHub Release.
 # Trigger: push a tag like v1.1.0  (git tag v1.1.0 && git push origin v1.1.0)
-# Installed copies of AniDeck pick the new release up automatically.
+# Installed copies notify users and link to GitHub for manual installation.
 name: Release
 
 on:
