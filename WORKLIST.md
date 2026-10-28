@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 28 October — Discussion deployed; resume AnimePahe verification test
+
+User reported Windows signed out and requested a save check. Current Windows installer/portable remain **preview-dea6a98**, runtime source **dea6a98**, **487 tests pass**. Installer, portable ZIP and source snapshot are saved under outputs/. No app source edits since that build.
+
+- User authorized the next steps after being told the prepared Discussion deployment needed approval. Rechecked five backend tests and Wrangler dry-run with existing DB binding; deployed Worker **a9472ad3-69b5-4552-8733-f2d2a02d4688**. Live GET /v1/health returned 200 with discussion-topics. Unauthenticated GET /v1/discussion/al:1?topics=1 returned 401. No migration, account writes or synthetic public comments. Deployment log: work/discussion-topics-deploy.log.
+- User reported no AnimePahe verification window. Read installed public package metadata: preview-dea6a98 contains waitForProviderVerification and show/focus code, so this was not an old installed archive. No running AniDeck process was found at the diagnostic check. Still pending the exact current error text and reproduction. A possible lifecycle gap is awaiting hidden loadURL before showing the challenge window; this has not been confirmed or changed. Do not claim AnimePahe playback works. No live CAPTCHA was solved.
+- A clarification was pending: does AnimePahe still say browser verification is required, show a different error, or stay loading? User then reported the computer signed out. Resume from that symptom after reopening the app; do not duplicate the completed Worker deployment. Jikan live availability and other previously listed live/device checks remain pending; Gio and physical Mac stay deferred.
+
 ## 28 October — consistent titles, Discussion refresh, fuller synopses and coherent review cards
 
 Current installer/portable: **preview-dea6a98**, runtime source **dea6a98** (also c6569b3), **487 tests pass**. Package audit, full isolated native checks, ZIP integrity and exact installer/portable runtime equality pass. Screenshots reviewed in outputs/title-format-final/; all activity/posts are fixtures, not live account writes.
