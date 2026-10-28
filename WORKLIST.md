@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 28 October — verification window shown before navigation; ready for live retry
+
+Current installer/portable: **preview-537c6ad**, runtime source **537c6ad**, **489 tests pass**. Package audit, isolated packaged startup/readiness, ZIP integrity and installer/portable runtime equality pass. Earlier title/review/discussion UI assets remain unchanged and audited against source.
+
+- Resumed AnimePahe verification. Added a regression with unresolved loadURL: old implementation failed because it did not show/focus until after hidden navigation. Foreground browser fallback now shows and focuses before starting navigation; it starts verification polling without awaiting loadURL. Background prefetch is explicitly non-interactive and cannot open a verification window. Eight provider tests pass, including cancellation/mirror retry prevention.
+- Added scripts/native-provider-check.cjs: actual Electron, separate temporary profile and local HTTP provider fixture with delayed image loading. Confirms native shown/focused, shown before navigation and closed after success. Native interactive launcher must use windowsHide=false; Windows suppressed the first ShowWindow when the test launcher used windowsHide=true. Initial harness iterations timed out/failed visibility and were corrected; final native check passed. No real CAPTCHA was loaded or solved. Log: work/provider-window-native.log; screenshot: outputs/AnimePahe-verification-fixture.png.
+- Installed preview-dea6a98 was not replaced. User must install the new test build to try actual AnimePahe verification/playback. Do not claim live playback success yet. No live account/list/media progress was changed.
+- Rechecked deployed Discussion: health 200 advertises discussion-topics, unauthenticated topic list returns 401. Worker remains a9472ad3-69b5-4552-8733-f2d2a02d4688; no duplicate deployment/migration.
+- Next: user tries AnimePahe in preview-537c6ad, then live synopsis fallback when Jikan is reachable. Other acceptance backlog unchanged; Gio and physical Mac stay deferred. No public release/tag, and new checkpoint CI not yet inspected. Preserve readme-preview.html and Desktop/anitrack runtime cache.
+
 ## 28 October — Discussion deployed; resume AnimePahe verification test
 
 User reported Windows signed out and requested a save check. Current Windows installer/portable remain **preview-dea6a98**, runtime source **dea6a98**, **487 tests pass**. Installer, portable ZIP and source snapshot are saved under outputs/. No app source edits since that build.
