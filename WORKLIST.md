@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 27 October — newer local progress review and readable queue
+
+Current Windows installer/ZIP: **preview-fc6e214**, source **fc6e214**, **440 tests pass**. Package audit, packaged native fixture/startup/Social/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass. Source snapshot refreshed. Queue and import screenshots reviewed in `outputs/import-progress-final/`.
+
+- Queue items now have dark surfaces in ordinary/hover/selected states, brighter 12px semibold episode labels and a dark queue heading, so bright hero artwork cannot wash out the episode text.
+- Local import now reviews existing titles with higher local progress as optional, unchecked updates. Rows show the destination → local episode counts; selection is required before applying changes. Only matching status/rewatch state qualifies. Fresh destination checks at execution and adapter write boundaries skip missing/changed/incompatible or already-ahead entries; updates send only progress and preserve destination status/rating. The local copy remains unchanged. This is a reviewed one-time update, not automatic synchronization.
+- Provider fixtures and native opt-in controls pass; the user's earlier live AniList add-import status/progress/score were confirmed. **Live acceptance of the new existing-title progress update remains pending**, along with Kitsu live import. No real tracker/profile/message writes were made by verification. A provider can still change between the final read and write; these APIs do not supply an atomic compare-and-set in this flow.
+- Release notification remains next/planned. Real-account rate-limit retest, other physical/device checks and public release acceptance remain on the worklist. Gio and physical Mac stay deferred.
+
+
 ## 27 October — AniList rate-limit handling fixed
 
 Current Windows installer/ZIP: **preview-f046d54**, source **f046d54**, **438 tests pass**. Package audit, full packaged fixture/startup/Social/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed. User reported repeated “Couldn’t load your list entry: Too Many Requests” while adding a title/updating progress.
