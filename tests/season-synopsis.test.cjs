@@ -42,3 +42,7 @@ test('real synopsis skips fallback requests; missing or mismatched mappings neve
  assert.equal((await helper.resolve('42','A short real plot.','')).text,'A short real plot.');assert.equal(calls,0);assert.equal((await helper.resolve('42','','')).text,'');assert.equal(calls,0);
  ctx.Kitsu.externalIds=async()=>({mal:123});assert.equal((await helper.resolve('42','Second season of Example.','')).text,'Second season of Example.');assert.equal(helper.cache.size,0);
 });
+
+test('unmapped titles do not display an indefinite synopsis loading state',()=>{
+ const src=read('app.js'),start=src.indexOf('function titleStoryMarkup('),end=src.indexOf('async function enrichTitleStory(',start),render=vm.runInNewContext(src.slice(start,end)+';titleStoryMarkup',{TitleSynopsis:api,esc:s=>String(s)});assert(!render(null,'Second season of Example.').includes('Looking for'));assert(render('42','Second season of Example.').includes('Looking for'));
+});

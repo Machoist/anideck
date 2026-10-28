@@ -2620,7 +2620,7 @@ function trimLogo(src) {
 }
 function titleStoryMarkup(id,primary,alternate=''){
  const text=TitleSynopsis.choose(primary,alternate),stub=TitleSynopsis.isStub(text);
- return `<section id="title-story" data-id="${esc(id||'')}" data-primary="${esc(primary||'')}" data-alternate="${esc(alternate||'')}"><h3>About</h3><div class="about-wrap ${!stub&&text.length>320?'clamped':''}"><p class="about">${esc(stub?'Looking for a fuller synopsis…':text)}</p>${!stub&&text.length>320?'<button class="about-more" data-act="aboutToggle">Show more</button>':''}</div></section>`;
+ return `<section id="title-story" data-id="${esc(id||'')}" data-primary="${esc(primary||'')}" data-alternate="${esc(alternate||'')}"><h3>About</h3><div class="about-wrap ${!stub&&text.length>320?'clamped':''}"><p class="about">${esc(stub?(id?'Looking for a fuller synopsis…':'A full synopsis is not available for this season yet.'):text)}</p>${!stub&&text.length>320?'<button class="about-more" data-act="aboutToggle">Show more</button>':''}</div></section>`;
 }
 async function enrichTitleStory(rid){
  const panel=document.getElementById('title-story');if(!panel?.dataset.id)return;const {id,primary,alternate}=panel.dataset;
