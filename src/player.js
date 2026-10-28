@@ -353,7 +353,7 @@ const Player = {
     const s = stream || await this.resolveRemote(server, episode);
     if (loadSeq !== this.loadSeq || this.ctx.episode !== episode || this.server !== server || this.el.hidden) return; // superseded or closed while resolving
     if (s.provider && s.provider !== server) { // the resolver fell back to another site
-      this.osd(`${this.serverName(server)} had nothing, playing on ${this.serverName(s.provider)}`);
+      this.osd(`Playing on ${this.serverName(s.provider)}`);
       this.server = s.provider;
       this.buildServerMenu();
     }
@@ -814,7 +814,7 @@ const Player = {
 
     // Receiver progress drives the same tracking, skip and next-episode controls as local playback.
     if (!this.tracked && d && t / d >= App.settings.threshold) { this.tracked = true; this.markWatched(); }
-    if (this.remote && d > 120 && t > 15 && (!this.preloadKey || d - t <= 90)) this.preloadNextEpisode();
+    if (this.remote && d > 120 && t > 15 && d - t <= 90) this.preloadNextEpisode();
     const upNext = this.updateUpNext(t, d);
     if(!this.segments.length&&!this.segmentPending&&d>0&&this.segmentDuration!==Math.round(d))this.loadSegments();
     const seg = this.activeSegment();

@@ -106,7 +106,7 @@ function parseProviderJson(value, url) {
 }
 
 class StreamResolver {
-  constructor() { this.prefetchedStreams = new Map(); this.activeTasks = new Set(); this.pendingStreams = new Map(); }
+  constructor() { this.interactive = false; this.providerCooldowns = new Map(); this.prefetchedStreams = new Map(); this.activeTasks = new Set(); this.pendingStreams = new Map(); }
 
   init() {
     ensureStreamHeaderHook();
@@ -134,7 +134,7 @@ class StreamResolver {
     const controller = new AbortController();
     const worker = Object.create(this);
     worker.signal = controller.signal;
-    worker.interactive = params.prefetch !== true;
+    worker.interactive = false; // Playback and prefetch must never open a verification prompt.
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
@@ -196,16 +196,26 @@ class StreamResolver {
     if (!title) throw new Error('Missing anime title');
     console.log(`[StreamResolver] Resolving "${title}" Ep ${episodeNum} (${audio}) via ${provider}`);
 
-    let res;
+    let res, resolvedProvider=provider;
     if (provider === 'anikoto') res = await this.resolveAnikoto(title, episodeNum, audio, params);
     else if (provider === 'aniwatch') res = await this.resolveAniWatch(title, episodeNum, audio, params);
-    else if (provider === 'animepahe') res = await this.resolveAnimePahe(title, episodeNum, audio);
+    else if (provider === 'animepahe') {
+      try{
+        if((this.providerCooldowns.get(provider)||0)>Date.now()){const error=Error('Source is temporarily unavailable');error.code='PROVIDER_COOLDOWN';throw error;}
+        res=await this.resolveAnimePahe(title,episodeNum,audio);
+      }catch(error){
+        this.signal?.throwIfAborted();if(error.name==='AbortError')throw error;
+        if(error.code!=='PROVIDER_COOLDOWN')this.providerCooldowns.set(provider,Date.now()+(error.code==='PROVIDER_VERIFICATION_REQUIRED'?300000:60000));
+        try{res=await this.resolveAnikoto(title,episodeNum,audio,params);resolvedProvider='anikoto';}
+        catch(alternate){this.signal?.throwIfAborted();if(alternate.name==='AbortError')throw alternate;const unavailable=Error('No compatible stream is available for this episode right now. Try again shortly or select another server.');unavailable.code='SOURCE_UNAVAILABLE';throw unavailable;}
+      }
+    }
     else if (provider === 'anipm') throw new Error('Ani.pm is unavailable: its playback integration has not been implemented. Choose Anikoto or AnimePahe.');
     else throw new Error('Unsupported streaming provider: ' + provider);
     if (!res?.streamUrl) throw new Error('No playable stream found on ' + provider);
     this.signal?.throwIfAborted();
     if (res.headers && !params.prefetch) dynamicStreamHeaders.set(new URL(res.streamUrl).hostname, res.headers);
-    return { ...res, provider };
+    return { ...res, provider:resolvedProvider };
   }
 
   // Add specific Anikoto resolution function
@@ -571,7 +581,7 @@ class StreamResolver {
         return await this.sniffUrlInHiddenWindow(kwikUrl, base);
       } catch (err) {
         this.signal?.throwIfAborted();
-        if(err.code==='PROVIDER_VERIFICATION_CANCELLED')throw err;
+        if(['PROVIDER_VERIFICATION_CANCELLED','PROVIDER_VERIFICATION_REQUIRED'].includes(err.code))throw err;
         console.warn(`[StreamResolver] AnimePahe failed with ${base}:`, err.message);
         lastError = err;
         // Continue to next domain

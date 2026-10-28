@@ -29,3 +29,7 @@ test('TV up-next and end handling advance on auto-next, with cancellation respec
 test('Jellyfin TV progress reports receiver time and pause state rather than the dormant PC video',()=>{
  const f=setup();f.player.item={Id:'local-ep'};f.player.casting.time=250;f.player.casting.paused=false;f.player.report('progress');assert.equal(f.reports[0][1].PositionTicks,2500000000);assert.equal(f.reports[0][1].IsPaused,false);
 });
+
+test('next-episode preloading waits until near the end instead of competing with playback startup',()=>{
+ const {player}=setup();player.remote=true;player.tracked=true;let calls=0;player.preloadNextEpisode=()=>calls++;player.casting.time=20;player.tick();assert.equal(calls,0);player.casting.time=1320;player.tick();assert.equal(calls,1);
+});

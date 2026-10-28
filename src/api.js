@@ -35,7 +35,7 @@ const ICON_PATHS = {
   // Use icon(name, 'fill') for the solid ones (bookmark, play, caret)
   bookmark: '<path d="M6.5 4.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16L12 16.5l-5.5 4z"/>',
   // AniDeck's deck mark: two stacked cards, the front one lightly filled (decks, pinned decks, "Add to Deck").
-  deck: '<rect x="3.5" y="6" width="11" height="14.5" rx="2.6" transform="rotate(-9 9 13.25)"/><rect x="9" y="3.5" width="11.5" height="15" rx="2.6" fill="currentColor" fill-opacity=".2"/>',
+  deck: '<defs><mask id="deck-cut-__ICON_ID__" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><path d="M0 0h24v24H0z" fill="white" stroke="none"/><path d="M11.6 3.5h6.3a2.6 2.6 0 0 1 2.6 2.6v9.8a2.6 2.6 0 0 1-2.6 2.6h-6.3A2.6 2.6 0 0 1 9 15.9V6.1a2.6 2.6 0 0 1 2.6-2.6Z" fill="black" stroke="black" stroke-width="2"/></mask></defs><rect x="3.5" y="6" width="11" height="14.5" rx="2.6" transform="rotate(-9 9 13.25)" mask="url(#deck-cut-__ICON_ID__)"/><rect x="9" y="3.5" width="11.5" height="15" rx="2.6" fill="currentColor" fill-opacity=".2"/>',
   bookmarkCheck: '<path d="M13 3.5H7.5a1 1 0 0 0-1 1v16l5.5-4 5.5 4V11"/><path d="m14.5 6 2 2 3.5-4"/>',
   pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   play: '<path d="M7.5 5.2v13.6a.8.8 0 0 0 1.2.7l11-6.8a.8.8 0 0 0 0-1.4l-11-6.8a.8.8 0 0 0-1.2.7z"/>',
@@ -63,7 +63,8 @@ const ICON_PATHS = {
   grip: '<circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>',
   signin: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H4"/>',
 };
-const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
+let iconSerial=0;
+const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${(ICON_PATHS[name] || '').replaceAll('__ICON_ID__',String(++iconSerial))}</svg>`;
 let APP_VERSION = '1.0.0'; // replaced with the real version at startup
 let KITSU_BASE = 'https://kitsu.app/api'; // overridable via config.json "kitsuBase"
 const TICKS = 10_000_000; // Jellyfin ticks per second

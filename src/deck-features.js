@@ -281,7 +281,7 @@ Object.assign(DeckUI,{
    const glow=(cx,cy,r,col)=>{const rg=x.createRadialGradient(cx,cy,0,cx,cy,r);rg.addColorStop(0,col);rg.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=rg;x.fillRect(0,0,1200,1500);};
    glow(1020,180,620,taste?'rgba(255,120,190,.22)':'rgba(150,120,255,.32)');glow(120,1420,560,taste?'rgba(120,160,255,.18)':'rgba(255,120,190,.14)');
    // the deck mark
-   x.save();x.translate(1000,250);[[-.16,.35],[0,.55],[.14,1]].forEach(([rot,a],i)=>{x.save();x.rotate(rot);x.globalAlpha=a;rr(x,-95+i*10,-130+i*6,190,260,22);x.fillStyle=i===2?'rgba(186,171,255,.18)':'rgba(255,255,255,.03)';x.fill();x.strokeStyle='#baabff';x.lineWidth=3;x.stroke();x.restore();});x.restore();
+   x.save();x.translate(1000,250);[[-.16,.35],[0,.55],[.14,1]].forEach(([rot,a],i)=>{x.save();x.rotate(rot);x.globalAlpha=1;rr(x,-95+i*10,-130+i*6,190,260,22);x.fillStyle=['#2b2340','#33294c','#40335b'][i];x.fill();x.strokeStyle=`rgba(186,171,255,${a})`;x.lineWidth=3;x.stroke();x.restore();});x.restore();
    x.fillStyle='#c7b8ff';x.font='700 34px system-ui';x.fillText('AniDeck',80,110);
    x.font='700 22px system-ui';const tag=s.label.toUpperCase(),tw=x.measureText(tag).width+40;rr(x,80,140,tw,44,22);x.fillStyle='rgba(199,184,255,.14)';x.fill();x.fillStyle='#d9ceff';x.fillText(tag,100,170);
    x.fillStyle='#f6f2ff';x.font='750 64px system-ui';wrapCanvas(x,s.name,80,280,800,74,2);
