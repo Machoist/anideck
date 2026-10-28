@@ -1,0 +1,18 @@
+/* Real Electron verification-window lifecycle against a local provider fixture. No external site or account. */
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+if(!process.versions.electron){
+ const {spawn}=require('node:child_process'),binary=process.argv[2];if(!binary)throw Error('Usage: node scripts/native-provider-check.cjs path/to/electron.exe [screenshot.png]');
+ // Keep the interactive fixture visible; Windows can suppress the first ShowWindow when launched hidden.
+ const child=spawn(path.resolve(binary),[__filename,...process.argv.slice(3)],{stdio:['ignore','pipe','pipe'],windowsHide:false});let timedOut=false;for(const stream of [child.stdout,child.stderr])stream.on('data',b=>process.stdout.write(b));const timer=setTimeout(()=>{timedOut=true;console.error('Native provider window check timed out');child.kill();process.exitCode=1;},20000);child.on('error',e=>{clearTimeout(timer);console.error(e.message);process.exitCode=1;});child.on('close',code=>{clearTimeout(timer);process.exitCode=!timedOut&&code===0?0:1;});
+}else{
+ const {app,BrowserWindow}=require('electron'),http=require('node:http'),assert=require('node:assert/strict');
+ const profile=fs.mkdtempSync(path.join(os.tmpdir(),'anideck-provider-check-'));app.setPath('userData',profile);app.on('window-all-closed',()=>{});
+ app.whenReady().then(async()=>{let server;try{
+  const Resolver=require('../src/streamResolver'),resolver=new Resolver();let win,shown=false,focused=false,navigationStarted=false,shownBeforeNavigation=false,loadCompleted=false,requestDuringLoad=false;const slow=[];
+  server=http.createServer((req,res)=>{if(req.url==='/slow'){slow.push(res);setTimeout(()=>res.end(),1500);return;}if(req.url==='/api'){requestDuringLoad=!loadCompleted;res.setHeader('content-type','application/json');res.end('{"data":[{"title":"Fixture only"}]}');return;}res.setHeader('content-type','text/html');res.end('<!doctype html><title>Just a moment</title><h1>Local verification fixture</h1><p>This tests window visibility; no real CAPTCHA is loaded.</p><img src="/slow"><script>setTimeout(()=>document.title="Provider ready",800)</script>');});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  resolver.createResolverWindow=options=>{win=new BrowserWindow({...options,webPreferences:{...options.webPreferences,offscreen:false}});const show=win.show.bind(win),focus=win.focus.bind(win),load=win.loadURL.bind(win);win.show=()=>{show();shown=shown||win.isVisible();shownBeforeNavigation=shownBeforeNavigation||!navigationStarted;};win.focus=()=>{focused=true;focus();};win.loadURL=(...args)=>{navigationStarted=true;return load(...args).then(v=>{loadCompleted=true;return v;});};if(process.argv[2])win.webContents.once('dom-ready',()=>{setTimeout(async()=>{if(!win.isDestroyed()){const shot=await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});fs.writeFileSync(path.resolve(process.argv[2]),shot.toPNG());}},100);});return win;};
+  const body=await resolver.fetchViaHiddenBrowser('http://127.0.0.1:'+server.address().port+'/api','',true);assert.equal(JSON.parse(body).data[0].title,'Fixture only');assert(shown&&focused&&shownBeforeNavigation,JSON.stringify({shown,focused,shownBeforeNavigation}));assert(win.isDestroyed());for(const res of slow)res.end();
+  console.log('Native provider window check passed: '+JSON.stringify({shown,focused,shownBeforeNavigation,closedAfterSuccess:win.isDestroyed()}));
+ }catch(error){console.error(error.stack);process.exitCode=1;}finally{server?.closeAllConnections();server?.close();app.exit(process.exitCode||0);}});
+}

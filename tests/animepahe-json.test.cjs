@@ -29,3 +29,15 @@ test('production verification becomes visible, resumes after completion and resp
 test('closing AnimePahe verification stops mirror retries',async()=>{
  const {r}=fixture();let calls=0;r.fetchJsonWithCloudflareBypass=async()=>{calls++;const error=Error('Closed');error.code='PROVIDER_VERIFICATION_CANCELLED';throw error;};await assert.rejects(r.resolveAnimePahe('Example',1,'sub'),e=>e.code==='PROVIDER_VERIFICATION_CANCELLED');assert.equal(calls,1);
 });
+
+test('foreground verification opens before navigation completes',async()=>{
+ const {r,ctx}=fixture();ctx.setTimeout=fn=>fn();let release,shown=0,focused=0,destroyed=false;const loading=new Promise(resolve=>release=resolve);
+ const win={show:()=>shown++,focus:()=>focused++,isDestroyed:()=>destroyed,destroy:()=>destroyed=true,loadURL:()=>loading,webContents:{executeJavaScript:async()=>'{"data":[]}'}};
+ r.createResolverWindow=()=>win;r.waitForProviderVerification=async()=>{};const task=r.fetchViaHiddenBrowser('https://animepahe.pw/api','',true);await new Promise(resolve=>setImmediate(resolve));
+ try{assert.equal(shown,1);assert.equal(focused,1);}finally{release();await task;}
+ assert.equal(destroyed,true);
+});
+
+test('background preloading never opens a verification window',async()=>{
+ const {r}=fixture();r.interactive=false;r.createResolverWindow=()=>{throw Error('Background window must not open')};await assert.rejects(r.fetchViaHiddenBrowser('https://animepahe.pw/api'),e=>e.code==='PROVIDER_VERIFICATION_REQUIRED');
+});

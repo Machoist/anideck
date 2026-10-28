@@ -134,6 +134,7 @@ class StreamResolver {
     const controller = new AbortController();
     const worker = Object.create(this);
     worker.signal = controller.signal;
+    worker.interactive = params.prefetch !== true;
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
@@ -732,10 +733,11 @@ class StreamResolver {
   }
 
   async fetchViaHiddenBrowser(url, referer = '', expectJson = false) {
+    if(this.interactive===false){const error=Error('AnimePahe needs browser verification. Play the episode to complete it, or choose another server.');error.code='PROVIDER_VERIFICATION_REQUIRED';throw error;}
     const origin = new URL(url).origin;
     const partName = 'persist:anishelf-web';
     const win = this.createResolverWindow({
-      show: false, // Keep hidden by default for production
+      show: false, // Shown explicitly before starting provider navigation
       width: 1280,
       height: 720,
       webPreferences: {
@@ -753,21 +755,11 @@ class StreamResolver {
       }
     });
 
-    // For debugging purposes, temporarily show window and add manual solving capability
-    const isDebugMode = process.env.DEBUG_BROWSER === 'true';
-    if (isDebugMode) {
-      win.show();
-      console.warn('[DEBUG] Browser window is now visible for Cloudflare testing');
-
-      // Give user a chance to manually solve Cloudflare challenge
-      console.warn('[DEBUG] Please solve any Cloudflare challenge manually in the browser window');
-      console.warn('[DEBUG] Browser verification is checked for up to 20 seconds; close the player to cancel');
-
-      // Keep verification usable without opening developer tools over the page.
-    }
-
+    // Show before navigation: challenge pages may never finish their initial load.
+    // Only foreground playback reaches here; prefetch must never interrupt the user.
+    win.show();win.focus();
     try {
-      await win.loadURL(origin + '/').catch(() => {});
+      win.loadURL(origin + '/').catch(() => {});
 
       await this.waitForProviderVerification(win);
 
