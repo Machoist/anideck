@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 28 October — attached logo captions and artwork during metadata failures
+
+Current Windows installer/portable: **preview-16eb889**, source **16eb889**, **480 tests pass**. Package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass.
+
+- English names now sit inside the title heading, centered directly beneath artwork with a smaller, lighter caption and controlled 10px gap. They no longer occupy a separate hero grid row. Shared Home, spotlight and detail styling applies to every title. Text fallbacks are sized more modestly.
+- Detail-page logo IDs now survive unavailable AniList metadata using the exact stored Kitsu/AniList crosswalk (or direct al: ID). The heading carries that ID into the after-render loader. No title guessing or account writes. Regression coverage includes a fresh uncached logo load while AniList details return null, caption placement, cached tab rerenders, and Home wide/narrow rendering. Final screenshots reviewed in outputs/logo-lockup-final/.
+- Previous catalog and topic-discussion changes remain included. Prepared discussion Worker deployment still awaits explicit authorization; no deployment/migration/release/tag performed. Live acceptance backlog unchanged: future natural episode advance, normal AniList saves after cooldown, Kitsu, second-device recovery, Jellyfin, physical TV and OS notifications. Gio and physical Mac remain deferred. New checkpoint CI not yet inspected. Preserve untracked readme-preview.html.
+
 ## 28 October — title logo stability, English captions and topic discussions
 
 Current Windows installer/portable: **preview-1d214c0**, app source **1d214c0**, **479 tests pass**. Final package audit, isolated native startup/UI/TV/readiness checks, ZIP integrity and exact installer/portable runtime equality pass. No installed app or production account was modified.
