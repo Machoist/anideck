@@ -246,20 +246,21 @@ function createWindow() {
             App.closeModal();await window.native.set('releaseBarDismissedVersion',null);ReleaseNotice.barDismissed.clear();
             App.applyUpdate({state:'available',currentVersion:'1.0.0',version:'1.1.0',url:'https://github.com/Machoist/anideck/releases/tag/v1.1.0',autoCheck:false});await ReleaseNotice.refreshBar();
             const bar=document.querySelector('#release-bar'),r=bar.getBoundingClientRect(),main=document.querySelector('#main').getBoundingClientRect(),view=document.querySelector('#release-bar-view').getBoundingClientRect(),close=document.querySelector('#release-bar-close').getBoundingClientRect();
-            const visible=!bar.hidden&&getComputedStyle(bar).display!=='none',reserved=main.bottom<=r.top,contained=r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight,actionsFit=view.right<=close.left;
+            const navigator=document.querySelector('#shell .topbar');navigator.classList.add('auto-reveal');const navRect=navigator.getBoundingClientRect(),navigatorClear=r.bottom<=navRect.top;
+            const visible=!bar.hidden&&getComputedStyle(bar).display!=='none',reserved=r.bottom<=main.top,contained=r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight,actionsFit=view.right<=close.left;
             document.querySelector('#player').hidden=false;const hiddenDuringPlayback=getComputedStyle(bar).display==='none';document.querySelector('#player').hidden=true;
             await document.querySelector('#release-bar-view').onclick();const opensPrompt=!document.querySelector('#modal').hidden,hiddenDuringDialog=getComputedStyle(bar).display==='none';App.closeModal();
-            return {width:innerWidth,visible,reserved,contained,actionsFit,hiddenDuringPlayback,opensPrompt,hiddenDuringDialog};
+            return {width:innerWidth,visible,reserved,contained,actionsFit,navigatorClear,upperRight:r.top<30&&(innerWidth<600||r.left>innerWidth/2),hiddenDuringPlayback,opensPrompt,hiddenDuringDialog};
           })()`);
-          if(bottomBar.width!==width||Object.entries(bottomBar).some(([key,value])=>key!=='width'&&value!==true))throw Error('Bottom release bar failed: '+JSON.stringify(bottomBar));
-          console.log('AniDeck bottom release bar: '+JSON.stringify(bottomBar));
+          if(bottomBar.width!==width||Object.entries(bottomBar).some(([key,value])=>key!=='width'&&value!==true))throw Error('Upper-right release notice failed: '+JSON.stringify(bottomBar));
+          console.log('AniDeck upper-right release notice: '+JSON.stringify(bottomBar));
           await new Promise(resolve=>setTimeout(resolve,250));
-          fs.writeFileSync(path.join(visualDir,'AniDeck-bottom-update-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+          fs.writeFileSync(path.join(visualDir,'AniDeck-top-update-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
           const dismissed=await win.webContents.executeJavaScript(`(async()=>{await document.querySelector('#release-bar-close').onclick();await ReleaseNotice.refreshBar();return document.querySelector('#release-bar').hidden&&(await window.native.get('releaseBarDismissedVersion'))==='1.1.0';})()`);
           if(!dismissed)throw Error('Bottom update dismissal was not retained');
         }
         win.setMinimumSize(...barMinimum);win.setContentSize(...barSize);
-        await win.webContents.executeJavaScript("ReleaseNotice.barDismissed.clear();window.native.set('releaseBarDismissedVersion',null);");
+        await win.webContents.executeJavaScript("ReleaseNotice.barDismissed.clear();document.querySelector('#shell .topbar').classList.remove('auto-reveal');window.native.set('releaseBarDismissedVersion',null);");
         await win.webContents.executeJavaScript(`(async()=>{clearTimeout(ReleaseNotice.timer);ReleaseNotice.presented=releasePreviewBackup.presented;ReleaseNotice.latest=releasePreviewBackup.latest;App.openRelease=releasePreviewBackup.open;App.params=releasePreviewBackup.params;App.applyUpdate(releasePreviewBackup.update);await window.native.set('releaseNoticeVersion',null);delete globalThis.releasePreviewBackup;delete globalThis.releasePreviewOpens;})()`);
         const logoWindowSize=win.getContentSize(),logoMinimum=win.getMinimumSize();
         win.setMinimumSize(320,400);
