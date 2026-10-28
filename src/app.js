@@ -2625,7 +2625,9 @@ function showLogo(h1, alId, season) {
   AniZip.get(alId).then(async (z) => {
     if (!z?.logo || !h1.isConnected) return reveal();
     const logo = await trimLogo(z.logo);
-    if (!logo || !h1.isConnected) return reveal();
+    // Portrait wordmarks become tiny vertical strips in a landscape hero.
+    // Keep the readable catalog title rather than stretching or rotating the artwork.
+    if (!logo || !Number.isFinite(logo.ratio) || logo.ratio < 1.1 || !h1.isConnected) return reveal();
     const img = new Image();
     img.className = 'hero-logo'; img.alt = h1.textContent.trim(); img.decoding = 'async';
     // Sized by its shape: wide logos fill the width, squarer ones the height, so none come out tiny.
@@ -2641,7 +2643,7 @@ function showLogo(h1, alId, season) {
     };
     img.onerror = reveal;
     img.src = logo.url;
-  });
+  }).catch(reveal);
 }
 
 // Hovering a title for a moment starts loading what its page needs, so the click opens almost instantly.
