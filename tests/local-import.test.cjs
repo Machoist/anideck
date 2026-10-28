@@ -5,3 +5,14 @@ test('import review performs no writes and preserves existing destination entrie
 test('import rechecks destination before each write and aborts on account changes',async()=>{const f=fixture(),plan=await f.api.plan('anilist',undefined,noWait);f.saved.set('al:1',{status:'completed',progress:100});let result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.kept,1);assert.equal(f.writes.length,0);f.service.userId='different';result=await f.api.run(plan,new Set(['al:2']),noWait);assert.equal(result.stopped,true);assert.equal(f.writes.length,0);});
 test('Kitsu import uses exact ID mappings and exposes unmatched titles instead of guessing',async()=>{const f=fixture();f.ctx.Kitsu={userId:'kitsu',loggedIn:()=>true,entry:async()=>null};f.service.details=async()=>null;f.service.kitsuIdFor=async id=>id==='1'?'101':null;const plan=await f.api.plan('kitsu',undefined,noWait);assert.equal(plan.rows[0].id,'101');assert.equal(plan.rows[1].state,'unmatched');assert.equal(f.writes.length,0);});
 test('retrying a partial import skips successful writes; cancelled reviews do not proceed',async()=>{const f=fixture(),plan=await f.api.plan('anilist',undefined,noWait);await f.api.run(plan,new Set(['al:1']),noWait);const again=await f.api.run(plan,new Set(['al:1','al:2']),noWait);assert.equal(again.kept,1);assert.equal(again.added,1);assert.equal(f.writes.length,2);await assert.rejects(f.api.plan('anilist',undefined,{...noWait,active:()=>false}),/cancelled/);});
+
+test('existing titles offer explicit newer progress without changing ratings or lowering destination progress',async()=>{
+ const f=fixture();f.saved.set('al:1',{status:'current',progress:3,rating:9,reconsuming:false});
+ const plan=await f.api.plan('anilist',undefined,noWait);assert.equal(plan.rows[0].state,'update');assert.match(plan.rows[0].reason,/3.*4/);
+ let result=await f.api.run(plan,new Set(),noWait);assert.equal(result.updated,0);assert.equal(f.writes.length,0);
+ f.service.saveEntry=async(id,v)=>{assert.equal(v.progressOnly,true);assert.equal(v.rating,undefined);f.writes.push(v);f.saved.set(id,{...f.saved.get(id),progress:v.progress});};
+ result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.updated,1);assert.equal(f.saved.get('al:1').rating,9);
+ result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.kept,1);assert.equal(f.writes.length,1);
+ f.saved.set('al:1',{status:'completed',progress:1,reconsuming:false});result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.kept,1);
+ f.saved.set('al:1',{status:'current',progress:1,reconsuming:true});assert.equal((await f.api.plan('anilist',undefined,noWait)).rows[0].state,'existing');
+});

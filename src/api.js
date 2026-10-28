@@ -550,13 +550,19 @@ const Kitsu = {
     return d ? { id: d.id, progress: d.attributes.progress || 0, status: d.attributes.status, reconsuming: !!d.attributes.reconsuming, rating: d.attributes.ratingTwenty ? d.attributes.ratingTwenty / 2 : null } : null;
   },
   // Saves status, progress and score together (score is 1-10, stored by Kitsu as 2-20).
-  async saveEntry(animeId, { status, progress, reconsuming, rating, ifMissing=false }) {
+  async saveEntry(animeId, { status, progress, reconsuming, rating, ifMissing=false, progressOnly=false, expectedStatus, expectedReconsuming=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to Kitsu');
     const account=this.userId;
     const attributes = { status, progress: Math.max(0, Number(progress) || 0), reconsuming: !!reconsuming,...(Number(rating)>0?{ratingTwenty:Math.max(2,Math.min(20,Math.round(Number(rating)*2)))}:{}) };
     const existing = await this.entry(animeId);
     if(this.userId!==account||!this.loggedIn())throw Error('Kitsu account changed. Start again.');
     if(existing&&ifMissing)return {...existing,unchanged:true};
+    if(progressOnly){
+      if(!existing||existing.status!==expectedStatus||existing.reconsuming!==!!expectedReconsuming||existing.progress>=attributes.progress)return {...existing,unchanged:true};
+      await this.call(`/edge/library-entries/${existing.id}`,{method:'PATCH',json:{data:{id:existing.id,type:'libraryEntries',attributes:{progress:attributes.progress}}}});
+      if(this.userId!==account||!this.loggedIn())throw Error('Kitsu account changed. Start again.');
+      return {...existing,progress:attributes.progress};
+    }
     if (existing) {
       await this.call(`/edge/library-entries/${existing.id}`, { method: 'PATCH', json: { data: { id: existing.id, type: 'libraryEntries', attributes } } });
       return;
@@ -852,14 +858,22 @@ const AniList = {
     const account=this.userId,scope=this.entryScope();
     const mediaId = await this.mediaId(id);
     if(this.userId!==account||this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
-    const d = await this.gql(`mutation($mediaId:Int,$status:MediaListStatus,$progress:Int${vars.scoreRaw===undefined?'':',$scoreRaw:Int'}){ SaveMediaListEntry(mediaId:$mediaId, status:$status, progress:$progress${vars.scoreRaw===undefined?'':',scoreRaw:$scoreRaw'}){ id status progress score(format:POINT_10) repeat updatedAt } }`, { mediaId, ...vars });
+    const fields=[['status','MediaListStatus'],['progress','Int'],['scoreRaw','Int']].filter(([key])=>vars[key]!==undefined);
+    const d = await this.gql(`mutation($mediaId:Int${fields.map(([key,type])=>', $'+key+':'+type).join('')}){ SaveMediaListEntry(mediaId:$mediaId${fields.map(([key])=>', '+key+':$'+key).join('')}){ id status progress score(format:POINT_10) repeat updatedAt } }`, { mediaId, ...vars });
     if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
     this.coll = null;this.invalidateEntries();
     const value=this.fromEntry(d.SaveMediaListEntry);this.entryOwner=this.entryScope();this.entryCache.set(mediaId,{until:Date.now()+30000,value});
     return value;
   },
-  async saveEntry(id, { status, progress, reconsuming, rating, ifMissing=false }) {
+  async saveEntry(id, { status, progress, reconsuming, rating, ifMissing=false, progressOnly=false, expectedStatus, expectedReconsuming=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
+    if(progressOnly){
+      const scope=this.entryScope(),existing=await this.entry(id,{fresh:true});
+      if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+      const target=Math.max(0,Math.floor(Number(progress)||0));
+      if(!existing||existing.status!==expectedStatus||existing.reconsuming!==!!expectedReconsuming||existing.progress>=target)return {...existing,unchanged:true};
+      return this.write(id,{progress:target});
+    }
     if(ifMissing){const account=this.userId,existing=await this.entry(id,{fresh:true});if(this.userId!==account||!this.loggedIn())throw Error('AniList account changed. Start again.');if(existing)return {...existing,unchanged:true};}
     return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0),...(Number(rating)>0?{scoreRaw:Math.max(1,Math.min(100,Math.round(Number(rating)*10)))}:{}) });
   },

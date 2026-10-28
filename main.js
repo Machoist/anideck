@@ -209,6 +209,32 @@ function createWindow() {
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const queueContrast=await win.webContents.executeJavaScript(`(()=>{
+          const main=document.querySelector('#main');main.innerHTML='<section class="yn" style="background:linear-gradient(110deg,#fff,#e7e2fa);min-height:560px"><aside class="yn-queue"><div class="yn-qhead">Your queue <span>2</span></div><div class="yn-qlist"><button class="yn-item on"><span class="yn-thumb"></span><span class="yn-meta"><b>JUJUTSU KAISEN Season 2</b><small>Episode 2</small></span></button><button class="yn-item"><span class="yn-thumb"></span><span class="yn-meta"><b>Hell’s Paradise</b><small>Episode 13</small></span></button></div></aside></section>';main.scrollTop=0;
+          const small=getComputedStyle(main.querySelector('.yn-meta small')),card=getComputedStyle(main.querySelector('.yn-item.on'));
+          return {episode:small.color,size:small.fontSize,selected:card.backgroundColor};
+        })()`);
+        if(queueContrast.episode!=='rgb(241, 237, 248)'||queueContrast.selected!=='rgb(25, 23, 32)')throw Error('Queue contrast fixture failed: '+JSON.stringify(queueContrast));
+        console.log('AniDeck bright queue contrast: '+JSON.stringify(queueContrast));
+        await new Promise(resolve=>setTimeout(resolve,250));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-queue-contrast-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const progressReview=await win.webContents.executeJavaScript(`(async()=>{
+          const oldService=LocalImport.service,oldPlan=LocalImport.plan;
+          try{
+            LocalImport.service=()=>({loggedIn:()=>true});
+            LocalImport.plan=async()=>({rows:[{id:'al:42',state:'update',entry:{anime:{title:'Sample title'},progress:4},reason:'Episode progress: 3 → 4 · Status and score stay unchanged'}]});
+            await LocalImport.open('anilist');
+            const input=document.querySelector('#import-rows input'),go=document.querySelector('#import-go');
+            const unchecked=!input.checked&&!input.disabled&&go.disabled;
+            input.click();const selectable=!go.disabled;input.click();const deselectDisables=go.disabled;
+            return {unchecked,selectable,deselectDisables};
+          }finally{LocalImport.service=oldService;LocalImport.plan=oldPlan;}
+        })()`);
+        if(Object.values(progressReview).some(value=>value!==true))throw Error('Progress review opt-in failed: '+JSON.stringify(progressReview));
+        console.log('AniDeck progress review opt-in: '+JSON.stringify(progressReview));
+        await new Promise(resolve=>setTimeout(resolve,250));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-import-progress-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript('App.closeModal();');
         const trackerLimitCheck=await win.webContents.executeJavaScript(`(async()=>{
           const oldEntry=Tracker.entry,oldNotice=App.entryRateNoticeUntil;
           const error=Object.assign(Error('AniList is temporarily limiting requests. Try again in 30 seconds.'),{status:429,retryAt:Date.now()+30000});

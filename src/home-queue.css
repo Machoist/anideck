@@ -16,3 +16,10 @@
 @media(max-width:1000px){.yn:not(.yn-empty){overflow:visible}.yn:not(.yn-empty) .yn-hero{min-height:clamp(410px,60vh,580px)}.yn:not(.yn-empty) .yn-text{padding:100px 24px 32px}.yn:not(.yn-empty) .yn-queue{position:relative;grid-area:2/1;inset:auto;width:auto;max-height:none;margin:0;padding:8px 20px 16px}.yn:not(.yn-empty) .yn-qlist{flex:none;grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:260px;overflow-x:auto;overflow-y:hidden;padding-bottom:8px}.yn-qhead{padding-bottom:9px}}
 @media(prefers-reduced-motion:reduce){.yn-hero.swap .yn-text,.yn-hero.swap .yn-bg{animation:none!important}}
 .reduce-motion .yn-hero.swap .yn-text,.reduce-motion .yn-hero.swap .yn-bg{animation:none!important}
+
+/* Keep queue copy legible even when the backdrop is nearly white. */
+.yn-item{background:rgba(18,17,25,.9);color:#fff;border-color:rgba(255,255,255,.16)}
+.yn-item:hover{background:rgba(30,27,42,.96);border-color:rgba(255,255,255,.35)}
+.yn-item.on{background:linear-gradient(rgba(var(--accent-rgb),.15),rgba(var(--accent-rgb),.15)),#191720;border-color:rgba(var(--accent-rgb),.85)}
+.yn-meta small{color:#f1edf8;font-size:12px;font-weight:600;line-height:1.5}
+.yn-qhead{width:fit-content;padding:6px 10px;margin-bottom:8px;border-radius:8px;background:rgba(18,17,25,.9);color:#fff}
