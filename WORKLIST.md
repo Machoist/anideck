@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 28 October — update card redesigned in AniDeck style
+
+Current installer/ZIP: **preview-6d2a2bc**, source **6d2a2bc**, **464 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+- User rejected the pale notice and empty top strip. Replaced it with a compact dark corner card using AniDeck's mark, lavender accent border/action, small NEW RELEASE label, readable version and dismiss control. It compacts after eight seconds. No dedicated top row or page/navigator resizing remains. Real artwork, import and manual GitHub updates remain included.
+- Positioning checks interactive controls near the upper part of the page and shifts to free space; if the corner is too busy, the notice yields and About remains available. It recalculates on navigation, scrolling, resize and dialog/playback visibility changes. Existing dismissal persistence and automatic-modal suppression are retained.
+- Native checks at 1360/360px confirm dark styling, original main top position, clear bottom navigator, control avoidance using an injected profile-like action, action layout, prompt opening, hiding and dismissal. Screenshots reviewed in `outputs/corner-update-final/`. One new test covers compaction and reset for a newer version. Forced narrow Settings limitations remain outside this change. Screenshots show a synthetic future version; no real release/account/browser actions were performed. Live acceptance and deferred Gio/physical Mac backlog remain unchanged.
+
+
 ## 28 October — update notice moved clear of bottom navigator
 
 Current installer/ZIP: **preview-88fe259**, source **88fe259**, **463 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
