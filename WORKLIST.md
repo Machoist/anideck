@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 28 October — saved for the night; Home preview and logging fix
+
+Final installer/portable: **preview-75882d2**, app source **75882d2**, **466 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and exact installer/portable runtime equality pass. Updated source snapshot includes this worklist after the documentation checkpoint commit.
+
+- Dark corner update card is complete: AniDeck mark, lavender accent/action, no empty top strip, eight-second compaction, corner-control avoidance, per-version dismissal and manual GitHub release flow. Home preview is saved at `outputs/home-update-preview/AniDeck-home-update-alternate-1360.png` (also 640px). This is the actual renderer with public artwork and synthetic queue/release data, not a real user update.
+- The initial temporary GUI preview launch closed its logging pipe and produced an EPIPE dialog. Closed only processes whose executable/command line identified the temporary Home preview, then relaunched it using durable inherited log-file descriptors; all Home captures completed and the preview exited normally. Added a main-process stdout/stderr EPIPE guard, with two tests; unrelated stream failures still throw. No installed user app was stopped and no live account/list was changed.
+- Final build/check logs: `work/night-save-final-build.log`, `work/night-save-final-native.log`, `work/logging-pipe-tests.log`. Installer, portable ZIP, metadata/hashes and source snapshot are under `outputs/`. No public release/tag was created. Existing untracked `readme-preview.html` remains untouched. Build uses the preserved Desktop/anitrack Electron runtime cache; do not delete it as cleanup.
+- Resume from the canonical checkout, read this WORKLIST and run git status. Pending live acceptance: Tokyo Revengers existing-title progress update, normal AniList add/progress save after cooldown, Kitsu sign-in/import, second-device recovery/profile, private Jellyfin isolation/playback, physical TV playback and OS notification timing. Gio Friends testing and physical Mac stay explicitly deferred. Future real-release acceptance is pending because no public release was available at the last check.
+
+
 ## 28 October — update card redesigned in AniDeck style
 
 Current installer/ZIP: **preview-6d2a2bc**, source **6d2a2bc**, **464 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
