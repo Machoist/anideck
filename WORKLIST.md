@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 27 October — broader title-logo artwork coverage
+
+Current installer/ZIP: **preview-e0c91f3**, source **e0c91f3**, **448 tests pass**. Package audit, isolated packaged native startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+- User wants artwork-level polish across shows, rather than a mixture of logos and ordinary headings. AniZip's Jujutsu Kaisen mapping labelled a vertical TVDB icon as Clearlogo. Shared metadata now retains all clearlogo candidates and adds a MetaHub logo URL only for a validated exact IMDb mapping. Proper primary logos are preferred; mislabelled /icons/ assets are deferred. The shared selector tries another candidate after portrait/invalid/failed artwork, covering home, spotlight and detail titles without per-show exceptions. No title-name search, tracker access, API keys or backend change was added.
+- Real public Jujutsu horizontal PNG was fetched successfully; packaged actual trim/image-render checks pass for alternate Jujutsu at 1360/640px and primary Frieren at 1360px. Screenshots reviewed in `outputs/title-artwork-final/`. These are isolated synthetic queues over a shared Jujutsu backdrop, not actual user playback. Temporary public assets live under `work/title-artwork-fixtures/` and are not bundled into production. Native reproduction command adds `--anideck-logo-fixtures=<that absolute directory>` to the existing visual harness.
+- Unavailable-art titles retain a styled condensed wordmark as last resort; the implementation does not promise original logo availability for every catalog title. Four new tests cover alternate selection, metadata mapping/cache, invalid IDs and deferring icons. Existing import correction remains included; Tokyo Revengers live progress-update acceptance is pending. Release notification remains planned; Gio and physical Mac remain deferred.
+
+
 ## 27 October — shared hero redesign and visible progress comparisons
 
 Current installer/ZIP: **preview-8dd15b4**, source **8dd15b4**, **444 tests pass**. Package audit, isolated packaged native UI/startup/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
