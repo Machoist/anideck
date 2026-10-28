@@ -14,3 +14,10 @@ test('landscape logos still render while failures reveal the fallback title',asy
  const failed=await render(3,{reject:true});assert(!failed.classes.has('logo-pending'));assert(!failed.node.image);
  const detached=await render(3,{connected:false});assert(!detached.node.image);
 });
+
+test('queue title treatment separates seasons for any title and safely renders unseasoned names',()=>{
+ const start=source.indexOf('function queueTitleMarkup('),end=source.indexOf('function ynHero(',start);
+ const title=vm.runInNewContext(source.slice(start,end)+';queueTitleMarkup',{esc:s=>String(s).replaceAll('<','&lt;')});
+ for(const name of ['JUJUTSU KAISEN Season 2','Tokyo Revengers Season 3','Frieren: Beyond Journey’s End 2nd Season']){const html=title(name);assert(html.includes('yn-title-season'));assert(html.includes('yn-title-name'));}
+ assert(!title('ONE PIECE').includes('yn-title-season'));assert(title('<unsafe>').includes('&lt;unsafe>'));
+});

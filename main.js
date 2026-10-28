@@ -211,14 +211,14 @@ function createWindow() {
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         const logoWindowSize=win.getContentSize(),logoMinimum=win.getMinimumSize();
         win.setMinimumSize(320,400);
-        for(const width of [1360,640]){
+        for(const [width,title] of [[1360,'JUJUTSU KAISEN Season 2'],[640,'JUJUTSU KAISEN Season 2'],[1360,'Frieren: Beyond Journey’s End Season 2'],[640,'ONE PIECE']]){
           win.setContentSize(width,860);
           const logoFallback=await win.webContents.executeJavaScript(`(async()=>{
             const oldGet=AniZip.get;
             try{
               const c=document.createElement('canvas');c.width=80;c.height=400;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(10,10,60,380);
               AniZip.get=async()=>({logo:c.toDataURL()});
-              document.querySelector('#main').innerHTML='<section class="yn" style="background:linear-gradient(110deg,#34313f,#807587)"><div class="yn-hero">'+ynHero({kind:'remote',title:'JUJUTSU KAISEN Season 2',ep:'Episode 2',num:2,kitsu:'42'})+'</div></section>';
+              document.querySelector('#main').innerHTML='<section class="yn" style="background:linear-gradient(110deg,#34313f,#807587)"><div class="yn-hero">'+ynHero({kind:'remote',title:${JSON.stringify(title)},ep:'Episode 2',num:2,kitsu:'42'})+'</div></section>';
               const title=document.querySelector('.yn-title');showLogo(title,42,2);
               for(let n=0;n<50&&title.classList.contains('logo-pending');n++)await new Promise(r=>setTimeout(r,10));
               const rect=title.getBoundingClientRect();return {width:innerWidth,text:title.textContent,readable:!title.classList.contains('logo-pending')&&!title.querySelector('img')&&rect.width>100,noOverflow:document.querySelector('#main').scrollWidth<=document.querySelector('#main').clientWidth+1};
@@ -227,7 +227,7 @@ function createWindow() {
           if(logoFallback.width!==width||!logoFallback.readable||!logoFallback.noOverflow)throw Error('Portrait logo fallback failed: '+JSON.stringify(logoFallback));
           console.log('AniDeck portrait logo fallback: '+JSON.stringify(logoFallback));
           await new Promise(resolve=>setTimeout(resolve,250));
-          fs.writeFileSync(path.join(visualDir,'AniDeck-title-fallback-'+width+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+          fs.writeFileSync(path.join(visualDir,'AniDeck-title-fallback-'+width+'-'+title.replace(/[^a-z0-9]+/gi,'-')+'.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         }
         win.setMinimumSize(...logoMinimum);win.setContentSize(...logoWindowSize);
         const queueContrast=await win.webContents.executeJavaScript(`(()=>{

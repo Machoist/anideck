@@ -2629,7 +2629,7 @@ function showLogo(h1, alId, season) {
     // Keep the readable catalog title rather than stretching or rotating the artwork.
     if (!logo || !Number.isFinite(logo.ratio) || logo.ratio < 1.1 || !h1.isConnected) return reveal();
     const img = new Image();
-    img.className = 'hero-logo'; img.alt = h1.textContent.trim(); img.decoding = 'async';
+    img.className = 'hero-logo'; img.alt = h1.getAttribute?.('aria-label') || h1.textContent.trim(); img.decoding = 'async';
     // Sized by its shape: wide logos fill the width, squarer ones the height, so none come out tiny.
     img.style.setProperty('--logo-ar', Math.max(.6, Math.min(8, logo.ratio || 3)).toFixed(3));
     img.onload = () => {
@@ -2637,7 +2637,7 @@ function showLogo(h1, alId, season) {
       h1.classList.add('has-logo');
       h1.innerHTML = `<span class="sr-only">${esc(img.alt)}</span>`;
       h1.prepend(img);
-      if (season > 1) h1.insertAdjacentHTML('afterend', `<div class="hero-eyebrow">Season ${season}</div>`);
+      if (season > 1) h1.insertAdjacentHTML(h1.classList.contains?.('yn-title')?'beforebegin':'afterend', `<div class="hero-eyebrow">Season ${season}</div>`);
       reveal();
       requestAnimationFrame(() => img.classList.add('ready'));
     };
@@ -2830,6 +2830,11 @@ function buildQueue(resume, up, watching, airing = null) {
   // Upcoming and unverified airings belong in Schedule, not the ready-to-watch queue.
   return q.filter(it=>it.wait==null).slice(0,QUEUE_MAX);
 }
+function queueTitleMarkup(title) {
+  const text=String(title||'');
+  const season=text.match(/^(.*?)\s*[:–—-]?\s+(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)$/i);
+  return (season?`<span class="yn-title-season">Season ${Number(season[2]||season[3])}</span>`:'')+`<span class="yn-title-name">${esc(season?season[1]:text)}</span>`;
+}
 function ynHero(it) {
   const play = it.kind === 'remote' ? `data-act="queuePlay" data-title="${esc(it.title)}" data-ep="${it.num}" data-kitsu="${esc(it.kitsu)}" data-poster="${esc(it.poster || '')}" data-movie="${it.movie?'1':'0'}" data-total="${it.total||0}"`
     : it.kind === 'movie' ? `data-act="playMovie" data-id="${esc(it.id)}"` : `data-act="play" data-id="${esc(it.id)}" data-series="${esc(it.series)}"`;
@@ -2838,7 +2843,7 @@ function ynHero(it) {
   return `<div class="yn-art"><img class="yn-bg" ${art?`src="${esc(art)}"`:"hidden"} alt=""></div>
     <div class="yn-text">
       ${it.badge ? `<div class="yn-eyebrow">${esc(it.badge)}</div>` : ''}
-      <h1 class="yn-title logo-pending">${esc(it.title)}</h1>
+      <h1 class="yn-title logo-pending" aria-label="${esc(it.title)}">${queueTitleMarkup(it.title)}</h1>
       <div class="yn-ep">${esc(it.ep)}</div>
       ${it.about ? `<p class="yn-about">${esc(it.about)}</p>` : ''}
       ${it.wait != null ? `<div class="yn-wait" role="timer">${it.wait > 0

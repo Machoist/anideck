@@ -19,5 +19,5 @@ test('queue loads full AniList metadata, chooses sharp art, and ignores a supers
 
 test('wide and high-DPI windows keep usable banners instead of switching to portrait fallback',()=>{
  for(const box of [{width:2529,height:739},{width:3440,height:700},{width:3840,height:720}])for(const dpr of [1,1.25,2]){assert(score({w:1920,h:1080},box,dpr)>0);assert(score({w:3840,h:2160},box,dpr)>score({w:1920,h:1080},box,dpr));}
- const start=source.indexOf('function ynHero('),end=source.indexOf('function yourNextHero(',start);const render=vm.runInNewContext(source.slice(start,end)+'\nynHero',{esc:s=>String(s??''),icon:()=>''});const html=render({kind:'remote',title:'Example',num:1,poster:'https://art.test/poster.jpg',banner:'https://art.test/banner.jpg'});assert(html.includes('https://art.test/banner.jpg'));assert(!html.includes('class="yn-poster-fallback"'));
+ const start=source.indexOf('function queueTitleMarkup('),end=source.indexOf('function yourNextHero(',start);const render=vm.runInNewContext(source.slice(start,end)+'\nynHero',{esc:s=>String(s??''),icon:()=>''});const html=render({kind:'remote',title:'Example',num:1,poster:'https://art.test/poster.jpg',banner:'https://art.test/banner.jpg'});assert(html.includes('https://art.test/banner.jpg'));assert(!html.includes('class="yn-poster-fallback"'));
 });

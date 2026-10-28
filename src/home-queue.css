@@ -23,3 +23,21 @@
 .yn-item.on{background:linear-gradient(rgba(var(--accent-rgb),.15),rgba(var(--accent-rgb),.15)),#191720;border-color:rgba(var(--accent-rgb),.85)}
 .yn-meta small{color:#f1edf8;font-size:12px;font-weight:600;line-height:1.5}
 .yn-qhead{width:fit-content;padding:6px 10px;margin-bottom:8px;border-radius:8px;background:rgba(18,17,25,.9);color:#fff}
+
+/* A consistent title lockup for every show, with or without artwork. */
+.yn-text{gap:14px}
+.yn-title{font-size:clamp(30px,3.5vw,50px);line-height:1.12;letter-spacing:-.025em;font-weight:750;max-width:19ch;text-wrap:balance}
+.yn-title-name{display:block;overflow-wrap:anywhere}
+.yn-title-season,.yn-text>.hero-eyebrow{display:block;font-family:var(--font);font-size:11px;line-height:1.5;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#d4c4ff;margin:0 0 12px;text-shadow:0 2px 10px #121018}
+.yn-title.has-logo{max-width:100%;line-height:0}
+.yn-title .hero-logo{--logo-w:min(410px,36vw);--logo-h:120px}
+.yn-text>.hero-eyebrow{margin-bottom:-4px}
+.yn-ep{display:flex;align-items:center;gap:8px;width:fit-content;font-size:13px;font-weight:600;line-height:1.4;color:#f1edf8;background:rgba(17,15,24,.72);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 10px}
+.yn-ep::before{content:'';width:5px;height:5px;border-radius:50%;background:#c5b2ff;flex:none}
+.yn-actions{gap:10px;margin-top:4px;flex-wrap:wrap}
+.yn-actions .btn{min-height:44px;border-radius:10px;padding:11px 19px;font-size:13px;font-weight:650}
+.yn-actions .yn-play{box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:108px;justify-content:center}
+.yn-actions .glass{background:rgba(24,21,32,.72);border-color:rgba(255,255,255,.22)}
+.yn-actions .glass:hover{background:rgba(43,36,57,.9);border-color:rgba(255,255,255,.4)}
+@media(max-width:1000px){.yn-title{max-width:22ch;font-size:clamp(30px,5vw,44px)}.yn-title .hero-logo{--logo-w:min(360px,75vw);--logo-h:110px}}
+@media(max-width:420px){.yn-title{font-size:30px}.yn-actions .btn{padding:10px 14px}.yn-title-season{font-size:10px}}
