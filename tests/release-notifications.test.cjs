@@ -22,3 +22,17 @@ test('test builds do not schedule automatic release prompts and stale lookups do
 });
 
 test('release tags with build metadata retain their exact GitHub URL',async()=>{const f=fixture();const s=release('1.0.1+build.2');s.url='https://github.com/Machoist/anideck/releases/tag/v1.0.1%2Bbuild.2';assert.equal(await f.api.show(s),true);});
+
+function addBar(f){const bar={hidden:true,querySelector:()=>({})};Object.assign(f.nodes,{'#release-bar':bar,'#release-bar-message':{},'#release-bar-view':{},'#release-bar-close':{}});return bar;}
+test('bottom update reminder shows the version and opens the existing prompt only on request',async()=>{
+ const f=fixture(),bar=addBar(f);f.api.receive(release('1.1.0'));await f.api.refreshBar();assert.equal(bar.hidden,false);assert.match(f.nodes['#release-bar-message'].textContent,/AniDeck v1.1.0 is available/);assert.equal(f.shown,0);await f.nodes['#release-bar-view'].onclick();assert.equal(f.shown,1);assert.equal(f.opens,0);
+});
+test('dismissing the bottom reminder persists per version and suppresses its delayed popup',async()=>{
+ const f=fixture(),bar=addBar(f);f.api.receive(release('1.1.0'));await f.api.refreshBar();await f.nodes['#release-bar-close'].onclick();assert.equal(bar.hidden,true);assert.equal(f.saved.get('releaseBarDismissedVersion'),'1.1.0');assert.equal(await f.api.show(f.api.latest),false);
+ const restarted=fixture(),next=addBar(restarted);restarted.saved.set('releaseBarDismissedVersion','1.1.0');restarted.api.receive(release('1.1.0'));await restarted.api.refreshBar();assert.equal(next.hidden,true);restarted.api.receive(release('1.2.0'));await restarted.api.refreshBar();assert.equal(next.hidden,false);
+ restarted.api.receive({state:'latest'});await restarted.api.refreshBar();assert.equal(next.hidden,true);
+});
+
+test('closing the bottom bar cancels an automatic popup already waiting on storage',async()=>{
+ const f=fixture();addBar(f);let finish;f.ctx.window.native.get=()=>new Promise(r=>finish=r);const pending=f.api.show(release('1.1.0'));await f.api.dismissBar();finish(null);assert.equal(await pending,false);assert.equal(f.shown,0);
+});

@@ -7,3 +7,16 @@
 .release-versions span{display:grid;gap:6px;min-width:0}.release-versions small{font-size:11px;color:var(--muted)}.release-versions b{font-size:18px;overflow-wrap:anywhere}.release-versions span:last-child b{color:var(--accent)}.release-versions>svg{color:var(--muted);width:18px}
 .release-panel footer{display:flex;justify-content:flex-end;gap:10px;margin-top:26px}.release-panel footer .btn{min-height:40px;padding:9px 15px;font-size:13px;border-radius:10px}
 @media(max-width:420px){.release-modal{padding:22px!important}.release-panel h2{font-size:23px}.release-versions{padding:14px;gap:10px}.release-panel footer .btn{flex:1;justify-content:center}}
+
+/* Reserve a row so the reminder never covers the bottom of a page. */
+#shell:has(>.release-bar:not([hidden])){grid-template-rows:minmax(0,1fr) auto}
+#shell:has(>.release-bar:not([hidden]))>.content{height:100%;min-height:0;overflow:hidden}
+.release-bar{grid-column:1/-1;display:flex;align-items:center;gap:12px;min-width:0;margin:8px 12px 12px;padding:8px 10px 8px 14px;border-radius:12px;border:1px solid #f3edf9;background:#e6dff0;color:#30283d;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.release-bar-icon{display:grid;place-items:center;flex:none;color:#72569c}.release-bar-icon svg{width:18px;height:18px}
+#release-bar-message{flex:1;min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.release-bar-view{flex:none;border:0;border-radius:8px;background:rgba(107,79,148,.1);color:#594078;font-size:12px;font-weight:650;padding:9px 12px;white-space:nowrap}
+.release-bar-view:hover{background:rgba(107,79,148,.18)}
+.release-bar-close{flex:none;display:grid;place-items:center;width:30px;height:32px;border:0;border-radius:8px;background:transparent;color:#544662;font-size:24px;line-height:1}
+.release-bar-close:hover{background:rgba(107,79,148,.12)}
+body:has(#player:not([hidden]),#modal:not([hidden]),#splash:not([hidden])) .release-bar{display:none}
+@media(max-width:480px){.release-bar{gap:8px;margin:6px 8px 8px;padding-left:12px}.release-bar-icon{display:none}#release-bar-message{font-size:12px}.release-bar-view{padding:9px}.release-bar-close{width:28px}}

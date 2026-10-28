@@ -512,7 +512,7 @@ const App = {
   applyUpdate(s) {
     this.update=s;
     const banner=$('#update-banner');
-    if(banner){banner.hidden=s.state!=='available';banner.disabled=false;if(!banner.hidden)banner.innerHTML=`<b>New release available</b><span>v${esc(s.version)} · View on GitHub</span>`;}
+    if(banner)banner.hidden=true; // The bottom release bar owns the persistent reminder.
     const status=$('#upd-status');if(status)status.textContent=updateText(s);
     const release=$('#upd-release');if(release){release.hidden=s.state!=='available';const version=release.querySelector('b');if(version)version.textContent='View release'+(s.version?' v'+s.version:'');}
     if(typeof ReleaseNotice!=='undefined')ReleaseNotice.receive(s);
