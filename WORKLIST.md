@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 27 October — shared hero redesign and visible progress comparisons
+
+Current installer/ZIP: **preview-8dd15b4**, source **8dd15b4**, **444 tests pass**. Package audit, isolated packaged native UI/startup/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+- Home hero presentation is shared across all shows: smaller balanced title blocks, separate season labels, episode chip and compact buttons with less glow. Suitable horizontal logos remain supported. Packaged Jujutsu Kaisen, Frieren and One Piece samples at 1360/640px reviewed in `outputs/hero-design-final/`.
+- User reported Tokyo Revengers did not offer an episode import. Installed metadata confirmed preview-435301c. The local/provider status equality requirement could hide an otherwise newer progress update, so it was removed; same rewatch state and fresh destination guards remain. Existing rows now show both episode counts with reasons for equal/ahead/rewatch state, and explain that edits while a tracker is active go directly to that tracker. Progress-only updates preserve destination status and rating.
+- A new unit regression and packaged real-planner/opt-in fixture cover local Completed/24 vs destination Watching/23. Those values are synthetic; no live user list was inspected or modified. **Tokyo Revengers live import acceptance is still pending**; user supplied the title but not its comparison counts. Source includes commits dc91d47 and 8dd15b4. Release notification remains planned; Gio and physical Mac remain deferred.
+
+
 ## 27 October — portrait hero logos use readable titles
 
 Current Windows installer/ZIP: **preview-435301c**, source **435301c**, **442 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
