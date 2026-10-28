@@ -1063,7 +1063,7 @@ const AniZip = {
         episodes[n] = { title: e.title?.en || e.title?.['x-jat'] || '', overview: e.overview || e.summary || '', image: e.image || '', airDate: e.airDate || '', runtime: e.runtime || e.length || null };
       }
       return { episodes, fanart: img('Fanart'), banner: img('Banner'), logo: img('Clearlogo'), logos, poster: img('Poster'),
-        tmdb: j?.mappings?.themoviedb_id || null, kitsu: j?.mappings?.kitsu_id || null, type: j?.mappings?.type || '' };
+        malId: j?.mappings?.mal_id || null, tmdb: j?.mappings?.themoviedb_id || null, kitsu: j?.mappings?.kitsu_id || null, type: j?.mappings?.type || '' };
     }).catch(() => { this.cache.delete(String(alId)); return null; });
     this.cache.set(String(alId), { at: Date.now(), p });
     return p;

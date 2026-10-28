@@ -570,6 +570,7 @@ class StreamResolver {
         return await this.sniffUrlInHiddenWindow(kwikUrl, base);
       } catch (err) {
         this.signal?.throwIfAborted();
+        if(err.code==='PROVIDER_VERIFICATION_CANCELLED')throw err;
         console.warn(`[StreamResolver] AnimePahe failed with ${base}:`, err.message);
         lastError = err;
         // Continue to next domain
@@ -715,6 +716,21 @@ class StreamResolver {
     return parseProviderJson(text, url);
   }
 
+  async waitForProviderVerification(win){
+    let shown=false;
+    for(let attempt=0;attempt<180;attempt++){
+      this.signal?.throwIfAborted();
+      if(win.isDestroyed()){const error=Error('AnimePahe verification was closed. Retry playback to open it again, or choose another server.');error.code='PROVIDER_VERIFICATION_CANCELLED';throw error;}
+      const title=await win.webContents.executeJavaScript('document.title').catch(()=>'');
+      const challenge=/just a moment|ddos-guard|attention required|cloudflare|challenge|blocked|captcha|under attack|checking your browser/i.test(title);
+      if(title?.trim()&&!challenge){if(shown)win.hide();return;}
+      if(challenge&&!shown){shown=true;win.show();win.focus();}
+      if(!shown&&attempt>=39)break;
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    throw Error('AnimePahe verification did not finish. Retry and complete the browser check, or choose another server.');
+  }
+
   async fetchViaHiddenBrowser(url, referer = '', expectJson = false) {
     const origin = new URL(url).origin;
     const partName = 'persist:anishelf-web';
@@ -753,35 +769,7 @@ class StreamResolver {
     try {
       await win.loadURL(origin + '/').catch(() => {});
 
-      // Wait longer for Cloudflare challenge to auto-resolve (up to 20 seconds)
-      let cloudflareResolved = false;
-      for (let i = 0; i < 40; i++) {
-        this.signal?.throwIfAborted(); // 40 attempts of 500ms each = 20 seconds max
-        const title = await win.webContents.executeJavaScript('document.title').catch(() => '');
-
-        // Check if we're still on a Cloudflare challenge page
-        const isCloudflarePage = /just a moment|ddos-guard|attention required|cloudflare|challenge|blocked|captcha|under attack|checking your browser/i.test(title?.toLowerCase());
-
-        if (!isCloudflarePage) {
-          cloudflareResolved = true;
-          break;
-        }
-
-        // If we're debugging, give user time to manually solve
-        if (isDebugMode && i > 10) { // After 5 seconds of checking
-          console.warn(`[DEBUG] Cloudflare challenge detected. Complete verification in the browser window before the check times out`);
-        }
-
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      if(!cloudflareResolved)throw new Error('AnimePahe requires browser verification. Complete it in the verification window, or choose another server.');
-
-      // If we're debugging and cloudflare was resolved, wait a bit more for page load
-      if (isDebugMode && cloudflareResolved) {
-        console.warn('[DEBUG] Cloudflare challenge resolved automatically - waiting for page to fully load');
-        await new Promise((r) => setTimeout(r, 2000));
-      }
+      await this.waitForProviderVerification(win);
 
       // Wait additional time to ensure page fully loads after Cloudflare resolution
       await new Promise((r) => setTimeout(r, 1000));

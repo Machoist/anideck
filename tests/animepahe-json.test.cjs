@@ -18,3 +18,14 @@ test('a failed verification attempt is reported once without launching a second 
  r.fetchViaHiddenBrowser=async()=>{attempts++;throw new Error('Verification required')};
  await assert.rejects(()=>r.fetchJsonWithCloudflareBypass('https://animepahe.pw/api'),/Verification required/);assert.equal(attempts,1);
 });
+
+test('production verification becomes visible, resumes after completion and respects closing',async()=>{
+ const {r,ctx}=fixture();ctx.setTimeout=fn=>fn();let shown=0,hidden=0,calls=0;
+ const win={isDestroyed:()=>false,show:()=>shown++,focus(){},hide:()=>hidden++,webContents:{executeJavaScript:async()=>++calls===1?'Just a moment…':'AnimePahe'}};
+ await r.waitForProviderVerification(win);assert.equal(shown,1);assert.equal(hidden,1);
+ win.isDestroyed=()=>true;await assert.rejects(r.waitForProviderVerification(win),e=>e.code==='PROVIDER_VERIFICATION_CANCELLED');
+});
+
+test('closing AnimePahe verification stops mirror retries',async()=>{
+ const {r}=fixture();let calls=0;r.fetchJsonWithCloudflareBypass=async()=>{calls++;const error=Error('Closed');error.code='PROVIDER_VERIFICATION_CANCELLED';throw error;};await assert.rejects(r.resolveAnimePahe('Example',1,'sub'),e=>e.code==='PROVIDER_VERIFICATION_CANCELLED');assert.equal(calls,1);
+});

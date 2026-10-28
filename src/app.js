@@ -2618,6 +2618,16 @@ function trimLogo(src) {
   logoCache.set(src, p);
   return p;
 }
+function titleStoryMarkup(id,primary,alternate=''){
+ const text=TitleSynopsis.choose(primary,alternate),stub=TitleSynopsis.isStub(text);
+ return `<section id="title-story" data-id="${esc(id||'')}" data-primary="${esc(primary||'')}" data-alternate="${esc(alternate||'')}"><h3>About</h3><div class="about-wrap ${!stub&&text.length>320?'clamped':''}"><p class="about">${esc(stub?'Looking for a fuller synopsis…':text)}</p>${!stub&&text.length>320?'<button class="about-more" data-act="aboutToggle">Show more</button>':''}</div></section>`;
+}
+async function enrichTitleStory(rid){
+ const panel=document.getElementById('title-story');if(!panel?.dataset.id)return;const {id,primary,alternate}=panel.dataset;
+ const result=await TitleSynopsis.resolve(id,primary,alternate,App.showAl);if(App.stale(rid)||!panel.isConnected||panel!==document.getElementById('title-story'))return;
+ const text=TitleSynopsis.isStub(result.text)?'A full synopsis is not available for this season yet.':result.text;
+ panel.innerHTML=`<h3>About</h3><div class="about-wrap ${text.length>320?'clamped':''}"><p class="about">${esc(text)}</p>${text.length>320?'<button class="about-more" data-act="aboutToggle">Show more</button>':''}</div>${result.source?`<button class="story-source" data-act="link" data-url="${esc(result.url)}">${esc(result.source)} ${icon('external')}</button>`:''}`;
+}
 const titleLogoCache=new Map();
 function titleArtworkId(id,details){return details?.id||(String(id||'').startsWith('al:')?Number(String(id).slice(3)):AniList.idCache?.[id])||null;}
 function logoHeading(title,alId,englishTitle='',className=''){
@@ -3954,7 +3964,7 @@ const Views = {
       <div class="detail-body">
         <aside class="detail-side">
           ${progressCardHtml}
-          ${about ? `<h3>About</h3><div class="about-wrap ${String(about).length > 320 ? 'clamped' : ''}"><p class="about" id="about-text">${esc(about)}</p>${String(about).length > 320 ? '<button class="about-more" data-act="aboutToggle">Show more</button>' : ''}</div>` : ''}
+          ${anime?titleStoryMarkup(match?.id,about,al?.synopsis):about?`<h3>About</h3><p class="about">${esc(about)}</p>`:''}
           <h3>Details</h3>
           <dl class="details">${details.map(([k, v]) => `<dt>${esc(k)}</dt><dd data-k="${esc(k)}">${esc(v)}</dd>`).join('')}</dl>
           ${nearCards || match ? `<div id="related-box" ${nearCards ? '' : 'hidden'}><h3>Related</h3><div class="rel-list">${nearCards}</div></div>` : ''}
@@ -3968,6 +3978,7 @@ const Views = {
   showAfter({ tab = 'episodes' }, rid) {
     App.paintSelection();
     upgradeBackdrop(rid);
+    enrichTitleStory(rid).catch(()=>{});
     showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, App.showCtx?.n,App.showAl?.englishTitle||App.showAl?.title||'');
     fillMissingThumbs(rid);
     if ($('#related-box')) fillRelated(rid);
@@ -4203,7 +4214,7 @@ const Views = {
       <div class="detail-body">
         <aside class="detail-side">
           ${progressCardHtml}
-          ${synopsis ? `<h3>About</h3><div class="about-wrap ${synopsis.length > 320 ? 'clamped' : ''}"><p class="about">${esc(synopsis)}</p>${synopsis.length > 320 ? '<button class="about-more" data-act="aboutToggle">Show more</button>' : ''}</div>` : ''}
+          ${titleStoryMarkup(id,a.synopsis,al?.synopsis)}
           <h3>Details</h3>
           <dl class="details">${details.map(([k, v]) => `<dt>${esc(k)}</dt><dd data-k="${esc(k)}">${esc(v)}</dd>`).join('')}</dl>
           <div id="related-box" hidden><h3>Related</h3><div class="rel-list"></div></div>
@@ -4216,6 +4227,7 @@ const Views = {
       </div>`;
   },
   async animeAfter({ id, tab = 'episodes' }, rid) {
+    enrichTitleStory(rid).catch(()=>{});
     upgradeBackdrop(rid);
     if ($('#soon2-stack')) soonPrequels(rid);
     const soon = $('.soon-clock');

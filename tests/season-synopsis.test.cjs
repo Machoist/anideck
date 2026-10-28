@@ -15,7 +15,8 @@ test('short actual stories and full descriptions remain intact, with no fabricat
 });
 test('detail and floating preview both use the season-safe selection, and the helper loads first',()=>{
  assert(read('app.js').includes('const synopsis = TitleSynopsis.choose(a.synopsis, al?.synopsis)'));
- assert(read('app.js').includes('esc(synopsis)'));
+ assert(read('app.js').includes('titleStoryMarkup(id,a.synopsis,al?.synopsis)'));
+ assert(read('app.js').includes('esc(text)'));
  assert(read('app.js').includes('TitleSynopsis.choose(al?.synopsis,k?.synopsis)'));
  assert(read('index.html').indexOf('synopsis.js')<read('index.html').indexOf('app.js'));
 });
@@ -29,4 +30,15 @@ test('AniList poster placeholders also use only the externally mapped Kitsu seas
  const ctx={document:{readyState:'loading',addEventListener(){}},AniList:{details:async()=>({id:42,malId:72,synopsis:'Second season of Example.'}),kitsuIdFor:async(id,mal)=>{assert.equal(id,42);assert.equal(mal,72);return '123';}},Kitsu:{animeFull:async id=>{assert.equal(id,'123');return {synopsis:'The party searches for their missing captain.'};}}};
  const poster=vm.runInNewContext(read('synopsis.js')+'\n'+read('card-synopsis.js')+'\nCardSynopsis',ctx);
  assert.equal((await poster.metadata('al:42')).text,'The party searches for their missing captain.');
+});
+
+test('additional synopsis source uses exact MAL IDs, validates returned identity and caches shared work',async()=>{
+ let calls=0;const ctx={Kitsu:{externalIds:async()=>({mal:123})},http:async url=>{calls++;assert.equal(url,'https://api.jikan.moe/v4/anime/123');return {data:{mal_id:123,synopsis:'The team crosses a dangerous kingdom to rescue their captain.'}}},setTimeout,clearTimeout};
+ const helper=vm.runInNewContext(read('synopsis.js')+';TitleSynopsis',ctx);
+ const values=await Promise.all([helper.resolve('42','Second season of Example.',''),helper.resolve('42','Second season of Example.','')]);assert.equal(calls,1);assert(values.every(v=>v.text.includes('dangerous kingdom')));assert.equal(values[0].source,'MyAnimeList via Jikan');await helper.resolve('42','','');assert.equal(calls,1);
+});
+test('real synopsis skips fallback requests; missing or mismatched mappings never borrow another story',async()=>{
+ let calls=0;const ctx={Kitsu:{externalIds:async()=>({})},http:async()=>{calls++;return {data:{mal_id:999,synopsis:'Wrong story'}}},setTimeout,clearTimeout};const helper=vm.runInNewContext(read('synopsis.js')+';TitleSynopsis',ctx);
+ assert.equal((await helper.resolve('42','A short real plot.','')).text,'A short real plot.');assert.equal(calls,0);assert.equal((await helper.resolve('42','','')).text,'');assert.equal(calls,0);
+ ctx.Kitsu.externalIds=async()=>({mal:123});assert.equal((await helper.resolve('42','Second season of Example.','')).text,'Second season of Example.');assert.equal(helper.cache.size,0);
 });
