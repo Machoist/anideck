@@ -1,5 +1,12 @@
 # AniDeck worklist
 
+## 27 October — portrait hero logos use readable titles
+
+Current Windows installer/ZIP: **preview-435301c**, source **435301c**, **442 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+Portrait or invalid logo artwork now leaves the full catalog title visible instead of a tiny vertical strip. Suitable horizontal logos still render. Failed logo lookups reveal the title without an unhandled rejection. Unit tests cover portrait/invalid/horizontal/failed/disconnected cases; packaged generated portrait artwork exercises the real trim/render path at actual 1360px and 640px widths, with no overflow and both screenshots reviewed in `outputs/hero-logo-final/`. No live account data changed. Prior progress-import update remains included; live acceptance of that new opt-in update is pending. Release notification remains next/planned; Gio and physical Mac stay deferred.
+
+
 ## 27 October — newer local progress review and readable queue
 
 Current Windows installer/ZIP: **preview-fc6e214**, source **fc6e214**, **440 tests pass**. Package audit, packaged native fixture/startup/Social/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass. Source snapshot refreshed. Queue and import screenshots reviewed in `outputs/import-progress-final/`.
