@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 28 October — title logo stability, English captions and topic discussions
+
+Current Windows installer/portable: **preview-1d214c0**, app source **1d214c0**, **479 tests pass**. Final package audit, isolated native startup/UI/TV/readiness checks, ZIP integrity and exact installer/portable runtime equality pass. No installed app or production account was modified.
+
+- Title headings emit cached logo artwork on first render when switching Episodes/Discussion/Friends or refreshing the view. Cold lookups hide the fallback until artwork succeeds or fails. Native actual title view rerendered five times without a plain-text flash. Original artwork now has a smaller English caption beneath it. Home action reads Episodes & Details.
+- Anime discovery retains compatibility Kitsu IDs while requiring an exact AniList/MAL mapping verified against AniList; batches and caches public verification for six hours. Music videos and unsupported/IMDb-only entries are excluded. Public Blue Eye Samurai Kitsu entries had only IMDb mapping. Anime artwork no longer uses title-only live-action Trakt results, preventing unrelated Gifted backdrops. Saved personal lists/private Jellyfin are preserved. Unknown verification failures are retryable, not cached as absence. Four catalog tests pass; public catalog reads used no account writes.
+- AniDeck Discussion is now a board of named topics with separate reply views, isolated drafts, a dedicated creation form and revised source selector. Existing comments remain compatible. Worker query modes return topic roots/counts or a validated topic's paginated descendants, with cross-title cursor/block checks. Five backend and four UI tests pass; native topic list/thread/create screenshots reviewed in outputs/catalog-forum-final/. Tests use synthetic posts; no public comments were created.
+- **Deployment pending authorization:** server source adds discussion-topics capability and efficient topic/thread pagination/counts; no schema migration required. Frontend has legacy-server compatibility, but efficient pagination and complete counts require the new Worker. AGENTS.md requires task-specific deployment authorization. Existing production backend remains 4484bc5a-30dc-4882-b726-c6be9b9d6646.
+- Tokyo Revengers local and confirmed AniList counts are both episode 2; Planning on AniList is intentionally retained. Future natural episode increase, normal AniList save after cooldown, Kitsu live import, second-device profile recovery, private Jellyfin, physical TV and OS alerts remain acceptance items. Gio and physical Mac remain deferred. New checkpoint CI not yet inspected; no release/tag published. Preserve untracked readme-preview.html and Desktop/anitrack cache.
+
 ## 28 October — resumed: Tokyo Revengers counts match; adapter readback verified
 
 Runtime/installer unchanged: **preview-75882d2**, app source **75882d2**. Current repository validation: **468 tests pass** (two added adapter regressions); the existing installer was originally verified with 466 tests. No runtime edits or rebuild were needed this session.
