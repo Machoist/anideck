@@ -240,16 +240,17 @@ function createWindow() {
         await new Promise(resolve=>setTimeout(resolve,250));
         fs.writeFileSync(path.join(visualDir,'AniDeck-queue-contrast-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         const progressReview=await win.webContents.executeJavaScript(`(async()=>{
-          const oldService=LocalImport.service,oldPlan=LocalImport.plan;
+          const oldService=LocalImport.service,oldPlan=LocalImport.plan,oldMap=LocalImport.map,oldLocal=LocalTracker.coll;
           try{
-            LocalImport.service=()=>({loggedIn:()=>true});
-            LocalImport.plan=async()=>({rows:[{id:'al:42',state:'update',entry:{anime:{title:'Sample title'},progress:4},reason:'Episode progress: 3 → 4 · Status and score stay unchanged'}]});
+            LocalImport.service=()=>({loggedIn:()=>true,userId:'fixture',entry:async()=>({status:'current',progress:23,rating:9,reconsuming:false})});
+            LocalTracker.coll=[{anime:{id:'al:42',title:'Tokyo Revengers'},status:'completed',progress:24,reconsuming:false}];LocalImport.map=async id=>id;
+            LocalImport.plan=(which,callback,options)=>oldPlan.call(LocalImport,which,callback,{...options,pause:async()=>{}});
             await LocalImport.open('anilist');
             const input=document.querySelector('#import-rows input'),go=document.querySelector('#import-go');
             const unchecked=!input.checked&&!input.disabled&&go.disabled;
             input.click();const selectable=!go.disabled;input.click();const deselectDisables=go.disabled;
-            return {unchecked,selectable,deselectDisables};
-          }finally{LocalImport.service=oldService;LocalImport.plan=oldPlan;}
+            return {unchecked,selectable,deselectDisables,comparison:document.querySelector('#import-rows').textContent.includes('On this device: 24 episodes · AniList: 23 episodes')};
+          }finally{LocalImport.service=oldService;LocalImport.plan=oldPlan;LocalImport.map=oldMap;LocalTracker.coll=oldLocal;}
         })()`);
         if(Object.values(progressReview).some(value=>value!==true))throw Error('Progress review opt-in failed: '+JSON.stringify(progressReview));
         console.log('AniDeck progress review opt-in: '+JSON.stringify(progressReview));

@@ -16,3 +16,14 @@ test('existing titles offer explicit newer progress without changing ratings or 
  f.saved.set('al:1',{status:'completed',progress:1,reconsuming:false});result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.kept,1);
  f.saved.set('al:1',{status:'current',progress:1,reconsuming:true});assert.equal((await f.api.plan('anilist',undefined,noWait)).rows[0].state,'existing');
 });
+
+test('newer local progress remains selectable when local and destination statuses differ',async()=>{
+ const f=fixture();f.local.coll[0].anime.title='Tokyo Revengers';f.local.coll[0].status='completed';f.local.coll[0].progress=24;
+ f.saved.set('al:1',{status:'current',progress:23,rating:9,reconsuming:false});
+ const plan=await f.api.plan('anilist',undefined,noWait);assert.equal(plan.rows[0].state,'update');assert.match(plan.rows[0].reason,/On this device: 24 episodes.*AniList: 23 episodes/);
+ f.service.saveEntry=async(id,values)=>{assert.equal(values.expectedStatus,'current');assert.equal(values.progressOnly,true);assert.equal(values.status,undefined);f.saved.set(id,{...f.saved.get(id),progress:values.progress});};
+ const result=await f.api.run(plan,new Set(['al:1']),noWait);assert.equal(result.updated,1);assert.equal(f.saved.get('al:1').status,'current');assert.equal(f.saved.get('al:1').rating,9);
+ const again=await f.api.plan('anilist',undefined,noWait);assert.equal(again.rows[0].state,'existing');assert.match(again.rows[0].reason,/Progress already matches/);
+ f.saved.get('al:1').progress=25;assert.match((await f.api.plan('anilist',undefined,noWait)).rows[0].reason,/Destination progress is ahead/);
+ f.saved.get('al:1').reconsuming=true;assert.match((await f.api.plan('anilist',undefined,noWait)).rows[0].reason,/Different rewatch state/);
+});
