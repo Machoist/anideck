@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 28 October — bottom update reminder
+
+Current installer/ZIP: **preview-15f71f0**, source **15f71f0**, **463 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed.
+
+- Added a compact light lavender bottom bar, matching the user's example: available version, View update and dismiss. View update opens the existing release popup. Replaces the redundant topbar reminder; Settings > About retains the manual release action. A dedicated shell grid row reserves page space. The bar hides during playback/dialogs/splash and automatically reappears afterward unless dismissed.
+- Dismissal is stored per version and also suppresses the automatic modal, including one already awaiting storage. A newer version can notify again; manual About access remains available. Three new tests cover bar visibility/actions, persistence/new versions and in-flight dismissal. Existing manual GitHub update behavior is unchanged; no automatic downloads/installs.
+- Actual packaged bar geometry at 1360/360px confirms containment, separated actions, reserved main-content space, playback/dialog hiding, opening the existing prompt and retained dismissal. Screenshots reviewed under `outputs/bottom-update-final/`; underlying Settings content remains cramped at the forced 360px viewport, outside this bar change. Screenshots use synthetic future v1.1.0, not a published release. No browser opening or live account/list changes were performed. Future real-release acceptance is pending.
+- Live Tokyo Revengers progress-update acceptance, ordinary AniList save after cooldown, Kitsu and other physical/device acceptance remain pending. Gio and physical Mac remain deferred.
+
+
 ## 27 October — release notifications implemented
 
 Current installer/ZIP: **preview-830825b**, source **830825b**, **460 tests pass**. Package audit, isolated packaged startup/UI/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed. Runtime SemVer 7.8.5 is explicitly included.
