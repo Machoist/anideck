@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 27 October — AniList rate-limit handling fixed
+
+Current Windows installer/ZIP: **preview-f046d54**, source **f046d54**, **438 tests pass**. Package audit, full packaged fixture/startup/Social/TV/readiness checks, ZIP integrity and installer/portable runtime equality pass; source snapshot refreshed. User reported repeated “Couldn’t load your list entry: Too Many Requests” while adding a title/updating progress.
+
+- Native requests expose only Retry-After/reset/remaining headers. AniList shares a cooldown across reads/writes, respects the provider's retry/reset deadline and successful-response quota exhaustion, uses a one-minute fallback for body-only 429 responses, and does not queue/replay mutations. This handles the provider limit; it does not remove it.
+- Concurrent entry reads share work. Successful positive/negative entries are cached briefly per account; fresh import checks bypass that cache. A complete recent collection proves presence/absence without another entry query. Successful writes/removal and new collections invalidate stale entry work; late old-account/read results cannot replace current progress. Failed reads are never cached as absence.
+- A failed catalog-title entry lookup shows List entry unavailable + Retry instead of Add to your list / zero progress. Repeated rate-limited editor clicks produce one notice per cooldown. Save failures keep existing typed progress in the editor. Packaged fixture check confirms unknown state, no false zero, retry action, one notice and no empty editor; screenshot reviewed.
+- Twelve additional tests (438 total) cover cooldowns, GraphQL error status, cache/write/account races and UI behavior. Import retry fixture now waits out the simulated cooldown instead of bypassing it. No live provider/profile/message writes were performed by verification; real-account retest after cooldown remains pending.
+- User separately confirmed the live AniList import's status, progress and score match. Kitsu and other live edge-case acceptance remain pending. Release notification remains next/planned; recommended initial workflow is a GitHub release link without automatic downloads. Its dependency preparation was set aside outside the repo while this bug took priority. Gio and physical Mac remain deferred.
+
+
 ## 27 October — Social positioning refined
 
 Current Windows installer/ZIP: **preview-9397c9b**, source **9397c9b**, **426 tests pass**. Social starts 70px higher at widths >=1700px, where its centered heading clears Home/Back horizontally. Smaller windows keep the reserved navigation row. On tall desktop windows the welcome illustration/copy has a slightly higher optical center. No negative translation of the welcome content or conversation layout changes.
@@ -18,11 +29,11 @@ Account now offers **Review local list for AniList/Kitsu** and explains that the
 ## Saved and verified
 
 - App source through `3de4263` is backed up on GitHub `main`. All 48 previously local commits were pushed.
-- Current local Windows installer and portable ZIP: `preview-9397c9b`. 426 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
+- Current local Windows installer and portable ZIP: `preview-f046d54`. 438 automated tests pass; package audit, packaged Electron UI checks, archive integrity and installer/portable runtime equality pass.
 - [Windows test build](https://github.com/Machoist/anideck/actions/runs/40459268760) and [Mac test build](https://github.com/Machoist/anideck/actions/runs/40459268720) both succeeded for `3de4263`. Successful CI does not establish physical device acceptance.
 - Latest UI work is complete: progressive profile rendering, labeled most-watched genres and next milestone, fluid milestone navigation, compact Social requests/refresh, opaque three-card shuffle with matching reveal size, and equal-height Tonight/Horizon widgets.
 - Profile customization, recovery-key sign-in, consent-based message requests, notification preferences, local-list import adapters and isolated optional Jellyfin functionality are implemented. The live checks below remain necessary.
-- Current package includes the navigation spacing/import-copy fixes and the policy regression test; source `9397c9b`, 426 tests passing. Earlier CI artifact checks below describe their stated historical revisions. No public release or release tag was created.
+- Current package includes the navigation spacing/import-copy fixes and the policy regression test; source `f046d54`, 438 tests passing. Earlier CI artifact checks below describe their stated historical revisions. No public release or release tag was created.
 
 ## 27 October — CI artifact inspection and Mac label fix
 
@@ -40,11 +51,11 @@ Evaluation: useful for bounded supervised tasks; independent accuracy has not be
 
 ## Next, in order
 
-1. **AniList import reported successful by user.** Local titles remain intentionally; the account count is saved-on-device data, not a pending-import count. Next live acceptance: confirm the destination status/progress/rating/rewatch, existing-entry preservation and safe repeat/readback. Kitsu live sign-in/import acceptance remains pending. Fixture checks pass; no live provider mutation was performed by automated verification.
+1. **User-confirmed AniList import:** title/status/progress/score match in AniList; local copy retained intentionally. New rate-limit fix `preview-f046d54` needs a normal real-account add/progress retry after cooldown (do not intentionally flood AniList). Existing-entry preservation, duplicate prevention and rewatch have fixtures; extra live edge-case acceptance and Kitsu live sign-in/import remain pending. No live provider mutation was performed by automated verification.
 2. Test recovery-key sign-in and profile presentation on a physical second device; verify private Jellyfin playback and isolation from anime discovery and Social.
 3. Test physical TV picture, sound, captions, codecs, LAN connectivity and recovery during media playback. Same-tab refresh, pairing retention, centered wordmark and pairing-code lifecycle pass packaged checks; media decoding remains simulated in protocol tests.
 4. Verify real OS desktop alerts and two-account request/accept/decline, No messages and notification timing. Backend permission tests and UI bindings pass in isolation.
-5. **New release notification / GitHub release link:** add an AniDeck-styled, dismissible prompt when a newer public stable release is available, showing its version with **View release on GitHub** and **Later** actions. Open the specific verified AniDeck release page; remember dismissal per version, avoid interrupting playback, and keep a manual check in Settings > About. Compare versions correctly, exclude drafts/prereleases unless explicitly opted in, and handle offline/rate-limit failures quietly. Reconcile this with the existing Windows electron-updater (currently downloads/install-on-quit in release builds) so users do not receive duplicate or misleading prompts. Development/test builds currently disable auto-updates; preserve that separation. Verify discovery/comparison/prompt behavior with fixtures before live release acceptance. **Planned, not implemented.**
+5. **New release notification / GitHub release link:** add an AniDeck-styled, dismissible prompt when a newer public stable release is available, showing its version with **View release on GitHub** and **Later** actions. Open the specific verified AniDeck release page; remember dismissal per version, avoid interrupting playback, and keep a manual check in Settings > About. Compare versions correctly, exclude drafts/prereleases unless explicitly opted in, and handle offline/rate-limit failures quietly. Recommended initial approach is manual GitHub updates only; implementation must reconcile/replace the existing release-build background download/install behavior without duplicate or misleading prompts. Release notification work was interrupted by the AniList rate-limit bug; no popup code or new runtime dependency has shipped. Development/test builds currently disable auto-updates; preserve that separation. Verify discovery/comparison/prompt behavior with fixtures before live release acceptance. **Planned, not implemented.**
 6. **Deferred backlog:** live Friends acceptance with Gio, including consent, messages, invitations and notifications. Resume when available; do not repeatedly request testing.
 7. **Deferred backlog:** physical Mac installation, sign-in, playback and cross-platform Friends acceptance. Mac CI is now successful; physical acceptance and notarization remain separate work.
 8. Consider public release after acceptance. Only Anikoto is user-confirmed working; other playback providers remain unverified or unreliable. Watch invitations save a plan; they do not synchronize playback.
