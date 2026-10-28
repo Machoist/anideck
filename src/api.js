@@ -67,17 +67,18 @@ const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" ari
 let APP_VERSION = '1.0.0'; // replaced with the real version at startup
 let KITSU_BASE = 'https://kitsu.app/api'; // overridable via config.json "kitsuBase"
 const TICKS = 10_000_000; // Jellyfin ticks per second
-async function httpUncached(url, { method = 'GET', headers = {}, json, form, body, timeout, allowChallenge = true } = {}) {
+async function httpUncached(url, { method = 'GET', headers = {}, json, form, body, timeout, allowChallenge = true, onResponse } = {}) {
   const h = { ...headers };
   let payload = body;
   if (json !== undefined) { payload = JSON.stringify(json); h['Content-Type'] ??= 'application/json'; }
   if (form !== undefined) { payload = new URLSearchParams(form).toString(); h['Content-Type'] = 'application/x-www-form-urlencoded'; }
   const res = await window.native.request({ url, method, headers: h, body: payload, timeout, allowChallenge });
+  if(typeof onResponse==='function')onResponse(res);
   let data = null;
   if (res.text) { try { data = JSON.parse(res.text); } catch { data = res.text; } }
   if (!res.ok) {
     const err = new Error(res.error || `HTTP ${res.status}` + (typeof data === 'string' && data ? `: ${data.slice(0, 160)}` : ''));
-    err.status = res.status; err.data = data;
+    err.status = res.status; err.data = data; err.headers = res.headers || {};
     throw err;
   }
   return data;
@@ -711,17 +712,32 @@ const AniList = {
   available() { return !!this.clientId; },
   loggedIn() { return !!(this.token && this.userId); },
   async save() { await window.native.setSecret('anilistAuth', JSON.stringify({ token: this.token, userId: this.userId, userName: this.userName, avatar: this.avatar })); },
-  async logout() { Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', coll: null }); await window.native.setSecret('anilistAuth', null); },
+  async logout() { this.invalidateEntries();Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', coll: null }); await window.native.setSecret('anilistAuth', null); },
+  rateLimitUntil: 0,
+  observeRateLimit(response) {
+    const headers=Object.fromEntries(Object.entries(response?.headers||{}).map(([key,value])=>[key.toLowerCase(),value]));
+    if(Number(response?.status)!==429&&String(headers['x-ratelimit-remaining'])!=='0')return;
+    const now=Date.now(),retry=String(headers['retry-after']||''),seconds=Number(retry),reset=Number(headers['x-ratelimit-reset'])*1000;
+    const retryAt=retry?(Number.isFinite(seconds)?now+seconds*1000:Date.parse(retry)):0;
+    const until=Math.max(Number.isFinite(retryAt)&&retryAt>now?retryAt:0,Number.isFinite(reset)&&reset>now?reset:0)||now+60000;
+    this.rateLimitUntil=Math.max(this.rateLimitUntil||0,until);
+  },
+  rateLimitError() {
+    const error=new Error('AniList is temporarily limiting requests. Try again in '+Math.max(1,Math.ceil(((this.rateLimitUntil||Date.now()+60000)-Date.now())/1000))+' seconds. Please wait before trying again.');
+    error.status=429;error.retryAt=this.rateLimitUntil;return error;
+  },
   async gql(query, variables = {}, auth = true, { timeout = 15000 } = {}) {
-    const headers = { Accept: 'application/json' };
-    if (auth && this.token) headers.Authorization = `Bearer ${this.token}`;
+    if(Date.now()<(this.rateLimitUntil||0))throw this.rateLimitError();
+    const headers = { Accept: 'application/json' },token=this.token;
+    if (auth && token) headers.Authorization = `Bearer ${token}`;
     let r;
-    try { r = await http(ANILIST_API, { method: 'POST', headers, json: { query, variables }, timeout }); }
+    try { r = await http(ANILIST_API, { method: 'POST', headers, json: { query, variables }, timeout, onResponse:response=>this.observeRateLimit(response) }); }
     catch (e) {
-      if (e.status === 401 || e.data?.errors?.some?.((x) => x.status === 401)) { await this.logout(); throw new Error('AniList sign-in expired. Please sign in again.'); }
+      if (Number(e.status)===429||e.data?.errors?.some?.(x=>Number(x.status)===429)) {this.observeRateLimit({status:429,headers:e.headers});throw this.rateLimitError();}
+      if (e.status === 401 || e.data?.errors?.some?.((x) => x.status === 401)) { if(this.token===token)await this.logout(); throw new Error('AniList sign-in expired. Please sign in again.'); }
       const error=new Error(e.data?.errors?.[0]?.message || e.message);error.status=e.status;error.data=e.data;throw error;
     }
-    if (r?.errors?.length){const error=new Error(r.errors[0].message);error.status=r.errors[0].status;throw error;}
+    if (r?.errors?.length){if(r.errors.some(x=>Number(x.status)===429)){this.observeRateLimit({status:429});throw this.rateLimitError();}const error=new Error(r.errors[0].message);error.status=r.errors[0].status;throw error;}
     return r.data;
   },
   // Opens AniList's sign-in page in a small window and picks the token up from the redirect.
@@ -800,24 +816,47 @@ const AniList = {
   fromEntry(e) {
     return { id: e.id, status: AL_BACK[e.status] || 'current', reconsuming: e.status === 'REPEATING', progress: e.progress || 0, rating: e.score || null, updatedAt: e.updatedAt ? new Date(e.updatedAt * 1000).toISOString() : '' };
   },
+  entryScope() { return String(this.userId)+':'+this.token; },
+  invalidateEntries() { this.entryEpoch=(this.entryEpoch||0)+1;this.entryCache=new Map();this.entryPending=new Map(); },
   async entry(id, {fresh=false}={}) {
     if (!this.loggedIn()) return null;
-    const mediaId = await this.mediaId(id);
-    if (!fresh && this.coll && Date.now() - this.collAt < 30000) { // the whole list was just fetched: read it from there
+    const scope=this.entryScope(),mediaId = await this.mediaId(id);
+    if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    if(this.entryOwner!==scope){this.invalidateEntries();this.entryOwner=scope;}
+    const cached=this.entryCache.get(mediaId);
+    if(!fresh&&cached&&cached.until>Date.now())return cached.value?{...cached.value}:null;
+    if (!fresh && this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 30000) {
       const hit = this.coll.find((e) => String(e.anime?.id) === `al:${mediaId}`);
-      if (hit) return { id: hit.id, status: hit.status, reconsuming: hit.reconsuming, progress: hit.progress, rating: hit.rating, updatedAt: hit.updatedAt };
+      return hit?{id:hit.id,status:hit.status,reconsuming:hit.reconsuming,progress:hit.progress,rating:hit.rating,updatedAt:hit.updatedAt}:null;
     }
-    const d = await this.gql('query($id:Int){ Media(id:$id){ id mediaListEntry{ id status progress score(format:POINT_10) repeat updatedAt } } }', { id: mediaId });
-    const e = d?.Media?.mediaListEntry;
-    return e ? this.fromEntry(e) : null;
+    const key=String(mediaId)+':'+fresh;
+    if(this.entryPending.has(key))return this.entryPending.get(key).then(value=>value?{...value}:null);
+    const epoch=this.entryEpoch;
+    const pending=(async()=>{
+      const d=await this.gql('query($id:Int){ Media(id:$id){ id mediaListEntry{ id status progress score(format:POINT_10) repeat updatedAt } } }',{id:mediaId});
+      if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+      const value=d?.Media?.mediaListEntry?this.fromEntry(d.Media.mediaListEntry):null;
+      if(epoch!==this.entryEpoch){
+        const latest=this.entryCache.get(mediaId);if(latest&&latest.until>Date.now())return latest.value?{...latest.value}:null;
+        if(this.coll&&this.collOwner===scope&&Date.now()-this.collAt<30000){const hit=this.coll.find(e=>String(e.anime?.id)===`al:${mediaId}`);return hit?{id:hit.id,status:hit.status,reconsuming:hit.reconsuming,progress:hit.progress,rating:hit.rating,updatedAt:hit.updatedAt}:null;}
+        throw Error('Your list changed while loading. Reload this page.');
+      }
+      if(this.entryCache.size>=256)this.entryCache.delete(this.entryCache.keys().next().value);
+      this.entryCache.set(mediaId,{until:Date.now()+30000,value});
+      return value;
+    })();
+    this.entryPending.set(key,pending);
+    try{const value=await pending;return value?{...value}:null;}finally{if(this.entryPending.get(key)===pending)this.entryPending.delete(key);}
   },
   async write(id, vars) {
-    const account=this.userId;
+    const account=this.userId,scope=this.entryScope();
     const mediaId = await this.mediaId(id);
-    if(this.userId!==account||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    if(this.userId!==account||this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
     const d = await this.gql(`mutation($mediaId:Int,$status:MediaListStatus,$progress:Int${vars.scoreRaw===undefined?'':',$scoreRaw:Int'}){ SaveMediaListEntry(mediaId:$mediaId, status:$status, progress:$progress${vars.scoreRaw===undefined?'':',scoreRaw:$scoreRaw'}){ id status progress score(format:POINT_10) repeat updatedAt } }`, { mediaId, ...vars });
-    this.coll = null;
-    return this.fromEntry(d.SaveMediaListEntry);
+    if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    this.coll = null;this.invalidateEntries();
+    const value=this.fromEntry(d.SaveMediaListEntry);this.entryOwner=this.entryScope();this.entryCache.set(mediaId,{until:Date.now()+30000,value});
+    return value;
   },
   async saveEntry(id, { status, progress, reconsuming, rating, ifMissing=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
@@ -831,7 +870,7 @@ const AniList = {
       const e = await this.entry(id);
       if (this.userId !== account || !this.loggedIn()) throw Error('AniList account changed. Start again.');
       if (e) await this.gql('mutation($id:Int){ DeleteMediaListEntry(id:$id){ deleted } }', { id: e.id });
-      this.coll = null;
+      this.coll = null;this.invalidateEntries();
       return null;
     }
     return this.write(id, { status: AL_STATUS[status] || 'CURRENT' });
@@ -847,12 +886,16 @@ const AniList = {
   },
   // Whole list, kept for 30 seconds so tabs and scrolling don't re-download it.
   async collection() {
-    if (this.coll && Date.now() - this.collAt < 30000) return this.coll;
+    const scope=this.entryScope();
+    if (this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 30000) return this.coll;
     const d = await this.gql(`query($u:Int){ MediaListCollection(userId:$u, type:ANIME){ lists{ entries{ id status progress score(format:POINT_10) repeat updatedAt
       media{ id idMal title{ romaji english native userPreferred } synonyms coverImage{ large extraLarge } episodes format seasonYear averageScore genres status siteUrl } } } } }`, { u: this.userId });
+    if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    this.collOwner=scope;
     const seen = new Set();
     this.coll = (d?.MediaListCollection?.lists || []).flatMap((l) => l.entries || []).filter((e) => !seen.has(e.id) && seen.add(e.id))
       .map((e) => ({ ...this.fromEntry(e), anime: this.toAnime(e.media) }));
+    this.invalidateEntries();this.entryOwner=scope;
     this.collAt = Date.now();
     return this.coll;
   },

@@ -3,8 +3,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const source=fs.readFileSync(path.join(__dirname,'../src/api.js'),'utf8'),importer=fs.readFileSync(path.join(__dirname,'../src/local-import.js'),'utf8');
 const noWait={pause:async()=>{}};
 function fixture(which){
- const saved=new Map(),writes=[],reads=[],store={};let fail=null,beforeCreate=null;
- const ctx={console,URL,URLSearchParams,Map,Set,Date,App:{act(){}},window:{native:{get:async k=>store[k],set:async(k,v)=>store[k]=structuredClone(v)}}};
+ const saved=new Map(),writes=[],reads=[],store={};let fail=null,beforeCreate=null,now=Date.now();class Clock extends Date{static now(){return now;}}
+ const ctx={console,URL,URLSearchParams,Map,Set,Date:Clock,App:{act(){}},window:{native:{get:async k=>store[k],set:async(k,v)=>store[k]=structuredClone(v)}}};
  ctx.http=async(url,options={})=>{
   const {json}=options;reads.push({url,options});
   if(url.includes('graphql')){
@@ -27,7 +27,7 @@ function fixture(which){
  vm.createContext(ctx);vm.runInContext(source+'\nthis.services={AniList,Kitsu,LocalTracker};',ctx);
  const {AniList,Kitsu,LocalTracker}=ctx.services;Object.assign(AniList,{token:'fixture',userId:51});Object.assign(Kitsu,{token:'fixture',userId:'52'});
  LocalTracker.coll=[{anime:{id:'al:1',title:'First',malId:1001},status:'current',progress:4,rating:8.5,reconsuming:false},{anime:{id:'al:2',title:'Second',malId:1002},status:'planned',progress:0,rating:null}];
- const api=vm.runInContext(importer+'\nLocalImport',ctx);return {api,AniList,Kitsu,local:LocalTracker,saved,writes,reads,service:which==='anilist'?AniList:Kitsu,setFailure:e=>fail=e};
+ const api=vm.runInContext(importer+'\nLocalImport',ctx);return {api,AniList,Kitsu,local:LocalTracker,saved,writes,reads,service:which==='anilist'?AniList:Kitsu,setFailure:e=>fail=e,advance:ms=>now+=ms};
 }
 for(const which of ['anilist','kitsu']){
  test(`${which}: real adapters import selected progress, rating and status, read back, preserve local list and skip a repeat`,async()=>{
@@ -38,7 +38,7 @@ for(const which of ['anilist','kitsu']){
   if(which==='kitsu'){assert.equal(f.writes[0].relationships.user.data.id,'52');assert.equal(f.writes[0].attributes.ratingTwenty,17);}else assert.equal(f.writes[0].scoreRaw,85);
  });
  test(`${which}: provider errors stop the batch and retry preserves successful entries`,async()=>{
-  const f=fixture(which),plan=await f.api.plan(which,undefined,noWait),error=Error('Rate limited');error.status=429;f.setFailure(error);const selection=new Set(plan.rows.map(r=>r.id));const result=await f.api.run(plan,selection,noWait);assert.equal(result.stopped,true);assert.equal(result.failed.length,1);assert.equal(result.added,0);f.setFailure(null);assert.equal((await f.api.run(plan,selection,noWait)).added,2);
+  const f=fixture(which),plan=await f.api.plan(which,undefined,noWait),error=Error('Rate limited');error.status=429;f.setFailure(error);const selection=new Set(plan.rows.map(r=>r.id));const result=await f.api.run(plan,selection,noWait);assert.equal(result.stopped,true);assert.equal(result.failed.length,1);assert.equal(result.added,0);f.setFailure(null);if(which==='anilist'){const before=f.reads.length;assert.equal((await f.api.run(plan,selection,noWait)).stopped,true);assert.equal(f.reads.length,before);f.advance(60001);}assert.equal((await f.api.run(plan,selection,noWait)).added,2);
  });
  test(`${which}: an entry appearing during the adapter's final read is kept unchanged`,async()=>{
   const f=fixture(which),plan=await f.api.plan(which,undefined,noWait);let n=0;const original=f.service.entry.bind(f.service);f.service.entry=async(...args)=>{if(++n===2)return {status:'completed',progress:99,rating:10};return original(...args);};const result=await f.api.run(plan,new Set([plan.rows[0].id]),noWait);assert.equal(result.kept,1);assert.equal(result.added,0);assert.equal(f.writes.length,0);

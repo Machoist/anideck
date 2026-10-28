@@ -17,3 +17,9 @@ test('Tab stays inside the list editor and Escape closes it',async()=>{const f=a
 test('an editor cannot write to a newly selected tracker account',async()=>{const f=await setup();let writes=0;f.Tracker.svc={userId:'another-account'};f.Tracker.saveEntry=async()=>writes++;await f.get('#ee-save').onclick();assert.equal(writes,0);assert.match(f.get('#ee-error').textContent,/account changed/);});
 
 test('a failed tracker lookup does not open an empty editor that could overwrite saved progress',async()=>{const f=await setup({entry:async()=>{throw Error('Offline')}});assert.equal(f.notices.length,1);assert.match(f.notices[0][0],/Couldn’t load your list entry/);assert.equal(f.closed,0);assert.equal(f.refreshes,0);});
+
+test('repeated rate-limited editor clicks show one notice per cooldown and never open an empty editor',async()=>{
+ const error=Object.assign(Error('AniList is limiting requests.'),{status:429,retryAt:Date.now()+60000});const f=await setup({entry:async()=>{throw error;}});
+ for(let i=0;i<4;i++)await f.app.editEntry('al:42',12,'Example');
+ assert.equal(f.notices.length,1);assert.equal(f.closed,0);assert.equal(f.refreshes,0);
+});

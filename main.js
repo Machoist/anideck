@@ -209,6 +209,23 @@ function createWindow() {
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#splash').hidden=true;App.closeModal();document.querySelector('#main').innerHTML=await Views.settings();document.querySelector('#main').scrollTop=0;})()");
         await new Promise(resolve=>setTimeout(resolve,300));
         fs.writeFileSync(path.join(visualDir,'AniDeck-account-settings-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const trackerLimitCheck=await win.webContents.executeJavaScript(`(async()=>{
+          const oldEntry=Tracker.entry,oldNotice=App.entryRateNoticeUntil;
+          const error=Object.assign(Error('AniList is temporarily limiting requests. Try again in 30 seconds.'),{status:429,retryAt:Date.now()+30000});
+          try{
+            document.querySelector('#toasts').innerHTML='';Tracker.entry=async()=>{throw error;};App.entryRateNoticeUntil=0;
+            const state=await trackingEntryState('al:42');
+            document.querySelector('#main').innerHTML='<div class="page"><h1>Watchlist connection</h1><div style="max-width:360px">'+progressCard({error:state.error,editable:true,label:'Add to your list',num:0,of:23,pct:0})+'</div></div>';App.mountPageShortcuts();
+            for(let i=0;i<4;i++)await App.editEntry('al:42',23,'Sample title');
+            const card=document.querySelector('.prog-card');return {unknown:card.textContent.includes('List entry unavailable'),notEditable:!card.hasAttribute('data-act'),noFalseZero:!card.querySelector('.prog-num'),retry:!!card.querySelector('[data-act=retry]'),oneNotice:document.querySelectorAll('#toasts .toast').length===1,noEmptyEditor:!document.querySelector('#entry-pop')};
+          }finally{Tracker.entry=oldEntry;App.entryRateNoticeUntil=oldNotice;}
+        })()`);
+        if(Object.values(trackerLimitCheck).some(value=>value!==true))throw Error('Rate-limited tracker UI failed: '+JSON.stringify(trackerLimitCheck));
+        console.log('AniDeck rate-limited tracker UI: '+JSON.stringify(trackerLimitCheck));
+        await new Promise(resolve=>setTimeout(resolve,250));
+        fs.writeFileSync(path.join(visualDir,'AniDeck-anilist-cooldown-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        await win.webContents.executeJavaScript("document.querySelector('#toasts').innerHTML='';");
+
         await win.webContents.executeJavaScript(`(()=>{
           document.querySelector('#main').innerHTML=profileMarkup({self:true});
           const counts=[5,5,2,0,0],entries=Array.from({length:12},(_,i)=>({anime:{id:'al:'+String(i+1),title:i===0?'Frieren: Beyond Journey’s End':'Sample anime '+(i+1),poster:'brand/mark.svg',genres:['Fantasy','Adventure','Drama'],episodes:12,year:2025},status:i<5?'current':i<10?'planned':'completed',progress:i<5?4:i<10?0:12,rating:8}));
@@ -432,7 +449,7 @@ ipcMain.handle('http:request', async (_e, req) => {
       const { 'User-Agent': _ua, ...plain } = headers;
       return await requestViaBrowser(url, method, plain, body);
     }
-    return { ok: res.ok, status: res.status, text };
+    return { ok: res.ok, status: res.status, text, headers: Object.fromEntries(['retry-after','x-ratelimit-reset','x-ratelimit-remaining'].map(name=>[name,res.headers.get(name)]).filter(([,value])=>value!==null)) };
   } catch (err) {
     return { ok: false, status: 0, error: err?.message || String(err) };
   }
