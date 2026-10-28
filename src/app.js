@@ -2619,9 +2619,10 @@ function trimLogo(src) {
   return p;
 }
 const titleLogoCache=new Map();
+function titleArtworkId(id,details){return details?.id||(String(id||'').startsWith('al:')?Number(String(id).slice(3)):AniList.idCache?.[id])||null;}
 function logoHeading(title,alId,englishTitle='',className=''){
  const logo=titleLogoCache.get(String(alId));
- return `<h1 class="${className} ${logo?'has-logo':alId?'logo-pending':''}" aria-label="${esc(title)}" data-english-title="${esc(englishTitle)}">${logo?`<span class="sr-only">${esc(title)}</span><img class="hero-logo ready" src="${esc(logo.url)}" alt="${esc(title)}" style="--logo-ar:${Number(logo.ratio).toFixed(3)}">`:esc(title)}</h1>${logo&&englishTitle?`<p class="logo-english">${esc(englishTitle)}</p>`:''}`;
+ return `<h1 class="${className} ${logo?'has-logo':alId?'logo-pending':''}" aria-label="${esc(title)}" data-logo-id="${esc(alId||'')}" data-english-title="${esc(englishTitle)}">${logo?`<span class="sr-only">${esc(title)}</span><img class="hero-logo ready" src="${esc(logo.url)}" alt="${esc(title)}" style="--logo-ar:${Number(logo.ratio).toFixed(3)}">` :esc(title)}${logo&&englishTitle?`<span class="logo-english">${esc(englishTitle)}</span>`:''}</h1>`;
 }
 async function findTitleLogo(metadata) {
   const candidates=[...new Set([...(Array.isArray(metadata?.logos)?metadata.logos:[]),metadata?.logo].filter(Boolean))].slice(0,6);
@@ -2635,10 +2636,11 @@ async function findTitleLogo(metadata) {
 }
 function showLogo(h1, alId, season, englishTitle='') {
  if(!h1)return;
+ alId=alId||h1.dataset?.logoId;
  englishTitle=englishTitle||h1.dataset?.englishTitle||'';
  let timer;const reveal=()=>{clearTimeout(timer);h1.classList.remove('logo-pending');};
  const caption=()=>{
-  if(englishTitle){let label=h1.nextElementSibling;if(!label?.classList.contains('logo-english')){label=document.createElement('p');label.className='logo-english';h1.insertAdjacentElement('afterend',label);}label.textContent=englishTitle;}
+  if(englishTitle){let label=h1.querySelector?.('.logo-english');if(!label){label=document.createElement('span');label.className='logo-english';h1.append(label);}label.textContent=englishTitle;}
   if(season>1&&!h1.previousElementSibling?.classList.contains('hero-eyebrow'))h1.insertAdjacentHTML('beforebegin',`<div class="hero-eyebrow">Season ${season}</div>`);
  };
  const cached=titleLogoCache.get(String(alId));
@@ -3938,7 +3940,7 @@ const Views = {
         <div class="hero-inner">
           <div class="hero-poster">${posterImg ? `<img src="${esc(posterImg)}" alt="">` : ''}</div>
           <div class="hero-text">
-            ${logoHeading(title,al?.id,al?.englishTitle||al?.title||'')}
+            ${logoHeading(title,titleArtworkId(match?.id,al),al?.englishTitle||al?.title||title)}
             <div class="meta-line">${meta}</div>
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="${anime ? 'anime' : 'show'}">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">
@@ -4186,7 +4188,7 @@ const Views = {
         <div class="hero-inner">
           <div class="hero-poster">${poster ? `<img src="${esc(poster)}" alt="">` : ''}</div>
           <div class="hero-text">
-            ${logoHeading(title,al?.id,al?.englishTitle||al?.title||'')}
+            ${logoHeading(title,titleArtworkId(id,al),al?.englishTitle||al?.title||title)}
             <div class="meta-line">${metaLine({ rating, next: al?.next, rest: [esc(al?.format || a.subtype || 'TV'), esc(a.year || ''), total ? `${total} eps` : '', esc(statusText)] })}</div>
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="anime">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">

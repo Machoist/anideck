@@ -32,6 +32,12 @@ test('logo selection tries alternate exact-ID artwork after portrait, invalid or
 test('cached headings render logo artwork immediately across rerenders without the plaintext fallback',()=>{
  const cache=new Map([['42',{url:'data:image/png;base64,fixture',ratio:3}]]),start=source.indexOf('function logoHeading('),end=source.indexOf('async function findTitleLogo(',start);
  const render=vm.runInNewContext(source.slice(start,end)+';logoHeading',{titleLogoCache:cache,esc:s=>String(s).replaceAll('<','&lt;')});
- for(let i=0;i<5;i++){const html=render('チェンソーマン',42,'Chainsaw Man');assert(html.includes('hero-logo ready'));assert(!html.includes('logo-pending'));assert(html.includes('<p class="logo-english">Chainsaw Man</p>'));}
+ for(let i=0;i<5;i++){const html=render('チェンソーマン',42,'Chainsaw Man');assert(html.includes('hero-logo ready'));assert(!html.includes('logo-pending'));assert(html.includes('<span class="logo-english">Chainsaw Man</span>'));}
  assert(render('Chainsaw Man',99,'Chainsaw Man').includes('logo-pending'));
+});
+
+test('title artwork retains exact cached mapping when metadata is unavailable',()=>{
+ const start=source.indexOf('function titleArtworkId('),end=source.indexOf('function logoHeading(',start);
+ const resolve=vm.runInNewContext(source.slice(start,end)+';titleArtworkId',{AniList:{idCache:{42:128893}}});
+ assert.equal(resolve('42',null),128893);assert.equal(resolve('al:128893',null),128893);assert.equal(resolve('42',{id:7}),7);assert.equal(resolve('unknown',null),null);
 });
