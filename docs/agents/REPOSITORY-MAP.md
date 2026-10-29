@@ -13,7 +13,7 @@ This is a navigation aid, not a generated symbol index. Verify symbols and calle
 | Tracking and import | `src/local-import.js`, `src/api.js`, `main.js`, `preload.js` | `tests/local-import.test.cjs`, `tests/import-adapters.test.cjs`, `tests/import-provider-write.test.cjs`, `tests/tracking-account-change.test.cjs` |
 | Jellyfin isolation | `src/app.js`, `src/api.js`, `main.js` | `tests/jellyfin-isolation.test.cjs`, `tests/optional-jellyfin.test.cjs`, `tests/onboarding-isolation.test.cjs` |
 | TV and relay | `src/cast.js`, `src/casting/server.js`, `src/casting/receiver.js`, `src/casting/receiver.html`, `src/casting/receiver.css`, `src/mediaRelay.js` | `tests/receiver-recovery.test.cjs`, `tests/receiver-disconnect.test.cjs`, `tests/cast-controller.test.cjs`, `tests/media-relay.test.cjs` |
-| Playback and providers | `src/player.js`, `src/streamResolver.js`, `src/anikoto.js`, `src/hianime.js`, `src/providerSubtitles.js`, `main.js` | `tests/playback-lifecycle.test.cjs`, `tests/provider-routing.test.cjs`, `tests/provider-safety-cancellation.test.cjs`, `tests/provider-subtitles.test.cjs` |
+| Playback and providers | `src/player.js`, `src/streamResolver.js`, `src/anikoto.js`, `src/hianime.js`, `src/aniwatch.js`, `src/providerSubtitles.js`, `main.js` | `tests/playback-lifecycle.test.cjs`, `tests/provider-routing.test.cjs`, `tests/provider-safety-cancellation.test.cjs`, `tests/provider-subtitles.test.cjs` |
 | Release and native checks | `package.json`, `scripts/release-guard.cjs`, `scripts/audit-package.cjs`, `scripts/native-smoke.cjs`, `src/system-checks-native.cjs`, `.github/workflows/` | `tests/release-config.test.cjs`, `tests/system-checks.test.cjs`, `tests/mac-support.test.cjs` |
 
 ## Trace behavior across boundaries
@@ -21,3 +21,5 @@ This is a navigation aid, not a generated symbol index. Verify symbols and calle
 Start at the visible control/event handler. Search the exact called function or IPC channel, follow it through `preload.js` and `main.js` where applicable, then find the backend route and permission checks. Locate tests by the same symbol/channel/route, not just similar filenames. Inspect HTML script loading and CSS selectors when debugging renderer integration. Do not infer that similarly named modules are interchangeable.
 
 The social backend lives under `server/`; schema changes require reviewed migration files and permission/persistence coverage. Preserve established compatibility identifiers and third-party notices. The older Desktop `anitrack` checkout is not authoritative and may contain unrelated work. Some packaging arrangements used its cached tools; prefer this checkout's dependencies and report any external dependency still required.
+
+Responsive rendering and native navigation cleanup: `tests/responsive-loading.test.cjs`, `scripts/native-navigation-check.cjs`. The latter runs real Electron windows against local fixture HTTP with a temporary profile.

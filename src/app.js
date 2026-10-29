@@ -868,6 +868,7 @@ const App = {
       main.classList.remove('view-leaving');
       this.renderQuiet = quiet; // quiet refreshes don't replay the card animations
       main.innerHTML = html;
+      if(view==='home'&&typeof HomeReads!=='undefined')HomeReads.markPaint(id);
       this.mountPageShortcuts(main);
       if(view==='home'&&this.homeBrand){
         const anchor=document.createElement('div');anchor.className='home-brand-anchor';
@@ -2224,6 +2225,14 @@ function preconnectImageHosts() {
 }
 
 // Library episodes Jellyfin has no image for: use Kitsu's still for that episode instead of the show's backdrop.
+function setEpisodeThumb(row,sources){
+ const thumb=row.querySelector('.thumb'),img=thumb?.querySelector('img');if(!img||!row.isConnected)return;
+ const fallback=thumb.dataset.fallback;if(fallback){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
+ const candidates=[...new Set([...sources,thumb.dataset.poster].filter(Boolean))],key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
+ const next=()=>{if(!row.isConnected||img._thumbKey!==key)return;const url=candidates.find(u=>!img._thumbFailed.has(u));if(!url){img.style.visibility='hidden';return;}img.hidden=false;img.style.visibility='';
+ img.onload=()=>{if(row.isConnected&&img._thumbKey===key)img.classList.add('ready');};img.onerror=()=>{img._thumbFailed.add(url);img.classList.remove('ready');next();};
+ if(img.getAttribute('src')!==url){img.classList.remove('ready');img.src=url;}if(img.complete&&img.naturalWidth)img.classList.add('ready');};next();thumb.classList.remove('skel');
+}
 async function fillMissingThumbs(rid) {
   const rows = [...document.querySelectorAll('.ep-list .ep[data-kthumb]')];
   const kid = App.showCtx?.match?.id;
@@ -2827,7 +2836,7 @@ async function queueWatching() {
   }
 }
 const QueueRecovery={timer:null,scope:'',tries:0,
- schedule(rid){clearTimeout(this.timer);const key=queueScope();if(key!==this.scope){this.scope=key;this.tries=0;}const failed=document.querySelector('[data-queue-failed]'),stale=queueWatchingCache?.key===key&&queueWatchingCache.stale;
+ schedule(rid){clearTimeout(this.timer);if(typeof HomeReads!=='undefined'&&HomeReads.active?.pending.size&&HomeReads.active.rid===rid)return;const key=queueScope();if(key!==this.scope){this.scope=key;this.tries=0;}const failed=document.querySelector('[data-queue-failed]'),stale=queueWatchingCache?.key===key&&queueWatchingCache.stale;
   if(!failed&&!stale){this.tries=0;return;}if(this.tries>=3)return;
   this.timer=setTimeout(()=>{if(App.stale(rid)||App.view!=='home'||queueScope()!==key||!document.getElementById('modal').hidden||!document.getElementById('player').hidden)return;this.tries++;App.nav('home',{},false,true);},[1800,4500,10000][this.tries]);
  }
@@ -3596,31 +3605,47 @@ function scheduleTimelineSkeleton() {
     <div class="sch-tl"><div class="tl-list" style="gap:12px">${row.repeat(6)}</div></div></div>`;
 }
 
+function firstUsableArtwork(groups,measure,score,deadlineMs=2200){
+ return new Promise(resolve=>{let remaining=groups.length,best=null,bestScore=0,done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);resolve(best);};const timer=setTimeout(finish,deadlineMs);
+ if(!remaining)return finish();for(const group of groups)Promise.resolve().then(group).then(urls=>Promise.all([...new Set((urls||[]).filter(Boolean))].slice(0,3).map(async url=>{const image=await measure(url);if(done)return;const value=score(image);if(value>bestScore){best=image;bestScore=value;}if(value>=.65)finish();}))).catch(()=>{}).finally(()=>{if(!--remaining)finish();});
+ });
+}
+const HomeReads={active:null,budgetMs:600,
+ scope(){return queueScope()+':'+(typeof Cloud==='undefined'?'':Cloud.ident());},
+ begin(rid){let b=this.active;if(!b||b.nextRid!==rid||b.scope!==this.scope())b={scope:this.scope(),rid,values:new Map(),pending:new Map(),failed:new Set(),timer:null,nextRid:null,painted:false,dirty:false};b.rid=rid;b.nextRid=null;this.active=b;return b;},
+ markPaint(rid){const b=this.active;if(b?.rid!==rid)return;b.painted=true;if(b.dirty)this.schedule(b);},
+ schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;b.dirty=false;b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});},120);},
+ async read(b,key,loader,fallback=[]){if(b.values.has(key))return b.values.get(key);if(b.pending.has(key))return fallback;
+ const job=Promise.resolve().then(loader).catch(()=>{b.failed.add(key);return fallback;}).then(value=>{b.values.set(key,value);b.pending.delete(key);this.schedule(b);return value;});b.pending.set(key,job);let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>resolve(fallback),this.budgetMs);})]);}finally{clearTimeout(timer);}
+ }
+};
+
 /* ================================ VIEWS ================================ */
 const Views = {
-  async home() {
+  async home(_params={},rid=App.renderId) {
+    const batch=HomeReads.begin(rid),read=(key,loader,fallback=[])=>HomeReads.read(batch,key,loader,fallback);
     const sections = homeOrder().filter((s) => s.on).map((s) => s.id); // Settings → Home screen → Sections
     const want = (...ids) => ids.some((x) => sections.includes(x)); // only fetch what's shown
     const none = () => [];
     let queueFailed = false;
-    const queueFailure = () => { queueFailed = true; return []; };
-    const browse = (f) => Kitsu.browse(f, 0, 20).then((r) => r.items).catch(none);
+    const queueFailure = () => { queueFailed = true;batch.failed.add('watching');return []; };
+    const browse = (f) => read('browse:'+JSON.stringify(f),()=>Kitsu.browse(f,0,20).then(r=>r.items));
     const genreIds = sections.filter((x) => x.startsWith('g:'));
-    const airingP = want('yournext') ? listAiring().catch(() => null) : Promise.resolve(null); // which queue episodes are out yet
+    const airingP = want('yournext') ? read('airing',()=>listAiring(),null) : Promise.resolve(null); // which queue episodes are out yet
     const [resume, nextUp, latestByLib, watching, trending, seasonal, popular, planning, topRated, allTime, upcoming, recent, mineThisWeek, ...genreLists] = await Promise.all([
       [],
       [],
       [],
-      want('watching', 'watchingAiring', 'yournext') ? (want('yournext') ? queueWatching() : Tracker.watching()).catch(queueFailure) : [],
-      want('featured', 'trending', 'mosaic') ? Kitsu.trending().catch(none) : [],
-      want('featured', 'season') ? Kitsu.seasonal().catch(none) : [],
-      want('trending', 'top10', 'mosaic') ? Kitsu.popularAiring().catch(none) : [],
-      want('planning') ? Tracker.list('planned', 0, 24).then((r) => r.entries).catch(none) : [],
+      want('watching', 'watchingAiring', 'yournext') ? read('watching',()=>(want('yournext')?queueWatching():Tracker.watching()).catch(queueFailure)) : [],
+      want('featured', 'trending', 'mosaic') ? read('trending',()=>Kitsu.trending()) : [],
+      want('featured', 'season') ? read('seasonal',()=>Kitsu.seasonal()) : [],
+      want('trending', 'top10', 'mosaic') ? read('popular-airing',()=>Kitsu.popularAiring()) : [],
+      want('planning') ? read('planning',()=>Tracker.list('planned',0,24).then(r=>r.entries)) : [],
       want('toprated') ? browse({ sort: 'rating' }) : [],
       want('popular') ? browse({ sort: 'popular' }) : [],
       want('upcoming') ? browse({ status: 'upcoming' }) : [],
-      want('neweps') ? Promise.all([Schedule.recent(), Tracker.list('current', 0, 100).then((r) => r.entries)]).catch(() => [[], []]) : [[], []],
-      want('greeting', 'airingToday', 'week') ? Schedule.week().then(mySchedule).catch(none) : [],
+      want('neweps') ? read('recent',()=>Promise.all([Schedule.recent(),Tracker.list('current',0,100).then(r=>r.entries)]),[[],[]]) : [[], []],
+      want('greeting', 'airingToday', 'week') ? read('week',()=>Schedule.week().then(mySchedule)) : [],
       ...genreIds.map((g) => browse({ genre: g.slice(2) })),
     ]);
     [trending, seasonal, popular, topRated, allTime, upcoming, ...genreLists].forEach((l) => l.splice(0, l.length, ...sfw(l)));
@@ -3640,7 +3665,7 @@ const Views = {
     let slides = await Promise.all(candidates.map(async (a) => {
       const lib = App.libIndex?.find(a);
       // homeAfter() tries AniList's banner and ani.zip fanart first, then these, then Trakt fanart (only if needed).
-      const srcs = [lib?.BackdropImageTags?.length ? Jellyfin.img(lib.Id, 'Backdrop', { maxWidth: 3840, quality: 92 }) : ''].filter(Boolean);
+      const srcs = [lib?.BackdropImageTags?.length ? Jellyfin.img(lib.Id, 'Backdrop', { maxWidth: 3840, quality: 92 }) : '',AniList.detailsCache?.[a.id]?.value?.banner,a.coverHd||a.cover].filter(Boolean);
       return { kind: 'anime', a, srcs, fan: [a.canonical || a.title, a.year] };
     }));
     slides = slides.filter(Boolean);
@@ -3656,8 +3681,10 @@ const Views = {
     </section>` : '';
     const heroFirst = sections.includes('yournext');
     const airingForQueue=heroFirst?await airingP:null;
-    const queueWatchingVerified=heroFirst?await verifyQueueAiring(watching,airingForQueue):watching;
-    if (heroFirst) await QueueArt.load();
+    const verificationKey='queue-verified:'+watching.map(w=>w.anime?.id+':'+w.progress).join(',')+':'+batch.values.has('airing');
+    const queueWatchingVerified=heroFirst?await read(verificationKey,()=>verifyQueueAiring(watching,airingForQueue)):watching;
+    if(heroFirst)await read('queue-art',()=>QueueArt.load(),null);
+    if(batch.pending.has('watching')||batch.failed.has('watching')||batch.pending.has(verificationKey))queueFailed=true;
     const queueItems = heroFirst ? buildQueue(resume, up, queueWatchingVerified, airingForQueue) : [];
     for (const it of queueItems) { const u = QueueArt.get(it); if (u) { it.resolvedBackdrop = u; it.thumb = u; } } // last time's banner, straight away
     let html = heroFirst ? yourNextHero(queueItems, queueFailed) : carouselHtml;
@@ -3716,33 +3743,13 @@ const Views = {
       t.src = u;
     });
     const loadBest = async (slide) => {
-      const img = slide.querySelector('.slide-img');
-      const al = slide.dataset.kid ? await AniList.details(slide.dataset.kid).catch(() => null) : null;
-      if (al?.cover) slide.dataset.poster = al.cover; // the Spotlight strip uses AniList's cover
-      if (al && !App.stale(rid)) {
-        slide.querySelector('.slide-text h1').textContent = al.title || slide.querySelector('.slide-text h1').textContent;
-        slide.querySelector('.slide-meta').textContent = [al.score ? `★ ${al.score}%` : '', al.format, al.year, al.episodes ? `${al.episodes} eps` : '', ...(al.genres || []).slice(0, 2)].filter(Boolean).join(' · ');
-        showLogo(slide.querySelector('.slide-text h1'), al.id, seasonNumberIn(al.title || ''),al.englishTitle||al.title||'');
-      }
-      const fan = JSON.parse(img.dataset.fan || 'null');
-      let kc = ''; // Kitsu's cover, once looked up
-      const groups = [
-        async () => (typeof HDArt === 'undefined' ? [] : await HDArt.backdrops({ seriesId: slide.dataset.lib || null, alId: al?.id || null })).slice(0, 2), // original-resolution art first
-        async () => { kc = slide.dataset.lib || typeof kitsuCover !== 'function' ? '' : await kitsuCover({ kitsuId: slide.dataset.kid || null, alId: al?.id || null }); return [kc]; }, // outside your library: Kitsu's cover
-        () => JSON.parse(img.dataset.srcs || '[]'), // then the library's artwork
-        async () => [(await AniZip.get(al?.id))?.fanart],
-        async () => (fan?.[0] ? Promise.race([Trakt.fanartFor(fan[0], fan[1]).catch(() => []), new Promise((r) => setTimeout(() => r([]), 4000))]) : []),
-        () => [al?.banner],
-      ];
-      let best = null, bestScore = 0;
-      const lists=await Promise.all(groups.map(g=>Promise.resolve().then(g).catch(()=>[])));
-      const candidates=[...new Set(lists.flat().filter(Boolean))].slice(0,12);
-      const measured=await Promise.all(candidates.map(measure));
-      if(App.stale(rid))return 0;
-      for(const d of measured){const score=carouselArtworkScore(d,box,dpr);if(score>bestScore){best=d;bestScore=score;}}
-      if (best) img.dataset.best = best.u;
-      // Keep the carousel exclusively landscape: portraits and extreme crops score 0 and are never used.
-      return bestScore;
+      const img=slide.querySelector('.slide-img'),fan=JSON.parse(img.dataset.fan||'null');
+      const alP=slide.dataset.kid?AniList.details(slide.dataset.kid).catch(()=>null):Promise.resolve(null);
+      alP.then(al=>{if(!al||App.stale(rid)||!slide.isConnected)return;if(al.cover)slide.dataset.poster=al.cover;const heading=slide.querySelector('.slide-text h1');if(!heading.querySelector('.hero-logo'))heading.textContent=al.title||heading.textContent;slide.querySelector('.slide-meta').textContent=[al.score?'★ '+al.score+'%':'',al.format,al.year,al.episodes?al.episodes+' eps':'',...(al.genres||[]).slice(0,2)].filter(Boolean).join(' · ');showLogo(heading,al.id,seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}).catch(()=>{});
+      const known=JSON.parse(img.dataset.srcs||'[]');
+      const groups=[()=>known,async()=>[(await alP)?.banner],async()=>[(await AniZip.get((await alP)?.id))?.fanart],async()=>typeof kitsuCover==='function'?[await kitsuCover({kitsuId:slide.dataset.kid||null})]:[],async()=>typeof HDArt==='undefined'?[]:(await HDArt.backdrops({seriesId:slide.dataset.lib||null,alId:(await alP)?.id})).slice(0,2),async()=>fan?.[0]?Trakt.fanartFor(fan[0],fan[1]):[]];
+      const best=await firstUsableArtwork(groups,measure,image=>carouselArtworkScore(image,box,dpr));
+      if(App.stale(rid)||!slide.isConnected)return 0;if(best)img.dataset.best=best.u;return carouselArtworkScore(best,box,dpr);
     };
     car.classList.add('loading-art');
     const pendingSlides=[...car.querySelectorAll('.slide')],scores=new Array(pendingSlides.length).fill(0);
@@ -4169,7 +4176,7 @@ const Views = {
       force: bgLib ? '' : (useAl ? al?.banner || a.coverHd : a.coverHd || al?.banner) || '',
       kitsu: bgLib ? '' : a.coverHd || '', alBanner: al?.banner || '', pill: !bgLib && !!(a.coverHd && al?.banner) };
     AniZip.get(al?.id); // episode stills + fanart start downloading now
-    const thumbFallback = al?.banner || a.coverHd || a.cover || ''; // when an episode has no still of its own
+    const thumbFallback = al?.banner || a.coverHd || a.cover || poster || ''; // when an episode has no still of its own
     App.showAl = al; // animeAfter() also uses AniList's streaming episodes
     // Episode names and thumbnails start downloading now; animeAfter() fills them in (same cached request).
     if(epCount)Kitsu.episodes(a.id, lastEp - firstEp + 1, firstEp - 1).catch(() => []);
@@ -4183,7 +4190,7 @@ const Views = {
     const epRows = epNums.map((n) => {
       const played = n <= watchedEps, isNext = n === nextEpNum;
       return `<div class="ep ${isNext ? 'next' : ''} ${played ? 'played' : ''}" id="ep-row-${n}" data-num="${n}">
-        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb skel" data-fallback="${esc(thumbFallback)}"><img alt="" hidden><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
+        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" alt="" ${thumbFallback?`src="${esc(thumbFallback)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
         <div class="ep-info"><div class="ep-num">Episode ${n}${isNext ? ' <span class="up-next">UP NEXT</span>' : ''} <span class="ep-meta"></span></div>
           <div class="ep-title"></div>
           <div class="ep-overview muted">Streams from <span class="ep-sub-srv">${esc(shortServerName(remServer))}</span> · ${audioMode.toUpperCase()}</div></div>
@@ -4284,30 +4291,35 @@ const Views = {
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;
-    const [eps, zip] = await Promise.all([Kitsu.episodes(id, Math.max(...rows.map(r=>Number(r.dataset.num)))-from, from).catch(() => []), AniZip.get(App.showAl?.id)]);
-    if (App.stale(rid)) return;
+    let eps=[],zip=null;
+    const apply=()=>{if(App.stale(rid))return;
     const byNum = new Map(eps.map((e) => [e.number, e]));
     // An episode with an air date still ahead isn't out: take it off the list (clicking it would open an empty player).
     const now = Date.now();
     for (const row of [...rows]) {
+      if(!row.isConnected)continue;
       const n = Number(row.dataset.num), air = Date.parse(zip?.episodes?.[n]?.airDate || byNum.get(n)?.airdate || '');
       if (air > now + 3600000) { row.remove(); rows.splice(rows.indexOf(row), 1); }
     }
     for (const row of rows) {
+      if(!row.isConnected)continue;
       const n = Number(row.dataset.num), z = zip?.episodes?.[n], st = App.showAl?.streams?.[n];
       let e = byNum.get(n);
       // Each detail from the best source that has it: ani.zip (TheTVDB), then Kitsu, then AniList's streaming episodes.
       if (z) e = { ...(e || {}), title: z.title || e?.title, synopsis: z.overview || e?.synopsis, airdate: z.airDate || e?.airdate, length: z.runtime || e?.length, thumb: z.image || e?.thumb };
-      const thumb = row.querySelector('.thumb'), img = thumb?.querySelector('img');
-      const src = e?.thumb || st?.thumb || thumb?.dataset.fallback;
       if (st?.title && !e?.title) row.querySelector('.ep-title').textContent = st.title;
-      if (img && src) { img.onerror = () => { if (img.src !== thumb.dataset.fallback && thumb.dataset.fallback) img.src = thumb.dataset.fallback; }; img.src = src; img.hidden = false; }
-      thumb?.classList.remove('skel');
+      setEpisodeThumb(row,[z?.image,byNum.get(n)?.thumb,st?.thumb,row.querySelector('.thumb')?.dataset.fallback]);
       if (!e) continue;
       if (e.title && !/^episode \d+$/i.test(e.title)) row.querySelector('.ep-title').textContent = e.title;
       row.querySelector('.ep-meta').textContent = [e.length ? `${e.length} min` : '', e.airdate || ''].filter(Boolean).join(' · ');
       if (e.synopsis) { const o = row.querySelector('.ep-overview'); o.textContent = e.synopsis.replace(SOURCE_NOTE, ''); o.classList.remove('muted'); }
     }
+    };
+    apply();
+    await Promise.allSettled([
+      Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;apply();}),
+      AniZip.get(App.showAl?.id).then(value=>{zip=value;apply();})
+    ]);
   },
 
   async schedule() {

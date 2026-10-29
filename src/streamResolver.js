@@ -5,7 +5,6 @@ const {discoverSubtitleTracks}=require('./providerSubtitles');
 const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '124.0.0.0'} Safari/537.36`;
 
 // Cache verified title pages, never expiring media URLs.
-const aniwatchPages = new Map();
 const anikotoSessions = [];
 function acquireAnikotoSession() {
   let slot = anikotoSessions.find(s => !s.busy);
@@ -14,22 +13,24 @@ function acquireAnikotoSession() {
   return slot;
 }
 async function loadAnikotoPage(win, url, referrer) {
+  const contents=win.webContents;
   await new Promise((resolve, reject) => {
     let timer, settled = false;
     const done = err => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      win.webContents.removeListener('dom-ready', ready);
-      win.removeListener?.('closed', closed);
+      // BrowserWindow.webContents cannot be accessed after its closed event.
+      try{contents.removeListener('dom-ready',ready);}catch{}
+      try{win.removeListener?.('closed',closed);}catch{}
       if (err) reject(err); else resolve();
     };
     const ready = () => done();
     const closed = () => done(new Error('Anikoto window closed'));
     win.once?.('closed', closed);
-    win.webContents.once('dom-ready', ready);
+    contents.once('dom-ready', ready);
     timer = setTimeout(() => done(new Error('Anikoto page navigation timed out')), 30000);
-    win.loadURL(url,referrer?{httpReferrer:referrer}:undefined).then(ready, done);
+    try{Promise.resolve(win.loadURL(url,referrer?{httpReferrer:referrer}:undefined)).then(ready,done);}catch(error){done(error);}
   });
 }
 const dynamicStreamHeaders = new Map();
@@ -207,13 +208,10 @@ class StreamResolver {
     const season = request.seasonNumber == null ? 1 : Number(request.seasonNumber);
     if (!Number.isInteger(season) || season < 1) throw new Error(label+' specials require their own title');
     let protocolEmbeds;
-    if(providerId!=='aniwatch'){
+    if(provider.metadata){
       protocolEmbeds=await provider.metadata(async url=>{this.signal?.throwIfAborted();const response=await net.fetch(url,{headers:{'User-Agent':CHROME_UA,Referer:provider.BASE+'/',...(providerId==='anikoto'?{'X-Requested-With':'XMLHttpRequest'}:{})},signal:this.signal?AbortSignal.any([this.signal,AbortSignal.timeout(5000)]):AbortSignal.timeout(5000)});if(!response.ok)throw Error(label+' catalog request unavailable');const text=await response.text();if(text.length>3000000||/<title>\s*(?:just a moment|access denied)|verify you are human/i.test(text.slice(0,1200)))throw Error(label+' is temporarily unavailable');return text;},title,episodeNum,audio,request);
       if(request.catalogOnly)return protocolEmbeds;
     }
-    const pageKey=JSON.stringify([providerId,title,season]);
-    const savedPage=aniwatchPages.get(pageKey);
-    let match=savedPage&&Date.now()-savedPage.at<1800000?savedPage.match:null;
     const slot = acquireAnikotoSession();
     const win = this.createResolverWindow({ show: false, width: 1280, height: 720,
       webPreferences: { partition: slot.partition, sandbox: true, contextIsolation: true, nodeIntegration: false,
@@ -234,20 +232,6 @@ class StreamResolver {
         timer = setTimeout(() => reject(new Error(label+' page script timed out')), 5000);
       })]); } finally { clearTimeout(timer); }
     };
-    const inspect = () => evaluate(`(${provider.inspectPage.toString()})()`);
-    const waitFor = async (key, stage) => {
-      console.log('[StreamResolver] '+label+' stage:', stage);
-      const until = Date.now() + 10000;
-      do {
-        this.signal?.throwIfAborted();
-        if (win.isDestroyed()) throw new Error(label+' window closed');
-        const data = await inspect();
-        if (data.challenge) throw new Error(label+' is temporarily unavailable. Choose another server.');
-        if (data[key].length || (key==='titles'&&data.emptySearch)) return data;
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } while (Date.now() < until);
-      throw new Error(`${label} timed out at ${stage} stage`);
-    };
     ses.webRequest.onBeforeSendHeaders({urls:['*://*/*']}, (details, callback) => {
       if (captureEnabled && !captured && /\.(m3u8|mp4)(\?|$)/i.test(details.url) && !/preview|thumb|\/ads?\//i.test(details.url)) {
         const headers = {'User-Agent':CHROME_UA};
@@ -267,30 +251,7 @@ class StreamResolver {
       return {...stream,subtitles:subtitles.map(t=>({...t,headers:stream.headers||{}}))};
     };
     try {
-      let embeds;
-      if(providerId!=='aniwatch'){embeds=protocolEmbeds;}
-      else {
-      if(!match){
-        let lastError;
-        for(const query of provider.searchTerms(title)){
-          console.log('[StreamResolver] AniWatch search:',query);
-          await loadAnikotoPage(win, `${provider.BASE}/?s=${encodeURIComponent(query)}`);
-          const search=await waitFor('titles','search');
-          try{match=provider.chooseTitle(search.titles,title,season);break;}catch(error){lastError=error;}
-        }
-        if(!match){if(request.catalogOnly&&/No exact title match/.test(lastError?.message||''))return {episodes:[]};throw lastError||new Error('AniWatch: No matching title found');}
-      } else console.log('[StreamResolver] AniWatch using cached title page');
-      await loadAnikotoPage(win, match.url);
-      const titleData = await waitFor('episodes', 'episode');
-      if(request.catalogOnly){if(season>1&&!match.seasonal)throw Error('AniWatch needs an exact season title to list episodes');return {episodes:titleData.episodes.map(e=>Number(e.number))};}
-      const episodeUrl = provider.chooseEpisode(titleData.episodes, episodeNum, request, match.seasonal);
-      if (new URL(wc.getURL()).pathname !== new URL(episodeUrl).pathname) await loadAnikotoPage(win, episodeUrl);
-      const episodeData = await waitFor('servers', 'audio');
-      if(aniwatchPages.size>=100)aniwatchPages.delete(aniwatchPages.keys().next().value);
-      aniwatchPages.set(pageKey,{at:Date.now(),match});
-      embeds = provider.chooseEmbeds(episodeData.servers, audio);
-      }
-      if(request.catalogOnly)return embeds;
+      const embeds=protocolEmbeds;
       let lastError;
       for (const embed of embeds) {
         this.signal?.throwIfAborted();
@@ -334,7 +295,7 @@ class StreamResolver {
         } catch (err) { this.signal?.throwIfAborted(); lastError = err; }
       }
       throw new Error(label+' players failed: ' + (lastError?.message || 'No media stream'));
-    } catch(error){aniwatchPages.delete(pageKey);throw error;} finally {
+    } finally {
       captureEnabled = false;
       ses.webRequest.onBeforeSendHeaders(null);
       slot.busy = false;
@@ -356,4 +317,5 @@ class StreamResolver {
 
 const instance = new StreamResolver();
 module.exports = StreamResolver;
+module.exports.loadProviderPage = loadAnikotoPage;
 module.exports.resolve = (params) => instance.resolve(params);
