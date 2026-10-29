@@ -782,6 +782,12 @@ const AniList = {
     return Object.fromEntries((data?.Page?.media||[]).map(m=>['al:'+m.id,{status:String(m.status||'').toLowerCase(),episodes:m.episodes,format:m.format,next:m.nextAiringEpisode?{episode:m.nextAiringEpisode.episode,at:m.nextAiringEpisode.airingAt*1000}:null}]));
   },
   async details(id) {
+    const hit=this.detailsCache[id];if(hit&&Date.now()-hit.at<30*60_000)return hit.value;
+    this.detailsPending||=new Map();if(this.detailsPending.has(id))return this.detailsPending.get(id);
+    const promise=this.readDetails(id);this.detailsPending.set(id,promise);
+    try{return await promise;}finally{if(this.detailsPending.get(id)===promise)this.detailsPending.delete(id);}
+  },
+  async readDetails(id) {
     const hit = this.detailsCache[id];
     if (hit && Date.now() - hit.at < 30 * 60_000) return hit.value;
     const mediaId = await this.mediaId(id);
@@ -793,7 +799,7 @@ const AniList = {
     const t = m.title || {};
     const value = {
       id: m.id, malId: m.idMal || null,
-      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'',
+      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'', titles:[t.romaji,t.english].filter(Boolean),
       synopsis: m.description || '', banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
       genres: m.genres || [], score: m.averageScore || null, status: (m.status || '').toLowerCase().replace(/_/g, ' '),
       season: m.season && m.seasonYear ? `${m.season[0]}${m.season.slice(1).toLowerCase()} ${m.seasonYear}` : '', year: m.seasonYear ? String(m.seasonYear) : '',
@@ -841,6 +847,7 @@ const AniList = {
     if (!this.loggedIn()) return null;
     const scope=this.entryScope(),mediaId = await this.mediaId(id);
     if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    if(!fresh&&this.collectionPending?.scope===scope){await this.collectionPending.promise;if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');}
     if(this.entryOwner!==scope){this.invalidateEntries();this.entryOwner=scope;}
     const cached=this.entryCache.get(mediaId);
     if(!fresh&&cached&&cached.until>Date.now())return cached.value?{...cached.value}:null;
@@ -915,9 +922,16 @@ const AniList = {
   async collection() {
     const scope=this.entryScope();
     if (this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 30000) return this.coll;
+    if(this.collectionPending?.scope===scope)return this.collectionPending.promise;
+    const promise=this.readCollection(scope),task={scope,promise};this.collectionPending=task;
+    try{return await promise;}finally{if(this.collectionPending===task)this.collectionPending=null;}
+  },
+  async readCollection(scope) {
+    const epoch=this.entryEpoch||0;
     const d = await this.gql(`query($u:Int){ MediaListCollection(userId:$u, type:ANIME){ lists{ entries{ id status progress score(format:POINT_10) repeat updatedAt
       media{ id idMal title{ romaji english native userPreferred } synonyms coverImage{ large extraLarge } episodes format seasonYear averageScore genres status siteUrl } } } } }`, { u: this.userId });
     if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+    if(epoch!==(this.entryEpoch||0))throw Error('Your list changed while loading. Reload this page.');
     this.collOwner=scope;
     const seen = new Set();
     this.coll = (d?.MediaListCollection?.lists || []).flatMap((l) => l.entries || []).filter((e) => !seen.has(e.id) && seen.add(e.id))
