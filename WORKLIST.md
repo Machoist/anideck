@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 28 October — Slime logo, Discussion action and shuffle-card polish
+
+Current Windows installer/portable: **preview-bea19eb**, runtime source **bea19eb**, **487 tests pass**. Package audit, final isolated native checks, ZIP integrity and installer/portable runtime equality pass. Install `outputs/AniDeck-preview-bea19eb-Setup.exe` after closing AniDeck. This includes the prior HiAnime replacement; no public release or tag was created.
+
+- Slime (AniList101280 / TVDB352408): initial indexed logos were square and correctly rejected. Added an exact numeric-TVDB fallback for horizontal clearlogo assets, filtered to that same series. Optional artwork reads cannot open a verification window. Horizontal variants are preferred; failed image-cache entries can retry. Final packaged native fixture uses real public Slime artwork and verifies horizontal logo plus smaller English caption. Reviewed preview screenshot; general source availability remains external.
+- New discussion: plus icon and label now align with explicit spacing. Packaged geometry check and screenshot reviewed.
+- Deal me a show: larger mystery/revealed cards share dimensions and artwork slot, including narrow layouts. Final native checks at580/360px verify matching size/position, readable dimensions, animation phases and visible controls; hover containment passes. Synthetic fixture only.
+- Speckles is genuinely on AniList:141166, MAL35674, Korean title Jeombagi: Hanbandoui Gongnyong3D, English Speckles: Dinosaurs of the Korean Peninsula. Read-only public GraphQL confirmed it. No blacklist or Japan-only restriction added.
+- Evidence: work/card-logo-polish-tests.log, work/card-logo-polish-final-native.log; screenshots outputs/card-logo-polish-final/. Unrelated readme-preview.html and older Desktop/anitrack checkout preserved.
+- Remaining: user live playback with HiAnime, future natural AniList progress advance, Kitsu import, second-device recovery, physicalTV/Jellyfin/OS notifications and live synopsis fallback. Gio and physicalMac remain deferred. No user-account/list/message writes, installed-app replacement, new backend deployment or migration.
+
 ## 28 October — AnimePahe removed; HiAnime replaces server #2
 
 Current installer/portable: **preview-7ebd3e4**, runtime source **7ebd3e4** (implementation c99f78f), **485 tests pass**. Package audit, full isolated packaged native checks, native retired-provider migration check, ZIP integrity and installer/portable runtime equality pass. A clearly named installer is also saved as outputs/AniDeck-preview-7ebd3e4-Setup.exe.
