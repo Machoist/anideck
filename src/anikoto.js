@@ -3,13 +3,14 @@ const {load}=require('cheerio');
 const {norm}=require('./hianime');
 const BASE='https://anikototv.to',cache=new Map();
 function siteUrl(value){const u=new URL(value,BASE);if(u.origin!==BASE||u.username||u.password||!u.pathname.startsWith('/watch/'))throw Error('Unexpected Anikoto title address');return u.href;}
+function titleIdentity(value){const u=new URL(siteUrl(value));return u.origin+u.pathname.replace(/\/ep-[^/]+\/?$/,'').replace(/\/$/,'');}
 function titles(html){const $=load(html);return $('a[href*="/watch/"]').map((_,a)=>{const el=$(a);try{return {url:siteUrl(el.attr('href')),title:el.attr('title')||el.text().trim(),jp:el.attr('data-jp'),alt:el.find('img').attr('alt')};}catch{return null;}}).get().filter(Boolean);}
 function chooseTitle(items,title,season,aliases=[]){
  const named=/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(title),matching=t=>items.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&norm(v)===norm(t)));
  let hits=season>1&&!named?matching(title+' Season '+season):[];const seasonal=named||hits.length>0;if(!hits.length)hits=matching(title);
- const unique=[...new Map(hits.map(x=>[x.url,x])).values()];if(!unique.length){const alternate=aliases.filter(v=>!named||season<=1||/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(v)).map(v=>chooseTitle(items,v,season)).filter(Boolean),matches=[...new Map(alternate.map(x=>[x.url,x])).values()];if(matches.length>1)throw Error('Anikoto returned ambiguous alternate title matches');return matches[0]||null;}if(unique.length!==1)throw Error('Anikoto returned ambiguous title matches');return {...unique[0],seasonal};
+ const unique=[...new Map(hits.map(x=>[titleIdentity(x.url),x])).values()];if(!unique.length){const alternate=aliases.filter(v=>!named||season<=1||/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(v)).map(v=>chooseTitle(items,v,season)).filter(Boolean),matches=[...new Map(alternate.map(x=>[titleIdentity(x.url),x])).values()];if(matches.length>1)throw Error('Anikoto returned ambiguous alternate title matches');return matches[0]||null;}if(unique.length!==1)throw Error('Anikoto returned ambiguous title matches');return {...unique[0],seasonal};
 }
-function pageId(html,url){const $=load(html),page=$('.watch-wrap[data-id]');if(page.length!==1||!/^\d+$/.test(page.attr('data-id')||''))throw Error('Anikoto title metadata unavailable');const canonical=siteUrl(page.attr('data-url'));if(new URL(url).pathname.replace(/\/ep-[^/]+\/?$/,'').replace(/\/$/,'')!==new URL(canonical).pathname.replace(/\/$/,''))throw Error('Anikoto returned a different title');return page.attr('data-id');}
+function pageId(html,url){const $=load(html),page=$('.watch-wrap[data-id]');if(page.length!==1||!/^\d+$/.test(page.attr('data-id')||''))throw Error('Anikoto title metadata unavailable');if(titleIdentity(url)!==titleIdentity(page.attr('data-url')))throw Error('Anikoto returned a different title');return page.attr('data-id');}
 function episodes(html){const $=load(html);return $('a[data-num][data-id][data-ids]').map((_,a)=>{const e=$(a),number=Number(e.attr('data-num'));return Number.isInteger(number)&&number>0&&number<=3000&&/^\d+$/.test(e.attr('data-id')||'')?{number,id:e.attr('data-id'),servers:e.attr('data-ids'),title:e.closest('li').attr('title')||'',sub:Number(e.attr('data-sub'))>0,dub:Number(e.attr('data-dub'))>0}:null;}).get().filter(Boolean);}
 function serverIds(html,audio,episodeId){const $=load(html);return [...new Set($('[data-type]').filter((_,e)=>$(e).attr('data-type')===audio).find('li[data-link-id]').filter((_,e)=>$(e).attr('data-ep-id')===episodeId).map((_,e)=>$(e).attr('data-link-id')).get().filter(Boolean))].slice(0,3);}
 async function result(read,url){const text=await read(url);let response;try{response=JSON.parse(text);}catch{throw Error('Anikoto returned an invalid response');}if(response?.status!==200||!response.result)throw Error('Anikoto catalog is temporarily unavailable');return response.result;}
@@ -30,4 +31,4 @@ async function metadata(read,title,number,audio,request={}){
  if(!urls.length)throw Error('Anikoto has no usable server for this episode and audio');return [...new Set(urls)];
  }catch(error){cache.delete(JSON.stringify([title,season,aliases]));throw error;}
 }
-module.exports={BASE,titles,chooseTitle,pageId,episodes,serverIds,metadata,cache};
+module.exports={BASE,titleIdentity,titles,chooseTitle,pageId,episodes,serverIds,metadata,cache};
