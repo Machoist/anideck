@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 29 October — aligned My List card details
+
+Current installer/portable: **preview-1db729b**, runtime source **1db729b**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1db729b-Setup.exe`.
+
+- User reported uneven personal-score button positions when titles occupy different numbers of lines. Scope the fix to My List grid cards: reserve two title lines, keep episode text aligned below them, and use a flex column with the score action anchored to the row bottom. Wrapped episode metadata cannot lift another card's rating control. Other poster grids and list-view layout unchanged.
+- All525 regressions pass. Native fixture now uses actual My List card structure, five varied title lengths and wrapping episode metadata. At1360px and960px, poster/title/episode/button top coordinates align within1px for each row and buttons stay within card width. Measure/capture after entrance animation settles. Final full native smoke and package audit pass. Screenshots outputs/list-alignment-final/AniDeck-rating-buttons.png and AniDeck-list-aligned-narrow.png reviewed. Synthetic public artwork/metadata; no account/list writes.
+- Evidence work/list-alignment-tests.log, list-alignment-final-build.log and list-alignment-final-native.log. No installed-app replacement, backend deployment, migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — watchlist editor and rating button redesign
 
 Current installer/portable: **preview-884af77**, runtime source **884af77**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-884af77-Setup.exe`.
