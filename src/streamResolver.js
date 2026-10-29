@@ -123,6 +123,7 @@ class StreamResolver {
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
+    const deadline=params.catalogOnly?setTimeout(()=>controller.abort(new Error('Episode listing timed out')),18000):null;
     let abortListener;
     const cancelled = new Promise((_, reject) => {
       abortListener = () => reject(controller.signal.reason);
@@ -130,6 +131,7 @@ class StreamResolver {
     });
     try { return await Promise.race([worker.resolveUncached(params), cancelled]); }
     finally {
+      if(deadline)clearTimeout(deadline);
       controller.signal.removeEventListener('abort', abortListener);
       this.activeTasks.delete(task);
       for (const win of worker.windows) if (!win.isDestroyed()) win.destroy();
@@ -188,6 +190,7 @@ class StreamResolver {
     else if (provider === 'hianime') res = await this.resolveAniWatch(title,episodeNum,audio,params,'hianime');
     else if (provider === 'anipm') throw new Error('Ani.pm is unavailable: its playback integration has not been implemented. Choose Anikoto or HiAnime.');
     else throw new Error('Unsupported streaming provider: ' + provider);
+    if(params.catalogOnly)return {episodes:[...new Set((res?.episodes||[]).map(Number).filter(n=>Number.isInteger(n)&&n>0&&n<=3000))].sort((a,b)=>a-b),provider};
     if (!res?.streamUrl) throw new Error('No playable stream found on ' + provider);
     this.signal?.throwIfAborted();
     if (res.headers && !params.prefetch) dynamicStreamHeaders.set(new URL(res.streamUrl).hostname, res.headers);
@@ -225,20 +228,22 @@ class StreamResolver {
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     const playerFrames=new Set();
     let stage = titlePage ? 'episode' : 'search', selected = false, captured = null, lastStage = '', lastDiagnostic = 0;
-    const options = { title, episodeNum, audio, seasonNumber, seasonal, episodeTitle: String(request.episodeTitle || ''), absoluteEpisodeNum: Number(request.absoluteEpisodeNum) || null };
+    const options = { catalogOnly:!!request.catalogOnly, title, episodeNum, audio, seasonNumber, seasonal, episodeTitle: String(request.episodeTitle || ''), absoluteEpisodeNum: Number(request.absoluteEpisodeNum) || null };
     const inspect = (opts, currentStage) => {
       const clickTarget = el => { el.setAttribute('data-anideck-activate','1'); const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }; };
       const norm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      if(opts.catalogOnly&&/just a moment|checking your browser|verify you are human/i.test(document.title+' '+(document.body?.innerText||'').slice(0,500)))return {error:'Server is temporarily unavailable'};
       if (currentStage === 'search') {
         const links = [...document.querySelectorAll('a[href*="/watch/"]')];
         const matches = (a, title) => [a.textContent, a.getAttribute('data-jp'), a.querySelector('img')?.alt].some(s => norm(s) === norm(title));
         const seasonHit = opts.seasonNumber > 1 ? links.find(a => matches(a, opts.title + ' Season ' + opts.seasonNumber)) : null;
         const hit = seasonHit || links.find(a => matches(a, opts.title));
-        return hit ? { navigate: hit.href, seasonal: !!seasonHit, stage: 'episode' } : { stage: 'search' };
+        return hit ? { navigate: hit.href, seasonal: !!seasonHit || /season\s*\d+|\d+(?:st|nd|rd|th)\s*season/i.test(opts.title), stage: 'episode' } : opts.catalogOnly&&(links.length||/no results|nothing found/i.test(document.body?.innerText||'')) ? {episodes:[]} : { stage: 'search' };
       }
       if (currentStage === 'episode') {
         const episodes = [...document.querySelectorAll('#w-episodes a[data-num]')];
         if (!episodes.length) return { stage: 'episode' };
+        if(opts.catalogOnly){if(opts.seasonNumber>1&&!opts.seasonal)return {error:'Cannot list this season without an exact provider season match'};return {episodes:episodes.filter(a=>a.getAttribute('data-'+opts.audio)!=='0').map(a=>Number(a.dataset.num))};}
         const titleHits = opts.episodeTitle ? episodes.filter(a => norm(a.parentElement?.getAttribute('title')) === norm(opts.episodeTitle)) : [];
         let number = opts.seasonal || opts.seasonNumber <= 1 ? opts.episodeNum : opts.absoluteEpisodeNum;
         const hit = titleHits.length === 1 ? titleHits[0] : number ? episodes.find(a => Number(a.dataset.num) === number) : null;
@@ -303,7 +308,7 @@ class StreamResolver {
       console.log(`[StreamResolver] Anikoto search: ${searchUrl}`);
       if (titlePage) console.log('[StreamResolver] Anikoto using cached title page');
       await loadAnikotoPage(win, titlePage || searchUrl);
-      const deadline = Date.now() + 45000;
+      const deadline = Date.now() + (request.catalogOnly?12000:45000);
       while (Date.now() < deadline) {
         this.signal?.throwIfAborted();
         if (captured) { console.log('[StreamResolver] Anikoto resolution complete'); rememberPage(); return await withSubtitles(captured); }
@@ -318,6 +323,7 @@ class StreamResolver {
           lastDiagnostic = Date.now();
         }
         if (result.error) throw new Error(result.error);
+        if(request.catalogOnly&&Array.isArray(result.episodes)){rememberPage();return {episodes:result.episodes};}
         if (result.selected) selected = true;
         if (result.click) {
           const activated=await win.webContents.executeJavaScript(`(()=>{const el=document.querySelector('[data-anideck-activate="1"]');if(!el)return false;el.removeAttribute('data-anideck-activate');el.click();return true;})()`,true);
@@ -422,10 +428,11 @@ class StreamResolver {
           const search=await waitFor('titles','search');
           try{match=provider.chooseTitle(search.titles,title,season);break;}catch(error){lastError=error;}
         }
-        if(!match)throw lastError||new Error('AniWatch: No matching title found');
+        if(!match){if(request.catalogOnly&&/No exact title match/.test(lastError?.message||''))return {episodes:[]};throw lastError||new Error('AniWatch: No matching title found');}
       } else console.log('[StreamResolver] AniWatch using cached title page');
       await loadAnikotoPage(win, match.url);
       const titleData = await waitFor('episodes', 'episode');
+      if(request.catalogOnly){if(season>1&&!match.seasonal)throw Error('AniWatch needs an exact season title to list episodes');return {episodes:titleData.episodes.map(e=>Number(e.number))};}
       const episodeUrl = provider.chooseEpisode(titleData.episodes, episodeNum, request, match.seasonal);
       if (new URL(wc.getURL()).pathname !== new URL(episodeUrl).pathname) await loadAnikotoPage(win, episodeUrl);
       const episodeData = await waitFor('servers', 'audio');
@@ -433,6 +440,7 @@ class StreamResolver {
       aniwatchPages.set(pageKey,{at:Date.now(),match});
       embeds = provider.chooseEmbeds(episodeData.servers, audio);
       }
+      if(request.catalogOnly)return embeds;
       let lastError;
       for (const embed of embeds) {
         this.signal?.throwIfAborted();

@@ -385,6 +385,18 @@ function createWindow() {
           })()`);
           if(Object.values(forumCheck).some(value=>value!==true))throw Error('Title/forum presentation failed: '+JSON.stringify(forumCheck));
           console.log('AniDeck title and forum presentation: '+JSON.stringify(forumCheck));
+          const availabilityCheck=await win.webContents.executeJavaScript(`(async()=>{
+            const params={provider:remotePlaybackProvider(),title:'JUJUTSU KAISEN Season 2',seasonNumber:2,audio:App.settings.showAudio?.['42']||(App.settings.audioLang==='eng'?'dub':'sub')},key=RemoteEpisodes.key(params);
+            const render=async state=>{RemoteEpisodes.cache.set(key,{state,until:Date.now()+120000});document.querySelector('#main').innerHTML=await Views.anime({id:'42'},App.renderId);};
+            await render({status:'ready',episodes:[]});const missing=!document.querySelector('.ep-list .ep')&&!document.querySelector('.hero-actions [data-act="playRemote"]')&&document.querySelector('.remote-episode-state')?.textContent.includes('No episodes found');
+            globalThis.unavailablePreview=document.querySelector('#main').innerHTML;
+            await render({status:'ready',episodes:[1,3]});const actual=[...document.querySelectorAll('.ep-list .ep')].map(e=>Number(e.dataset.num));const listed=actual.join(',')==='1,3'&&!!document.querySelector('.hero-actions [data-act="playRemote"]');
+            await render({status:'error',episodes:[]});const failed=!document.querySelector('.ep-list .ep')&&!document.querySelector('.hero-actions [data-act="playRemote"]')&&!!document.querySelector('[data-act="retryEpisodes"]');
+            RemoteEpisodes.clear(params);document.querySelector('#main').innerHTML=await Views.anime({id:'42'},App.renderId);const checking=!document.querySelector('.ep-list .ep')&&!document.querySelector('.hero-actions [data-act="playRemote"]')&&document.querySelector('.remote-episode-state')?.textContent.includes('Checking');
+            document.querySelector('#main').innerHTML=unavailablePreview;delete globalThis.unavailablePreview;document.querySelector('#main').scrollTop=270;return {missing,listed,failed,checking};
+          })()`);
+          console.log('AniDeck server episode availability:',JSON.stringify(availabilityCheck));if(Object.values(availabilityCheck).some(v=>!v))throw Error('Server episode availability UI check failed');
+          await new Promise(resolve=>setTimeout(resolve,250));fs.writeFileSync(path.join(visualDir,'AniDeck-server-unavailable.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
           const missingMetadata=await win.webContents.executeJavaScript(`(async()=>{globalThis.forumDetails=AniList.details;AniList.details=async()=>null;AniList.idCache={...AniList.idCache,42:145064};titleLogoCache.delete('145064');document.querySelector('#main').innerHTML=await Views.anime({id:'42'},App.renderId);showLogo(document.querySelector('.detail-hero h1'));for(let n=0;n<100&&!document.querySelector('.detail-hero .hero-logo.ready');n++)await new Promise(r=>setTimeout(r,10));const h=document.querySelector('.detail-hero h1'),img=h.querySelector('.hero-logo'),caption=h.querySelector('.logo-english'),a=img?.getBoundingClientRect(),b=caption?.getBoundingClientRect();document.querySelector('#main').scrollTop=0;return {logoWithoutMetadata:!!img,captionAttached:!!caption,captionBelow:!!a&&!!b&&b.top>=a.bottom&&b.top-a.bottom<=13};})()`);
           if(Object.values(missingMetadata).some(v=>v!==true))throw Error('Metadata-independent artwork failed: '+JSON.stringify(missingMetadata));console.log('AniDeck artwork lockup: '+JSON.stringify(missingMetadata));
           await new Promise(resolve=>setTimeout(resolve,250));fs.writeFileSync(path.join(visualDir,'AniDeck-title-without-metadata.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
@@ -728,6 +740,7 @@ ipcMain.handle('stream:resolve', async (_e, source, episodeData) => {
 ipcMain.handle('cancelStreamResolution', () => { streamResolver.cancelPending(); return true; });
 
 // Used by window.native.resolveStream (show page + in-player server switcher). Errors reach the renderer.
+ipcMain.handle('stream:episodes', async (_e, params) => streamResolver.runResolution({provider:params?.provider,title:params?.title,audio:params?.audio,seasonNumber:params?.seasonNumber,catalogOnly:true}));
 ipcMain.handle('resolveStream', async (_e, params) => {
   try { return await streamResolver.resolve(params); }
   catch (err) { if(err.name!=='AbortError')console.error('[Main IPC] resolveStream error:', err); throw err; }

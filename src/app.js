@@ -2,6 +2,18 @@
 
 let activeStreamingServer = 'jellyfin';
 function remotePlaybackProvider(server = activeStreamingServer) { return server === 'jellyfin' ? 'anikoto' : server==='animepahe'?'hianime':server; }
+const RemoteEpisodes = {
+  cache:new Map(),pending:new Map(),
+  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio]);},
+  peek(p){const hit=this.cache.get(this.key(p));return hit&&hit.until>Date.now()?hit.state:null;},
+  clear(p){this.cache.delete(this.key(p));},
+  async load(p){
+    const key=this.key(p),hit=this.peek(p);if(hit)return hit;if(this.pending.has(key))return this.pending.get(key);
+    const job=(async()=>{let state;try{if(!window.native.streamEpisodes)throw Error('Update required');const result=await window.native.streamEpisodes(p);if(result?.provider!==p.provider||!Array.isArray(result.episodes))throw Error('Invalid episode listing');state={status:'ready',episodes:[...new Set(result.episodes.map(Number).filter(n=>Number.isInteger(n)&&n>0&&n<=3000))].sort((a,b)=>a-b)};}catch{state={status:'error',episodes:[]};}
+      if(this.cache.size>=100)this.cache.delete(this.cache.keys().next().value);this.cache.set(key,{state,until:Date.now()+(state.status==='ready'?120000:15000)});return state;
+    })();this.pending.set(key,job);try{return await job;}finally{if(this.pending.get(key)===job)this.pending.delete(key);}
+  }
+};
 let lastServerError = null;
 const EXTERNAL_SERVERS = [
   { id: 'jellyfin', num: '#0', name: 'Jellyfin (Local)' },
@@ -919,6 +931,7 @@ const App = {
         activeStreamingServer = d.srv==='animepahe'?'hianime':d.srv || 'jellyfin';
         lastServerError = null; // Removed the hardcoded fake anipm 404 error!
         document.querySelectorAll('.chip-menu').forEach((x) => { x.hidden = true; });
+        if(this.view==='anime')return this.refresh();
         const allowLoc = this.view !== 'anime';
         const pill = document.querySelector('.server-pill');
         if (pill) pill.innerHTML = getServerLabel(activeStreamingServer, allowLoc) + '<span class="caret">▾</span>';
@@ -938,6 +951,10 @@ const App = {
           });
         }
         return null;
+      }
+      case 'retryEpisodes': {
+        if(this.remoteEpisodeRequest)RemoteEpisodes.clear(this.remoteEpisodeRequest);
+        return this.refresh();
       }
       case 'retryServer': {
         lastServerError = null;
@@ -1592,6 +1609,7 @@ const App = {
   },
 
  async playRemoteEpisode({ title, episodeNum, kitsuId, poster, movie: movieHint = false, total: totalHint = 0 }) {
+    const renderId=this.renderId,service=typeof Tracker==='undefined'?null:Tracker.svc,user=service?.userId;
     const provider = remotePlaybackProvider();
     const audio = this.settings.showAudio?.[kitsuId] || (this.settings.audioLang === 'eng' ? 'dub' : 'sub');
     lastServerError = null;
@@ -1600,12 +1618,14 @@ const App = {
     const knownMatch = String(this.showCtx?.match?.id) === String(kitsuId) ? this.showCtx.match : null;
     const movie = knownMatch?.movie === true || movieHint;
     if (movie) episodeNum = 1;
+    const listing=await RemoteEpisodes.load({provider,title,seasonNumber:seasonNumberIn(title)||1,audio});
+    if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
+    if(listing.status!=='ready')return toast('Couldn’t check this server. Open Episodes & Details to try another server.','bad');
+    if(!listing.episodes.includes(episodeNum))return toast('This episode wasn’t found on '+shortServerName(provider)+'. Try another server.');
     const fakeEp = { Id: `remote-${kitsuId}-${episodeNum}`, Name: movie ? title : `Episode ${episodeNum}`,
       Type: movie ? 'Movie' : 'Episode', IndexNumber: episodeNum, ParentIndexNumber: 1, SeriesName: title };
     const total = movie ? 1 : Number(knownMatch?.episodes) || Number(totalHint) || 0;
-    const remoteEpisodes = !movie && total > 0 && total <= 3000 ? Array.from({ length: total }, (_, i) => ({
-      ...fakeEp, Id: `remote-${kitsuId}-${i + 1}`, Name: `Episode ${i + 1}`, IndexNumber: i + 1
-    })) : [fakeEp];
+    const remoteEpisodes = movie ? [fakeEp] : listing.episodes.filter(n=>!total||n<=total).map(n=>({...fakeEp,Id:`remote-${kitsuId}-${n}`,Name:`Episode ${n}`,IndexNumber:n}));
     return Player.open({ episode: fakeEp, series: { Id: `kitsu-${kitsuId}`, Name: title },
       season: { Id: 's1', IndexNumber: 1 }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, episodes: total || null },
       provider, audio, remoteOnly: true, movie }, () => { if (['anime','home'].includes(this.view)) this.refresh(); }); // progress may have moved
@@ -4112,9 +4132,13 @@ const Views = {
     const aired = al?.next ? al.next.episode - 1 : null;
     // Not out yet (AniList says "not yet released", or episode 1 is the next to air): no episode list at all.
     const notOut = /not.?yet|upcoming|unreleased|tba/i.test(String(al?.status || a.status || '')) || al?.next?.episode === 1;
-    const epCount = notOut ? 0 : Math.max(1, Math.min(aired ?? total ?? 12, 3000));
+    const episodeRequest={provider:remServer,title:a.title,seasonNumber:seasonNumberIn(a.title)||1,audio:audioMode};
+    const availability=notOut?{status:'ready',episodes:[]}:RemoteEpisodes.peek(episodeRequest);
+    App.remoteEpisodeRequest=episodeRequest;
+    const available=notOut?[]:(availability?.episodes||[]).filter(n=>aired==null||n<=aired);
+    const epCount=available.length?Math.max(...available):0;
     const watchedEps = Number(entry?.progress) || 0;
-    const nextEpNum = !notOut && watchedEps < epCount ? watchedEps + 1 : null;
+    const nextEpNum = available.includes(watchedEps+1) ? watchedEps+1 : null;
     // Long shows are split into pages of 50, opening on the one with your next episode (same as library pages).
     const CHUNK = 50;
     const chunks = epCount > CHUNK ? Math.ceil(epCount / CHUNK) : 1;
@@ -4132,13 +4156,13 @@ const Views = {
     const thumbFallback = al?.banner || a.coverHd || a.cover || ''; // when an episode has no still of its own
     App.showAl = al; // animeAfter() also uses AniList's streaming episodes
     // Episode names and thumbnails start downloading now; animeAfter() fills them in (same cached request).
-    Kitsu.episodes(a.id, lastEp - firstEp + 1, firstEp - 1).catch(() => []);
+    if(epCount)Kitsu.episodes(a.id, lastEp - firstEp + 1, firstEp - 1).catch(() => []);
     const synopsis = TitleSynopsis.choose(a.synopsis, al?.synopsis);
     const statusText = al?.status || a.status || '';
     const genres = (al?.genres?.length ? al.genres : a.genres || []).slice(0, 8);
     const rating = al?.score || a.rating;
 
-    const epNums = notOut ? [] : Array.from({ length: lastEp - firstEp + 1 }, (_, i) => firstEp + i);
+    const epNums = available.filter(n=>n>=firstEp&&n<=lastEp);
     if (App.settings.epSort === 'desc') epNums.reverse();
     const epRows = epNums.map((n) => {
       const played = n <= watchedEps, isNext = n === nextEpNum;
@@ -4155,6 +4179,7 @@ const Views = {
     }).join('');
     const rangeChips = chunks > 1 ? `<div class="ep-tools">${Array.from({ length: chunks }, (_, i) => `<button class="chip ${i === chunk ? 'on' : ''}" data-act="animeRange" data-range="${i}">${i * CHUNK + 1}–${Math.min(epCount, (i + 1) * CHUNK)}</button>`).join('')}</div>` : '';
 
+    const episodeEmpty = `<div class="remote-episode-state" role="status"><span class="remote-episode-mark">${icon(!availability?'clock':'search')}</span><h3>${!availability?'Checking '+esc(shortServerName(remServer))+'…':availability.status==='error'?'Couldn’t check this server':'No episodes found on '+esc(shortServerName(remServer))}</h3><p>${!availability?'Looking for this title’s episode list.':availability.status==='error'?'The server may be temporarily unavailable. Try again or choose another server above.':'Try another server above. You can still track this title and join its discussions.'}</p>${availability?'<button class="btn ghost" data-act="retryEpisodes">'+icon('refresh')+'<span>Check again</span></button>':''}</div>`;
     const editable = Tracker.loggedIn()&&!entryError;
     const statusLabel = entry ? (entry.reconsuming ? 'Rewatching' : (STATUS_LABELS[entry.status] || entry.status)) : editable ? 'Add to your list' : 'Not on your list';
     const progressCardHtml = progressCard({
@@ -4225,7 +4250,7 @@ const Views = {
         </aside>
         <section class="detail-main">
           ${titleSections(tab,'animeTab')}
-          ${tab === 'episodes' ? (notOut ? comingSoon : `${actionBar}${renderServerErrorBanner()}${epSortLink()}${rangeChips}<div class="ep-list" ${lastServerError ? 'style="display:none"' : ''}>${epRows}</div>`)
+          ${tab === 'episodes' ? (notOut ? comingSoon : `${actionBar}${renderServerErrorBanner()}${epCount?epSortLink()+rangeChips+'<div class="ep-list">'+epRows+'</div>':episodeEmpty}`)
             : `<div id="show-social" class="social-box"><div class="social-sk">${commentSkeleton(4)}</div></div>`}
         </section>
       </div>`;
@@ -4239,10 +4264,12 @@ const Views = {
     showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
     if ($('#related-box')) fillRelated(rid);
     if ($('#show-social')) return fillSocial(tab, rid);
+    const request=App.remoteEpisodeRequest;
+    if(!$('#soon2-stack')&&request&&!RemoteEpisodes.peek(request)){await RemoteEpisodes.load(request);if(!App.stale(rid)&&RemoteEpisodes.key(App.remoteEpisodeRequest)===RemoteEpisodes.key(request))return App.refresh();return;}
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;
-    const [eps, zip] = await Promise.all([Kitsu.episodes(id, rows.length, from).catch(() => []), AniZip.get(App.showAl?.id)]);
+    const [eps, zip] = await Promise.all([Kitsu.episodes(id, Math.max(...rows.map(r=>Number(r.dataset.num)))-from, from).catch(() => []), AniZip.get(App.showAl?.id)]);
     if (App.stale(rid)) return;
     const byNum = new Map(eps.map((e) => [e.number, e]));
     // An episode with an air date still ahead isn't out: take it off the list (clicking it would open an empty player).
