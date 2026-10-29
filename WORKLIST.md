@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 29 October — Anikoto duplicate title/episode links
+
+Current installer/portable: **preview-d1ffed4**, runtime source **d1ffed4**, **527 tests pass**. Final package audit, isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-d1ffed4-Setup.exe`.
+
+- Reproduced the reported Slime Season4 failure. Anikoto search contained /watch/that-time-i-got-reincarnated-as-a-slime-season-4-0u851 and its /ep-1 URL for the same title. Our strict matcher counted full URLs as distinct titles and threw Anikoto returned ambiguous title matches; renderer correctly displayed its generic service-check error.
+- Canonicalize only identity grouping: same allowed origin, same watch-title path, remove trailing episode segment and slash, ignore query/fragment. The chosen URL still loads normally and page metadata must confirm that identity. Use identical grouping for alternate names and page validation. Different slugs/season identities remain ambiguous; exact-title/season/audio/actual-episode restrictions remain. No title-specific override, fuzzy match, challenge workaround or fabricated list.
+- Added2 regressions for title/episode/promoted/query/fragment duplicate grouping, alternate-name grouping, cross-origin rejection and true ambiguity. All527 tests pass. Actual Electron public catalog probe forbids helper windows: Slime Season4 returns24 episodes in445ms; SlimeSeason3=24/126ms, JJKSeason2=23/115ms, Orb=25/111ms. Single-run latency observations and catalog acceptance only; not full playback. No account/list/message writes.
+- Evidence work/slime4-anikoto-before.log, anikoto-identity-live.log, anikoto-identity-tests.log, anikoto-identity-final-build.log and anikoto-identity-final-native.log. Only provider/test code changed, no UI styling. No installed-app replacement, backend deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — aligned My List card details
 
 Current installer/portable: **preview-1db729b**, runtime source **1db729b**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1db729b-Setup.exe`.
