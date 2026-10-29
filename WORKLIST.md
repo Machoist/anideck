@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 29 October — queue logo and horizon startup fixes
+
+Current installer/portable: **preview-5b24dcd**, runtime source **5b24dcd**, **514 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-5b24dcd-Setup.exe`.
+
+- Queue logo loading was behind the complete backdrop pipeline (AniList metadata, AniZip, HDArt, image measurement and optional Trakt). Start the exact-ID logo immediately when identity is already known; for Kitsu-only items start it once exact metadata resolves, independently of remaining backdrop work. One metadata promise per item avoids duplicate reads. Retain stale-selection guards and English caption. Native fixture clears the title logo cache, deliberately stalls AniList.details indefinitely, and still renders the actual logo. This is an isolated known-ID boot fixture, not a live user-account timing claim.
+- The queue, Home week and dashboard could independently start Schedule.week/recent before any response was cached. Deduplicate each in-flight paginated read, clear failures for retry and never cache a partial result. Completed public weekly data persists for30minutes across launches with date/expiry/shape validation; private tracker data is not part of the snapshot. Widget errors now respect navigation and explain busy/connectivity failures. This reduces duplicate request pressure; it does not establish that the user's original error was specifically HTTP429 or guarantee an upstream outage cannot occur.
+- Four new schedule tests cover concurrent pagination, failure/retry, recent-read sharing and a new-session persisted snapshot/expiry/day boundary. Existing queue race test now asserts logo calls occur before metadata resolves. All514 tests pass. Final native fixture checks logo while metadata stalls, horizon content/countdown; actual screenshot reviewed under outputs/boot-final/AniDeck-queue-horizon-startup.png. Native schedule/identity data are synthetic; no account/list/message writes.
+- Evidence: work/boot-tests.log, boot-final-build.log and boot-final-native.log. No installed-app replacement, deployment/migration, public release or tag. Preserve unrelated readme-preview.html and Desktop/anitrack.
+- Next acceptance: fresh launch on the user's connected account, then live playback/controls/long session. Jikan remains timed out; natural AniList progress advance, Kitsu import, second-device recovery, physicalTV/Jellyfin/OS notifications remain. Gio and physicalMac tests stay deferred.
+
 ## Latest — crash cleanup and responsive rendering verified
 
 Current installer/portable: **preview-9903b37**, runtime source **9903b37**, **510 tests pass**. Final package audit, full isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-9903b37-Setup.exe`.
