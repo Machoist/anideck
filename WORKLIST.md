@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 29 October — Home return flicker
+
+Current installer/portable: **preview-4bd12cb**, runtime source **4bd12cb**, **529 tests pass**. Final package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-4bd12cb-Setup.exe`.
+
+- Investigated Home flickering/reloading on return. HomeReads scheduled a quiet full-page refresh for every result, even one already available before initial HTML rendered. First paint then triggered a redundant mount roughly120ms later. During the first second, main.view-in was still active and its descendant CSS animations could restart on the replacement nodes. Queue headings were also rebuilt as hidden plaintext despite a cached logo.
+- Track only exposed fallback reads as deferred. Ready-before-paint results do not schedule another render; genuinely late shelves still update and retain batch reuse/account/navigation guards. Quiet navigation clears the old view-in timer/class before replacing nodes. Queue HTML renders a known cached logo immediately, avoiding unnecessary hidden heading/reattachment on return. No new stale full-page cache, polling or data-write behavior.
+- Updated progressive loading tests to assert zero redundant renders, one actual late-shelf update, and deferral until first paint. Added warm-return ready-batch and cached queue markup regressions; all529 tests pass. Final native harness uses the original App.nav method through Home -> isolated away page -> Home: zero background refreshes for ready data, same Home page node after300ms, and an explicit quiet refresh does not replay entrance classes. Full packaged native smoke and audit pass; fake catalogs and isolated signed-out profile, no account/list/message writes. Existing visual fixtures still complete.
+- Evidence work/home-flash-tests.log, home-flash-final-build.log and home-flash-final-native.log. No installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing live acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — Anikoto duplicate title/episode links
 
 Current installer/portable: **preview-d1ffed4**, runtime source **d1ffed4**, **527 tests pass**. Final package audit, isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-d1ffed4-Setup.exe`.
