@@ -123,7 +123,7 @@ class StreamResolver {
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
-    const deadline=params.catalogOnly?setTimeout(()=>controller.abort(new Error('Episode listing timed out')),18000):null;
+    const deadline=params.catalogOnly?setTimeout(()=>controller.abort(new Error('Episode listing timed out')),5500):null;
     let abortListener;
     const cancelled = new Promise((_, reject) => {
       abortListener = () => reject(controller.signal.reason);

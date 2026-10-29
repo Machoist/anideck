@@ -3,17 +3,31 @@
 let activeStreamingServer = 'jellyfin';
 function remotePlaybackProvider(server = activeStreamingServer) { return server === 'jellyfin' ? 'anikoto' : server==='animepahe'?'hianime':server; }
 const RemoteEpisodes = {
-  cache:new Map(),pending:new Map(),
+  cache:new Map(),pending:new Map(),timeoutMs:6000,
+  read(p){return window.native.streamEpisodes(p);},
   key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio]);},
   peek(p){const hit=this.cache.get(this.key(p));return hit&&hit.until>Date.now()?hit.state:null;},
   clear(p){this.cache.delete(this.key(p));},
   async load(p){
     const key=this.key(p),hit=this.peek(p);if(hit)return hit;if(this.pending.has(key))return this.pending.get(key);
-    const job=(async()=>{let state;try{if(!window.native.streamEpisodes)throw Error('Update required');const result=await window.native.streamEpisodes(p);if(result?.provider!==p.provider||!Array.isArray(result.episodes))throw Error('Invalid episode listing');state={status:'ready',episodes:[...new Set(result.episodes.map(Number).filter(n=>Number.isInteger(n)&&n>0&&n<=3000))].sort((a,b)=>a-b)};}catch{state={status:'error',episodes:[]};}
+    const job=(async()=>{let state,timer;try{const result=await Promise.race([Promise.resolve().then(()=>this.read(p)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Episode lookup timed out')),this.timeoutMs);})]);if(result?.provider!==p.provider||!Array.isArray(result.episodes))throw Error('Invalid episode listing');state={status:'ready',episodes:[...new Set(result.episodes.map(Number).filter(n=>Number.isInteger(n)&&n>0&&n<=3000))].sort((a,b)=>a-b)};}catch{state={status:'error',episodes:[]};}finally{clearTimeout(timer);}
       if(this.cache.size>=100)this.cache.delete(this.cache.keys().next().value);this.cache.set(key,{state,until:Date.now()+(state.status==='ready'?120000:15000)});return state;
     })();this.pending.set(key,job);try{return await job;}finally{if(this.pending.get(key)===job)this.pending.delete(key);}
   }
 };
+async function paintRemoteEpisodes(rid=App.renderId,snapshot=App.remoteEpisodeSnapshot){
+ if(!snapshot||App.stale(rid))return;
+ const provider=remotePlaybackProvider(),html=await Views.anime({id:snapshot.id,tab:'episodes',range:snapshot.range,snapshot:snapshot.values},rid);
+ if(App.stale(rid)||remotePlaybackProvider()!==provider)return;
+ const fragment=document.createElement('template');fragment.innerHTML=html;
+ for(const selector of ['.detail-main','.hero-actions']){const current=document.querySelector(selector),next=fragment.content.querySelector(selector);if(current&&next)current.replaceWith(next);}
+ Promise.resolve(Views.animeAfter({id:snapshot.id},rid)).catch(error=>console.warn('Episode details:',error.message));
+}
+function checkRemoteEpisodes(rid){
+ const request=App.remoteEpisodeRequest,snapshot=App.remoteEpisodeSnapshot;
+ if(!request||!document.querySelector('.remote-episode-state')||RemoteEpisodes.peek(request))return Promise.resolve();
+ return RemoteEpisodes.load(request).then(()=>{if(!App.stale(rid)&&RemoteEpisodes.key(App.remoteEpisodeRequest)===RemoteEpisodes.key(request))return paintRemoteEpisodes(rid,snapshot);}).catch(error=>console.warn('Episode listing:',error.message));
+}
 let lastServerError = null;
 const EXTERNAL_SERVERS = [
   { id: 'jellyfin', num: '#0', name: 'Jellyfin (Local)' },
@@ -931,7 +945,7 @@ const App = {
         activeStreamingServer = d.srv==='animepahe'?'hianime':d.srv || 'jellyfin';
         lastServerError = null; // Removed the hardcoded fake anipm 404 error!
         document.querySelectorAll('.chip-menu').forEach((x) => { x.hidden = true; });
-        if(this.view==='anime')return this.refresh();
+        if(this.view==='anime')return paintRemoteEpisodes();
         const allowLoc = this.view !== 'anime';
         const pill = document.querySelector('.server-pill');
         if (pill) pill.innerHTML = getServerLabel(activeStreamingServer, allowLoc) + '<span class="caret">▾</span>';
@@ -954,7 +968,7 @@ const App = {
       }
       case 'retryEpisodes': {
         if(this.remoteEpisodeRequest)RemoteEpisodes.clear(this.remoteEpisodeRequest);
-        return this.refresh();
+        return paintRemoteEpisodes();
       }
       case 'retryServer': {
         lastServerError = null;
@@ -977,7 +991,7 @@ const App = {
       case 'remoteSubDub': {
         this.settings.showAudio = { ...(this.settings.showAudio || {}), [d.series]: d.mode };
         this.saveSettings();
-        return this.refresh();
+        return this.view==='anime'?paintRemoteEpisodes():this.refresh();
       }
       case 'toggleMenu': {
         const m = el.parentElement.querySelector('.chip-menu');
@@ -4117,11 +4131,13 @@ const Views = {
 
   // Title page for a show that isn't in your Jellyfin library: same layout as library show pages,
   // with AniList art and episodes streamed from the chosen server. Episode names/thumbnails fill in from Kitsu.
-  async anime({ id, tab = 'episodes', range }, rid) {
-    const [a, requested, entryState, al] = await Promise.all([
+  async anime({ id, tab = 'episodes', range, snapshot }, rid) {
+    const values = snapshot || await Promise.all([
       Kitsu.animeFull(id).catch(() => Kitsu.anime(id)), Requests.has(id), trackingEntryState(id), AniList.details(id).catch(() => null),
     ]);
     if (App.stale(rid)) return '';
+    const [a, requested, entryState, al]=values;
+    App.remoteEpisodeSnapshot={id,range,values};
     const {entry,error:entryError}=entryState;
     App.showCtx = { id: null, n: 1, match: { id: a.id, title: a.title, url: a.url, episodes: a.episodes, movie: String(a.subtype || al?.format || '').toLowerCase() === 'movie' } };
     const inLib = App.libIndex?.find(a);
@@ -4256,6 +4272,7 @@ const Views = {
       </div>`;
   },
   async animeAfter({ id, tab = 'episodes' }, rid) {
+    checkRemoteEpisodes(rid); // Start independently of optional artwork/related-title enrichment.
     enrichTitleStory(rid).catch(()=>{});
     upgradeBackdrop(rid);
     if ($('#soon2-stack')) soonPrequels(rid);
@@ -4264,8 +4281,6 @@ const Views = {
     showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
     if ($('#related-box')) fillRelated(rid);
     if ($('#show-social')) return fillSocial(tab, rid);
-    const request=App.remoteEpisodeRequest;
-    if(!$('#soon2-stack')&&request&&!RemoteEpisodes.peek(request)){await RemoteEpisodes.load(request);if(!App.stale(rid)&&RemoteEpisodes.key(App.remoteEpisodeRequest)===RemoteEpisodes.key(request))return App.refresh();return;}
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;

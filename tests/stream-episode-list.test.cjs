@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),resolver=fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8');
-function catalog(read){return vm.runInNewContext(app.slice(app.indexOf('const RemoteEpisodes ='),app.indexOf('let lastServerError'))+';RemoteEpisodes',{window:{native:{streamEpisodes:read}},Map,Set,Date,Number,JSON});}
+function catalog(read){return vm.runInNewContext(app.slice(app.indexOf('const RemoteEpisodes ='),app.indexOf('let lastServerError'))+';RemoteEpisodes',{window:{native:{streamEpisodes:read}},Map,Set,Date,Number,JSON,setTimeout,clearTimeout});}
 test('episode availability deduplicates checks, retains gaps and separates provider/audio/season',async()=>{
  let calls=0;const c=catalog(async p=>{calls++;return {provider:p.provider,episodes:[1,3,3,0,-1,'bad',3001]};}),p={provider:'anikoto',title:'Fixture',seasonNumber:1,audio:'sub'};
  const [a,b]=await Promise.all([c.load(p),c.load(p)]);assert.equal(calls,1);assert.equal(a,b);assert.deepEqual(Array.from(a.episodes),[1,3]);await c.load(p);assert.equal(calls,1);
@@ -9,6 +9,21 @@ test('episode availability deduplicates checks, retains gaps and separates provi
 test('a failed lookup or wrong provider never invents episodes; an empty real listing stays empty',async()=>{
  for(const read of [async()=>{throw Error('offline')},async()=>({provider:'wrong',episodes:[1]})]){const c=catalog(read),state=await c.load({provider:'anikoto'});assert.equal(state.status,'error');assert.equal(state.episodes.length,0);}
  const c=catalog(async()=>({provider:'anikoto',episodes:[]}));assert.equal((await c.load({provider:'anikoto'})).status,'ready');assert.equal(c.peek({provider:'anikoto'}).episodes.length,0);
+});
+test('a stalled native lookup exits checking and a late answer cannot overwrite the timeout',async()=>{
+ let finish;const c=catalog(()=>new Promise(resolve=>finish=resolve)),p={provider:'hianime',title:'Fixture'};c.timeoutMs=5;
+ const state=await c.load(p);assert.equal(state.status,'error');assert.equal(c.pending.size,0);finish({provider:'hianime',episodes:[1]});await new Promise(r=>setImmediate(r));assert.equal(c.peek(p).status,'error');
+ c.clear(p);c.read=async()=>({provider:'hianime',episodes:[1]});assert.equal((await c.load(p)).status,'ready');
+});
+test('episode results update only the title episode area using the existing metadata snapshot',async()=>{
+ const start=app.indexOf('async function paintRemoteEpisodes('),end=app.indexOf('function checkRemoteEpisodes',start);let calls=0,after=0;const replaced=[],snapshot={id:'42',values:['already loaded'],range:1};
+ const ctx={App:{renderId:2,remoteEpisodeSnapshot:snapshot,stale:rid=>rid!==2},remotePlaybackProvider:()=> 'hianime',Views:{anime:async p=>{calls++;assert.equal(p.snapshot,snapshot.values);return 'fixture';},animeAfter:()=>{after++;}},document:{createElement:()=>({content:{querySelector:s=>({selector:s})}}),querySelector:s=>({replaceWith:node=>replaced.push(node.selector)})},console};
+ const paint=vm.runInNewContext(app.slice(start,end)+';paintRemoteEpisodes',ctx);await paint();assert.equal(calls,1);assert.equal(after,1);assert.deepEqual(replaced,['.detail-main','.hero-actions']);await paint(1);assert.equal(calls,1);
+});
+test('a server switch during rendering cannot install an old episode panel',async()=>{
+ const start=app.indexOf('async function paintRemoteEpisodes('),end=app.indexOf('function checkRemoteEpisodes',start);let finish,provider='anikoto',replaced=0;
+ const ctx={App:{renderId:1,remoteEpisodeSnapshot:{id:'42',values:[]},stale:()=>false},remotePlaybackProvider:()=>provider,Views:{anime:()=>new Promise(r=>finish=r)},document:{createElement:()=>{replaced++;}},console};
+ const paint=vm.runInNewContext(app.slice(start,end)+';paintRemoteEpisodes',ctx),pending=paint();provider='hianime';finish('old');await pending;assert.equal(replaced,0);
 });
 test('catalog resolution accepts only actual episode numbers without requesting a media stream',async()=>{
  const ctx={require:()=>({app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders(){}}}}}),module:{exports:{}},process,console,URL,Map,Set};vm.runInNewContext(resolver,ctx);const r=new ctx.module.exports();let got;
