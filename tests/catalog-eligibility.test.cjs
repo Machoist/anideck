@@ -19,3 +19,8 @@ test('trending hydration trusts only requested IDs and valid mapping relationshi
  const payload={data:[{id:'1',attributes:{canonicalTitle:'Known',subtype:'TV'}}]};assert.deepEqual(Array.from(await Kitsu.discoveryData(payload),x=>x.id),['1']);
 });
 test('anime artwork never falls back to a title-only live-action lookup',async()=>{const {Trakt}=fixture();assert.equal((await Trakt.fanartFor('Gifted',2024)).length,0);});
+
+test('TVDB logo index accepts only clearlogo assets belonging to the exact mapped series and caches the read',async()=>{
+ let reads=0;const ctx={URL,URLSearchParams,Map,Set,Date,console,setTimeout,clearTimeout,window:{native:{get:async()=>({}),set:async()=>{}}},testHttp:async (url,options)=>{reads++;assert.equal(options.allowChallenge,false);assert.equal(url,'https://thetvdb.com/dereferrer/series/352408');return '<img src="https://artworks.thetvdb.com/banners/v4/series/352408/clearlogo/a.png"><img src="https://artworks.thetvdb.com/banners/v4/series/999/clearlogo/b.png"><img src="https://artworks.thetvdb.com/banners/v4/series/352408/posters/c.png">';}};
+ const api=vm.runInNewContext(source+';http=testHttp;AniZip',ctx);assert.deepEqual(Array.from(await api.clearlogos(352408)),['https://artworks.thetvdb.com/banners/v4/series/352408/clearlogo/a.png']);await api.clearlogos(352408);assert.equal(reads,1);assert.equal((await api.clearlogos('../other')).length,0);assert.equal(reads,1);
+});

@@ -1046,7 +1046,17 @@ const Schedule = {
 // Free per-show metadata keyed by AniList id (what AniView uses): each episode's title, summary, still (TheTVDB
 // screencap), air date and runtime, plus TheTVDB fanart / banner / logo. Kept for 6 hours.
 const AniZip = {
-  cache: new Map(),
+  cache: new Map(),clearlogoCache:new Map(),
+  clearlogos(tvdb){
+    if(!/^[1-9][0-9]*$/.test(String(tvdb||'')))return Promise.resolve([]);
+    const key=String(tvdb),hit=this.clearlogoCache.get(key);if(hit&&Date.now()-hit.at<6*3600000)return hit.p;
+    const p=http('https://thetvdb.com/dereferrer/series/'+key,{timeout:7000,allowChallenge:false}).then(html=>{
+      // Only clearlogo assets belonging to the exact mapped series; never title-search artwork.
+      const urls=String(html||'').match(/https:\/\/artworks\.thetvdb\.com\/[^"'<>\s]+/g)||[];
+      return [...new Set(urls.filter(url=>{try{const u=new URL(url);return u.hostname==='artworks.thetvdb.com'&&new RegExp('/(?:v4/)?series/'+key+'/clearlogo/[^/]+\\.(?:png|webp)$','i').test(u.pathname);}catch{return false;}}))].slice(0,8);
+    }).catch(()=>{this.clearlogoCache.delete(key);return [];});
+    this.clearlogoCache.set(key,{at:Date.now(),p});return p;
+  },
   get(alId) {
     if (!alId) return Promise.resolve(null);
     const hit = this.cache.get(String(alId));
@@ -1064,7 +1074,7 @@ const AniZip = {
         episodes[n] = { title: e.title?.en || e.title?.['x-jat'] || '', overview: e.overview || e.summary || '', image: e.image || '', airDate: e.airDate || '', runtime: e.runtime || e.length || null };
       }
       return { episodes, fanart: img('Fanart'), banner: img('Banner'), logo: img('Clearlogo'), logos, poster: img('Poster'),
-        malId: j?.mappings?.mal_id || null, tmdb: j?.mappings?.themoviedb_id || null, kitsu: j?.mappings?.kitsu_id || null, type: j?.mappings?.type || '' };
+        tvdb: j?.mappings?.thetvdb_id || null, malId: j?.mappings?.mal_id || null, tmdb: j?.mappings?.themoviedb_id || null, kitsu: j?.mappings?.kitsu_id || null, type: j?.mappings?.type || '' };
     }).catch(() => { this.cache.delete(String(alId)); return null; });
     this.cache.set(String(alId), { at: Date.now(), p });
     return p;

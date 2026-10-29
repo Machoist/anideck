@@ -2618,6 +2618,7 @@ function trimLogo(src) {
     im.src = src;
   });
   logoCache.set(src, p);
+  p.then(logo=>{if(!logo&&logoCache.get(src)===p)logoCache.delete(src);});
   return p;
 }
 function titleStoryMarkup(id,primary,alternate=''){
@@ -2638,13 +2639,14 @@ function logoHeading(title,alId,englishTitle='',className=''){
 }
 async function findTitleLogo(metadata) {
   const candidates=[...new Set([...(Array.isArray(metadata?.logos)?metadata.logos:[]),metadata?.logo].filter(Boolean))].slice(0,6);
+  let best=null;
   for(const src of candidates){
     try{
       const logo=await trimLogo(src);
-      if(logo&&Number.isFinite(logo.ratio)&&logo.ratio>=1.1)return logo;
+      if(logo&&Number.isFinite(logo.ratio)&&logo.ratio>=1.1){if(logo.ratio>=2.2)return logo;if(!best||logo.ratio>best.ratio)best=logo;}
     }catch{} // An unavailable source must not prevent trying the other exact-ID artwork.
   }
-  return null;
+  return best;
 }
 function showLogo(h1, alId, season, englishTitle='') {
  if(!h1)return;
@@ -2663,7 +2665,7 @@ function showLogo(h1, alId, season, englishTitle='') {
   img.onload=()=>{if(!h1.isConnected)return;titleLogoCache.set(String(alId),logo);if(titleLogoCache.size>128)titleLogoCache.delete(titleLogoCache.keys().next().value);h1.classList.add('has-logo');h1.innerHTML=`<span class="sr-only">${esc(img.alt)}</span>`;h1.prepend(img);caption();reveal();requestAnimationFrame(()=>img.classList.add('ready'));};img.onerror=reveal;img.src=logo.url;
  };
  timer=setTimeout(reveal,1200);if(!alId)return reveal();h1.classList.add('logo-pending');if(cached)return attach(cached);
- AniZip.get(alId).then(async metadata=>{if(!h1.isConnected)return reveal();const logo=await findTitleLogo(metadata);if(!logo||!h1.isConnected)return reveal();attach(logo);}).catch(reveal);
+ AniZip.get(alId).then(async metadata=>{if(!h1.isConnected)return reveal();let logo=await findTitleLogo(metadata);if(!logo&&metadata?.tvdb&&h1.isConnected)logo=await findTitleLogo({logos:await AniZip.clearlogos(metadata.tvdb)});if(!logo||!h1.isConnected)return reveal();attach(logo);}).catch(reveal);
 }
 
 // Hovering a title for a moment starts loading what its page needs, so the click opens almost instantly.

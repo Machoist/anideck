@@ -41,3 +41,8 @@ test('title artwork retains exact cached mapping when metadata is unavailable',(
  const resolve=vm.runInNewContext(source.slice(start,end)+';titleArtworkId',{AniList:{idCache:{42:128893}}});
  assert.equal(resolve('42',null),128893);assert.equal(resolve('al:128893',null),128893);assert.equal(resolve('42',{id:7}),7);assert.equal(resolve('unknown',null),null);
 });
+
+test('exact TVDB clearlogo fallback supplies artwork when indexed assets are unsuitable',async()=>{
+ const classes=new Set(),node={isConnected:true,textContent:'Slime',classList:{add:k=>classes.add(k),remove:k=>classes.delete(k)},prepend:i=>node.image=i,insertAdjacentHTML(){}};let lookup;
+ const ctx={titleLogoCache:new Map(),Number,Math,setTimeout:()=>1,clearTimeout(){},AniZip:{get:async()=>({tvdb:352408,logos:['icon']}),clearlogos:async id=>{lookup=id;return ['wide'];}},trimLogo:async url=>({url,ratio:url==='wide'?3:.8}),esc:s=>s,requestAnimationFrame:f=>f(),Image:class{style={setProperty(){}};classList={add(){}};set src(_){this.onload();}}};vm.runInNewContext(fn+';showLogo',ctx)(node,101280);await new Promise(r=>setImmediate(r));assert.equal(lookup,352408);assert(node.image);assert(classes.has('has-logo'));
+});
