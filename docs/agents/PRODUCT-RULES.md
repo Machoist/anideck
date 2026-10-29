@@ -13,3 +13,5 @@ Read before changing the affected product behavior. These are existing requireme
 - Preserve the compatibility app ID and existing settings/session storage names. Do not rename them as cosmetic cleanup.
 
 - Release notifications check public stable GitHub releases and link to the exact AniDeck release page for manual installation. No unattended downloads or installs. Test/development builds check only on request; prompts defer during playback/dialogs/setup and are shown once per version. The dark upper-right notification leaves the page layout and bottom navigation unchanged and compacts after eight seconds, hides during playback/dialogs, and its dismissal suppresses that version’s automatic popup while About remains available.
+
+- Catalog presence does not establish streaming availability. Remote title pages show episode cards and Play only for episodes actually listed on the selected streaming server; distinguish checking, no match and service failure. Preserve metadata, tracking and discussions for unavailable titles. Do not fabricate episode grids or player drawers from catalog totals.
