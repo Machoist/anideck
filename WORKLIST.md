@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 29 October — watchlist editor and rating button redesign
+
+Current installer/portable: **preview-884af77**, runtime source **884af77**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-884af77-Setup.exe`.
+
+- User requested redesign of the list editor and small Rate this show button. Added title-led heading, blurred backdrop, three-column status grid, matching bordered progress/score panels, compact rectangular episode stepper, lavender score selector and refined Save changes footer. Initial focus goes to Close, avoiding highlighted episode text at open. Existing provider/score/progress behavior is preserved.
+- Shared myListScoreButton helper renders a compact outlined star Add score control, or filled star with existing score/10. Focus/route/labels remain accessible and the same editor handles both. Styling lives after existing polish rules so old two-column/default panel rules do not override the redesign.
+- All525 existing regressions pass; no mirrored cosmetic unit tests added. Native gallery checks both unrated/rated buttons fit180px cards with icons and editEntry routing. Final native editor checks existing value, score-only save, clearing and640px fit pass. Desktop/narrow menu and button screenshots reviewed in outputs/rating-design-final/. Native data/saves are synthetic; no real tracker writes. Evidence work/rating-design-tests.log, rating-design-final-build.log and rating-design-final-native.log.
+- No installed-app replacement, backend deployment, migration, public release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing live score readback/playback/long-session and other acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — My List personal scores
 
 Current installer/portable: **preview-5c2ee07**, runtime source **5c2ee07**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-5c2ee07-Setup.exe`.
