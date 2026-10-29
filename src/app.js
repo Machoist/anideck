@@ -2953,9 +2953,10 @@ function bindYourNext(rid) {
   const measure=u=>new Promise(resolve=>{const image=new Image(),timer=setTimeout(()=>resolve(null),5000);image.onload=()=>{clearTimeout(timer);resolve({u,w:image.naturalWidth,h:image.naturalHeight});};image.onerror=()=>{clearTimeout(timer);resolve(null);};image.src=u;});
   // The sharpest landscape art for a queue item (library backdrop, TheTVDB fanart, AniList banner, then Trakt), found once
   // per show and kept on the item, so switching to it later is instant.
+  const details=it=>it.detailsP||(it.detailsP=Promise.resolve().then(()=>{const key=it.kid||it.kitsu||(it.alId?'al:'+it.alId:null);return key?AniList.details(key):null;}).catch(()=>null));
   const findArt=(it)=>it.artP||(it.artP=(async()=>{
     const key=it.kid||it.kitsu||(it.alId?'al:'+it.alId:null);
-    const al=key?await AniList.details(key).catch(()=>null):null;
+    const al=await details(it);
     if(!sec.isConnected)return {al,art:null};
     const box=sec.querySelector('.yn-hero').getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
     const cacheKey=[typeof Tracker!=='undefined'?Tracker.name:'',key||it.series||it.id,Math.ceil(box.width/400),Math.ceil(box.height/200),dpr].join(':');
@@ -2979,9 +2980,12 @@ function bindYourNext(rid) {
   // Sidebar previews use the same verified landscape instead of a portrait letterboxed in the box.
   const setThumb=(i,art)=>{const thumb=sec.querySelector(`[data-yn="${i}"] .yn-thumb img`);if(thumb&&art&&thumb.getAttribute('src')!==art){thumb.src=art;thumb.classList.remove('portrait');}};
   const dress=async(it,version)=>{
+    // A title logo must not wait for backdrop services, image measurements or fanart fallback.
+    const key=it.kid||it.kitsu,knownId=it.alId||(String(key||'').startsWith('al:')?String(key).slice(3):AniList.idCache?.[key]);
+    if(knownId)showLogo(sec.querySelector('.yn-title'),knownId,it.kind==='lib'?it.season:seasonNumberIn(it.title||''),it.title||'');
+    details(it).then(al=>{if(stale(version))return;if(al){showTint(sec,al.color);if(!knownId||String(knownId)!==String(al.id))showLogo(sec.querySelector('.yn-title'),al.id,it.kind==='lib'?it.season:seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}else if(!knownId)sec.querySelector('.yn-title')?.classList.remove('logo-pending');});
     const {al,art}=await findArt(it);
     if(stale(version))return;
-    if(al){showTint(sec,al.color);showLogo(sec.querySelector('.yn-title'),al.id,it.kind==='lib'?it.season:seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}else sec.querySelector('.yn-title')?.classList.remove('logo-pending');
     if(!art)return;
     const image=sec.querySelector('.yn-bg');if(image){image.src=art;image.hidden=false;image.classList.remove('soft');}
     sec.querySelector('.yn-poster-fallback')?.remove();

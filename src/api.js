@@ -1008,11 +1008,18 @@ const AniList = {
 };
 // What airs this week (today through the next 6 days), from AniList's public schedule.
 const Schedule = {
-  cache: null, day: '', at: 0,
+  cache: null, day: '', at: 0, pending: null,
   async week() {
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const day = start.toDateString();
     if (this.cache && this.day === day && Date.now() - this.at < 30 * 60_000) return this.cache;
+    if(this.pending?.day===day)return this.pending.promise;
+    const promise=this.loadWeek(start,day),task={day,promise};this.pending=task;
+    try{return await promise;}finally{if(this.pending===task)this.pending=null;}
+  },
+  async loadWeek(start,day) {
+    // Public schedule only: reuse a fresh completed snapshot across launches, never a partial response.
+    if(typeof window!=='undefined'&&window.native?.get){const saved=await window.native.get('publicScheduleWeekV1').catch(()=>null);if(saved?.day===day&&saved.at<=Date.now()&&Date.now()-saved.at<30*60_000&&Array.isArray(saved.items)&&saved.items.every(x=>Number.isFinite(x.at)&&Number.isFinite(x.episode)&&x.anime?.id)){this.cache=saved.items;this.day=day;this.at=saved.at;return this.cache;}}
     const a = Math.floor(start / 1000), b = a + 7 * 86400;
     const out = [];
     for (let page = 1; page <= 10; page++) {
@@ -1023,12 +1030,18 @@ const Schedule = {
     }
     this.cache = out.filter((x) => x.media && !x.media.isAdult).map((x) => ({ at: x.airingAt * 1000, episode: x.episode, anime: AniList.toAnime(x.media) }));
     this.day = day; this.at = Date.now();
+    if(typeof window!=='undefined'&&window.native?.set)window.native.set('publicScheduleWeekV1',{day,at:this.at,items:this.cache}).catch(()=>{});
     return this.cache;
   },
   // Episodes that aired in the past 7 days (home: "New episodes this week"), newest first.
-  recentCache: null, recentAt: 0,
+  recentCache: null, recentAt: 0, recentPending: null,
   async recent() {
     if (this.recentCache && Date.now() - this.recentAt < 30 * 60_000) return this.recentCache;
+    if(this.recentPending)return this.recentPending;
+    const promise=this.loadRecent();this.recentPending=promise;
+    try{return await promise;}finally{if(this.recentPending===promise)this.recentPending=null;}
+  },
+  async loadRecent() {
     const b = Math.floor(Date.now() / 1000), a = b - 7 * 86400;
     const out = [];
     for (let page = 1; page <= 6; page++) {
