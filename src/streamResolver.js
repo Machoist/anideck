@@ -231,7 +231,7 @@ class StreamResolver {
     const options = { catalogOnly:!!request.catalogOnly, title, episodeNum, audio, seasonNumber, seasonal, episodeTitle: String(request.episodeTitle || ''), absoluteEpisodeNum: Number(request.absoluteEpisodeNum) || null };
     const inspect = (opts, currentStage) => {
       const clickTarget = el => { el.setAttribute('data-anideck-activate','1'); const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }; };
-      const norm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      const norm = s => String(s || '').normalize('NFKC').toLowerCase().replace(/\b(\d+)(?:st|nd|rd|th)\s+season\b/g,'season $1').replace(/\(tv\)/g,'').replace(/[^\p{L}\p{N}]/gu, '');
       if(opts.catalogOnly&&/just a moment|checking your browser|verify you are human/i.test(document.title+' '+(document.body?.innerText||'').slice(0,500)))return {error:'Server is temporarily unavailable'};
       if (currentStage === 'search') {
         const links = [...document.querySelectorAll('a[href*="/watch/"]')];

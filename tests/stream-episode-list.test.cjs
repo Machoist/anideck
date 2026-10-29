@@ -23,6 +23,12 @@ test('HiAnime catalog stops at the exact title episode listing and never reads a
  const api=require('../src/hianime'),calls=[];const read=async url=>{calls.push(url);if(url.includes('/browse?'))return '<a href="/watch/fixture-5" title="Fixture" data-id="5"></a>';assert(url.endsWith('/episode/list/5'));return JSON.stringify({status:true,html:'<a class="ep-item" data-id="40" data-number="1"></a><a class="ep-item" data-id="42" data-number="3"></a>'});};
  assert.deepEqual(await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,seasonNumber:1}),{episodes:[1,3]});assert.equal(calls.length,2);assert.deepEqual(await api.metadata(async()=>'<p>No results</p>','Missing',1,'sub',{catalogOnly:true}),{episodes:[]});
 });
+test('Anikoto recognizes ordinal season names rather than reporting an available season missing',()=>{
+ const start=resolver.indexOf('    const inspect = (opts, currentStage) =>'),end=resolver.indexOf('    // Observe the headers',start);
+ const link={href:'https://anikototv.to/watch/exact',textContent:'Jujutsu Kaisen 2nd Season',getAttribute:()=>null,querySelector:()=>null};
+ const inspect=vm.runInNewContext(resolver.slice(start,end)+';inspect',{document:{title:'Search',body:{innerText:''},querySelectorAll:()=>[link]}});
+ const out=inspect({catalogOnly:true,title:'JUJUTSU KAISEN Season 2',seasonNumber:2},'search');assert.equal(out.navigate,link.href);assert.equal(out.seasonal,true);
+});
 test('unlisted playback is refused and the player drawer contains only listed episodes',async()=>{
  const begin=app.indexOf(' async playRemoteEpisode('),end=app.indexOf('  async requestAnime(',begin);let listing={status:'ready',episodes:[]},opened,notice;
  const ctx={RemoteEpisodes:{load:async()=>listing},remotePlaybackProvider:()=> 'anikoto',seasonNumberIn:()=>1,shortServerName:()=> 'Anikoto',document:{getElementById:()=>null},Player:{open:value=>opened=value},toast:value=>notice=value,lastServerError:null};const play=vm.runInNewContext('({'+app.slice(begin,end)+'}).playRemoteEpisode',ctx),instance={settings:{}};
