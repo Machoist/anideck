@@ -12,7 +12,7 @@ test('navigation dock rises from the bottom after a short dwell and hides outsid
  move(990);flush();assert(classes.has('auto-reveal'));events.pointerleave({clientY:999});assert(!classes.has('auto-reveal'));move(990);flush();events.pointerleave({clientY:400});assert(!classes.has('auto-reveal'));
 });
 test('carousel drops artless slides instead of rendering portrait fallback layouts',async()=>{
- let remaining=true,removed=false;const image={dataset:{srcs:'["portrait"]',fan:'null'}};const slide={dataset:{},querySelector:()=>image,remove:()=>remaining=false};
+ let remaining=true,removed=false;const image={dataset:{srcs:'["portrait"]',fan:'null'}};const slide={isConnected:true,dataset:{},querySelector:()=>image,remove:()=>remaining=false};
  const car={getBoundingClientRect:()=>({width:1440,height:500}),classList:{add(){},remove(){}},querySelectorAll:()=>remaining?[slide]:[],querySelector:()=>({}),remove:()=>removed=true};
  class Image{set src(value){this.naturalWidth=500;this.naturalHeight=1000;queueMicrotask(()=>this.onload())}}
  const ctx={firstUsableArtwork:vm.runInNewContext(source.slice(source.indexOf('function firstUsableArtwork('),source.indexOf('const HomeReads='))+';firstUsableArtwork',{setTimeout,clearTimeout}),QueueRecovery:{schedule(){}},bindYourNext(){},bindWeek(){},enhanceMosaic(){},$:()=>car,window:{devicePixelRatio:1},App:{stale:()=>false},Image,Set,JSON,AniZip:{get:async()=>null},carouselArtworkScore:score,setTimeout,clearTimeout};
