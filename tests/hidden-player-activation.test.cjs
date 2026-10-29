@@ -1,19 +1,11 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-test('hidden Anikoto player activates the DOM control after capture is armed',async()=>{
- let listener,activated=false,nativeClicks=0,cleaned=false,url='';
- class Window{
-  constructor(){this.webContents={session:{webRequest:{onBeforeSendHeaders:(filter,fn)=>{listener=fn;if(filter===null)cleaned=true}}},setUserAgent(){},setAudioMuted(){},setWindowOpenHandler(){},once(){},removeListener(){},getURL:()=>url,sendInputEvent(){nativeClicks++},executeJavaScript:async script=>{if(script.includes("function discoverSubtitleTracks"))return [];
-   if(script.includes('const el=document.querySelector')){activated=true;listener({url:'https://media.test/episode.m3u8',requestHeaders:{Referer:'https://player.test/'}},()=>{});return true;}
-   const stage=script.match(/, "(search|episode|audio|player)"\)$/)[1];
-   if(stage==='search')return {navigate:'https://anikototv.to/watch/example/ep-1',stage:'episode'};
-   if(stage==='episode')return {stage:'audio'};
-   if(stage==='audio')return {stage:'player',selected:true,click:{x:464,y:319}};
-   throw Error('capture should finish before another player inspection');
-  }};}
-  loadURL(next){url=next;return Promise.resolve()}isDestroyed(){return false}destroy(){}
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),{EventEmitter}=require('node:events');
+test('hidden Anikoto embed activates its DOM control after capture is armed and cleans up',async()=>{
+ let listener,activated=false,nativeClicks=0,cleaned=false,url='',dead=false,windows=0;
+ class Window extends EventEmitter{
+  constructor(options){super();assert.equal(options.show,false);windows++;const wc=new EventEmitter();this.webContents=wc;Object.assign(wc,{session:{webRequest:{onBeforeSendHeaders:(filter,fn)=>{listener=fn;if(filter===null)cleaned=true}}},setUserAgent(){},setAudioMuted(){},setWindowOpenHandler(){},getURL:()=>url,sendInputEvent(){nativeClicks++},executeJavaScript:async script=>{if(script.includes('function discoverSubtitleTracks'))return [];if(script.includes('const el=document.querySelector')){activated=true;listener({url:'https://media.test/episode.m3u8',requestHeaders:{Referer:'https://embed.test/'}},()=>{});return true;}return {click:{x:50,y:40}};}});}
+  loadURL(next){url=next;return Promise.resolve()}isDestroyed(){return dead}destroy(){dead=true}
  }
- const ctx={require:name=>name==='./providerSubtitles'?require('../src/providerSubtitles'):({BrowserWindow:Window}),module:{exports:{}},process,console,URL,Map,Set,setTimeout,clearTimeout};
- vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8'),ctx);
- const result=await new ctx.module.exports().resolveAnikoto('Example',1,'sub');
- assert.equal(result.streamUrl,'https://media.test/episode.m3u8');assert.equal(activated,true);assert.equal(nativeClicks,0);assert.equal(cleaned,true);
+ const ctx={require:name=>name==='electron'?{BrowserWindow:Window}:name==='./anikoto'?{BASE:'https://anikototv.to',metadata:async(_read,title,episode,audio,request)=>{assert.equal(title,'Example');assert.equal(episode,1);assert.equal(audio,'sub');return request.catalogOnly?{episodes:[1]}:['https://embed.test/selected'];}}:require(path.join(__dirname,'../src',name)),module:{exports:{}},process,console,URL,Map,Set,AbortSignal,setTimeout,clearTimeout};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8'),ctx);const resolver=new ctx.module.exports();const listing=await resolver.resolveAnikoto('Example',1,'sub',{catalogOnly:true});assert.equal(listing.episodes[0],1);assert.equal(windows,0);
+ const result=await resolver.resolveAnikoto('Example',1,'sub');assert.equal(result.streamUrl,'https://media.test/episode.m3u8');assert.equal(activated,true);assert.equal(nativeClicks,0);assert.equal(cleaned,true);assert.equal(dead,true);assert.equal(url,'https://embed.test/selected');
 });

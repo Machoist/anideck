@@ -1,12 +1,7 @@
-const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8');
-const begin=src.indexOf('const inspect = ')+16,end=src.indexOf('\n    // Observe the headers',begin);
-let calls=0; const box=()=>({x:10,y:20,width:100,height:40});
-const play={dataset:{},setAttribute(){},getBoundingClientRect:box,click(){throw Error('DOM click should not run')}};
-const server={setAttribute(){},classList:{contains:()=>true},getBoundingClientRect:box,scrollIntoView(){calls++},click(){throw Error('DOM click should not run')}};
-const document={querySelector:s=>s==='#player .play'?play:null,querySelectorAll:()=>[server]};
-const inspect=vm.runInNewContext('('+src.slice(begin,end).trim().replace(/;$/,'')+')',{document});
-const first=inspect({audio:'sub'},'audio');assert.equal(first.stage,'player');assert.equal(first.selected,true);assert.equal(first.click.x,60);assert.equal(play.dataset.anideckStarted,'1');
-assert.equal(calls,0,'active requested server must arm capture before the initial Play click');
-server.classList.contains=()=>false;play.dataset={};const other=inspect({audio:'dub'},'audio');assert.equal(other.selected,true);assert.equal(other.stage,'player');assert.equal(calls,1);
-console.log('PASS: arm capture before initial Play and use native coordinates for requested audio');
+const {test}=require('node:test'),assert=require('node:assert/strict'),api=require('../src/anikoto');
+test('Anikoto selects the requested audio server for the exact provider episode',()=>{const html='<div data-type="sub"><li data-ep-id="1" data-link-id="sub">Sub</li></div><div data-type="dub"><li data-ep-id="1" data-link-id="dub">Dub</li><li data-ep-id="2" data-link-id="other">Other episode</li></div>';assert.deepEqual(api.serverIds(html,'sub','1'),['sub']);assert.deepEqual(api.serverIds(html,'dub','1'),['dub']);assert.deepEqual(api.serverIds(html,'dub','3'),[]);});
+test('native Anikoto catalog uses the normal AJAX header and opens no browser window',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),calls=[];api.cache.clear();
+ const electron={app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders(){}}}},net:{fetch:async(url,options)=>{calls.push(url);assert.equal(options.headers['X-Requested-With'],'XMLHttpRequest');assert.equal(options.headers.Authorization,undefined);const u=new URL(url),text=u.pathname==='/filter'?'<a href="'+api.BASE+'/watch/public/ep-1">Public Fixture</a>':u.pathname.startsWith('/watch/')?'<div class="watch-wrap" data-id="9" data-url="'+api.BASE+'/watch/public"></div>':JSON.stringify({status:200,result:'<a data-id="1" data-num="1" data-ids="opaque" data-sub="1"></a>'});return {ok:true,text:async()=>text};}}};
+ const context={require:name=>name==='electron'?electron:require(path.join(__dirname,'../src',name)),module:{exports:{}},process,console,URL,Map,Set,AbortSignal};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8'),context);const r=new context.module.exports();r.createResolverWindow=()=>{throw Error('Catalog must not open a window');};const result=await r.resolveUncached({provider:'anikoto',title:'Public Fixture',episodeNum:1,audio:'sub',catalogOnly:true});assert.equal(result.provider,'anikoto');assert.deepEqual(Array.from(result.episodes),[1]);assert.equal(calls.length,3);
+});

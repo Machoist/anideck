@@ -29,20 +29,9 @@ test('catalog resolution accepts only actual episode numbers without requesting 
  const ctx={require:()=>({app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders(){}}}}}),module:{exports:{}},process,console,URL,Map,Set};vm.runInNewContext(resolver,ctx);const r=new ctx.module.exports();let got;
  r.resolveAnikoto=async(...args)=>{got=args[3];return {episodes:[1,4,4,0,4000]};};const out=await r.resolveUncached({provider:'anikoto',title:'Fixture',catalogOnly:true});assert.equal(got.catalogOnly,true);assert.deepEqual(Array.from(out.episodes),[1,4]);assert.equal(out.provider,'anikoto');assert.equal(out.streamUrl,undefined);
 });
-test('Anikoto catalog inspection lists real DOM episodes and omits unavailable audio without clicking play',()=>{
- const start=resolver.indexOf('    const inspect = (opts, currentStage) =>'),end=resolver.indexOf('    // Observe the headers',start),text=resolver.slice(start,end).replace('const inspect =','const inspect =');
- const episodes=[1,3,8].map(n=>({dataset:{num:String(n)},getAttribute:key=>key==='data-dub'&&n===3?'0':null}));const inspect=vm.runInNewContext(text+';inspect',{document:{title:'Fixture',body:{innerText:''},querySelectorAll:()=>episodes}});
- assert.deepEqual(Array.from(inspect({catalogOnly:true,seasonNumber:1,audio:'dub'},'episode').episodes),[1,8]);assert(inspect({catalogOnly:true,seasonNumber:2,audio:'sub'},'episode').error);
-});
 test('HiAnime catalog stops at the exact title episode listing and never reads a player',async()=>{
  const api=require('../src/hianime'),calls=[];const read=async url=>{calls.push(url);if(url.includes('/browse?'))return '<a href="/watch/fixture-5" title="Fixture" data-id="5"></a>';assert(url.endsWith('/episode/list/5'));return JSON.stringify({status:true,html:'<a class="ep-item" data-id="40" data-number="1"></a><a class="ep-item" data-id="42" data-number="3"></a>'});};
  assert.deepEqual(await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,seasonNumber:1}),{episodes:[1,3]});assert.equal(calls.length,2);assert.deepEqual(await api.metadata(async()=>'<p>No results</p>','Missing',1,'sub',{catalogOnly:true}),{episodes:[]});
-});
-test('Anikoto recognizes ordinal season names rather than reporting an available season missing',()=>{
- const start=resolver.indexOf('    const inspect = (opts, currentStage) =>'),end=resolver.indexOf('    // Observe the headers',start);
- const link={href:'https://anikototv.to/watch/exact',textContent:'Jujutsu Kaisen 2nd Season',getAttribute:()=>null,querySelector:()=>null};
- const inspect=vm.runInNewContext(resolver.slice(start,end)+';inspect',{document:{title:'Search',body:{innerText:''},querySelectorAll:()=>[link]}});
- const out=inspect({catalogOnly:true,title:'JUJUTSU KAISEN Season 2',seasonNumber:2},'search');assert.equal(out.navigate,link.href);assert.equal(out.seasonal,true);
 });
 test('unlisted playback is refused and the player drawer contains only listed episodes',async()=>{
  const begin=app.indexOf(' async playRemoteEpisode('),end=app.indexOf('  async requestAnime(',begin);let listing={status:'ready',episodes:[]},opened,notice;

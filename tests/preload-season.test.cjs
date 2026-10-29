@@ -1,18 +1,10 @@
 const projectRoot = require('node:path').resolve(__dirname, '..');
-const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),{test}=require('node:test'),api=require('../src/anikoto');
 const src=fs.readFileSync(require('node:path').join(projectRoot, 'src/streamResolver.js'),'utf8');
-const begin=src.indexOf('const inspect = ')+16,end=src.indexOf('\n    // Observe the headers',begin);
-let episodes=[];let links=[];const ctx={document:{querySelectorAll:s=>s.includes('#w-episodes')?episodes:links},location:{pathname:'/watch/show/ep-52'},URL};
-const inspect=vm.runInNewContext('('+src.slice(begin,end).trim().replace(/;$/,'')+')',ctx);
-const ep=(n,title)=>({dataset:{num:String(n)},href:'https://anikototv.to/watch/show/ep-'+n,getAttribute:()=> '1',parentElement:{getAttribute:()=>title}});
-episodes=[ep(1,'First'),ep(52,'The Battle Begins')];
-const opts={title:'Black Clover',episodeNum:1,seasonNumber:2,seasonal:false,episodeTitle:'The Battle Begins',audio:'sub'};
-assert.equal(inspect(opts,'episode').stage,'audio');
-assert(inspect({...opts,episodeTitle:'Unmatched'},'episode').error);
-assert.equal(inspect({...opts,episodeTitle:'',absoluteEpisodeNum:52},'episode').stage,'audio');
-ctx.location.pathname='/watch/show/ep-1';assert.equal(inspect({...opts,seasonal:true,episodeTitle:''},'episode').stage,'audio');
-const link=t=>({textContent:t,href:'https://anikototv.to/watch/'+t,getAttribute:()=>null,querySelector:()=>null});links=[link('Black Clover'),link('Black Clover Season 2')];assert.equal(inspect(opts,'search').seasonal,true);
-console.log('PASS: title-based continuous numbering, explicit absolute numbers, separate seasons, ambiguous mapping rejection');
+test('continuous provider episodes accept a unique title or explicit absolute number without guessing a season offset',async()=>{
+ api.cache.clear();const calls=[],read=async url=>{calls.push(url);const u=new URL(url);if(u.pathname==='/filter')return '<a href="'+api.BASE+'/watch/show/ep-1">Example</a>';if(u.pathname.startsWith('/watch/'))return '<div class="watch-wrap" data-id="1" data-url="'+api.BASE+'/watch/show"></div>';if(u.pathname.includes('/episode/list/'))return JSON.stringify({status:200,result:'<li title="First"><a data-id="1" data-num="1" data-ids="first" data-sub="1"></a></li><li title="The Battle Begins"><a data-id="52" data-num="52" data-ids="correct" data-sub="1"></a></li>'});if(u.pathname==='/ajax/server/list'){assert.equal(u.searchParams.get('servers'),'correct');return JSON.stringify({status:200,result:'<div data-type="sub"><li data-ep-id="52" data-link-id="exact"></li></div>'});}return JSON.stringify({status:200,result:{url:'https://embed.test/52'}});};
+ assert.deepEqual(await api.metadata(read,'Example',1,'sub',{seasonNumber:2,episodeTitle:'The Battle Begins'}),['https://embed.test/52']);assert.deepEqual(await api.metadata(read,'Example',1,'sub',{seasonNumber:2,absoluteEpisodeNum:52}),['https://embed.test/52']);await assert.rejects(()=>api.metadata(read,'Example',1,'sub',{seasonNumber:2,episodeTitle:'Unmatched'}),/absolute/);
+});
 let handler;const headers=[];let now=0;
 const c={require:()=>({app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders:fn=>handler=fn}}}}),module:{exports:{}},process,console,URL,Map,AbortController,AbortSignal,Date:{now:()=>now}};
 vm.runInNewContext(src,c);const resolver=new c.module.exports();let calls=0;
