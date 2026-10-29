@@ -1474,6 +1474,7 @@ const App = {
     if(editorSeq!==this.entryEditorSeq||renderId!==this.renderId||service!==Tracker.svc||userId!==service?.userId)return;
     const e=existing||{status:'current',progress:watched};
     let status = e.reconsuming ? 'rewatching' : (e.status || 'current');
+    const originalStatus=status;
     const labels = { current: 'Watching', planned: 'Planning', completed: 'Completed', on_hold: 'Paused', dropped: 'Dropped', rewatching: 'Rewatching' };
     const scrim = document.createElement('div');
     scrim.id = 'entry-pop'; scrim.className = 'entry-scrim';
@@ -1482,12 +1483,14 @@ const App = {
       <div class="ee-chips" id="ee-status">${Object.entries(labels).map(([v, l]) => `<button type="button" class="ee-chip ${status === v ? 'on' : ''}" data-st="${v}">${icon('tick')}${l}</button>`).join('')}</div>
       <div class="ee-row"><label for="ee-prog">Episodes watched</label><span class="spacer"></span>
         <button type="button" class="round-step" id="ee-minus" title="One less">${icon('minus')}</button><b class="ee-count"><input id="ee-prog" class="ee-progress-input" type="number" inputmode="numeric" min="0" max="${total||9999}" step="1" value="${Number(e.progress)||0}" aria-describedby="ee-error">${total ? `<small> / ${total}</small>` : ''}</b><button type="button" class="round-step" id="ee-plus" title="One more">${icon('plus')}</button></div>
+      <div class="ee-score-row"><div><label for="ee-rating">Your score</label><p>Saved to ${esc(Tracker.name)} · out of 10</p></div><select id="ee-rating" aria-label="Your score out of 10"><option value="">Not rated</option>${[...new Set([...Array.from({length:19},(_,i)=>1+i*.5),...(Number(e.rating)>0?[Number(e.rating)]:[])])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${Number(e.rating)===n?'selected':''}>${n} / 10</option>`).join('')}</select></div>
       <p id="ee-error" class="error" role="alert" hidden></p><div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save</button></div>
     </div>`;
     document.body.appendChild(scrim);
     document.body.classList.add('modal-open'); // freezes #main's scroll (see styles.css)
     const pop = scrim.firstElementChild;
     const input=pop.querySelector('#ee-prog');input.value=String(Number(e.progress)||0);input.focus({preventScroll:true});input.select();
+    const scoreInput=pop.querySelector('#ee-rating');scoreInput.value=Number(e.rating)>0?String(Number(e.rating)):'';
     let prog = Number(e.progress) || 0;
     const setProg=v=>{prog=Math.max(0,Math.min(total||9999,Math.trunc(Number(v)||0)));input.value=String(prog);input.removeAttribute('aria-invalid');};
     const validProgress=()=>input.value.trim()!==''&&Number.isInteger(Number(input.value))&&Number(input.value)>=0&&Number(input.value)<=(total||9999);
@@ -1498,12 +1501,12 @@ const App = {
     pop.querySelector('#ee-minus').onclick = () => setProg(prog - 1);
     pop.querySelector('#ee-plus').onclick = () => { setProg(prog + 1); if (status === 'planned') setStatus('current'); };
     let closed=false;const close=()=>{if(closed)return;closed=true;scrim.remove();document.body.classList.remove('modal-open');document.removeEventListener('keydown',esc_);if(this.closeEntryEditor===close)this.closeEntryEditor=null;if(_anchor?.isConnected)_anchor.focus({preventScroll:true});};
-    const esc_=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}else if(event.key==='Tab'){const controls=[...pop.querySelectorAll('button,input')].filter(el=>!el.disabled&&!el.hidden),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};
+    const esc_=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();}else if(event.key==='Tab'){const controls=[...pop.querySelectorAll('button,input,select')].filter(el=>!el.disabled&&!el.hidden),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};
     this.closeEntryEditor=close;pop.querySelector('#ee-close').onclick=close;
     scrim.onmousedown = (ev) => { if (ev.target === scrim) close(); }; // click on the dimmed area closes it
     document.addEventListener('keydown', esc_);
     let busy=false;
-    const setBusy=value=>{busy=value;pop.querySelectorAll('button,input').forEach(button=>button.disabled=value);};
+    const setBusy=value=>{busy=value;pop.querySelectorAll('button,input,select').forEach(button=>button.disabled=value);};
     const showError=error=>{const message=pop.querySelector('#ee-error');message.textContent=`${Tracker.name} update failed: ${error.message}`;message.hidden=false;};
     const accountValid=()=>{if(service===Tracker.svc&&userId===service?.userId)return true;showError(Error('Your account changed. Close this menu and open it again.'));return false;};
     pop.querySelector('#ee-remove').onclick = async () => {
@@ -1512,13 +1515,13 @@ const App = {
       catch(error){showError(error);setBusy(false);}
     };
     pop.querySelector('#ee-save').onclick = async () => {
-      if(busy||!accountValid())return;if(!validProgress()){const error=pop.querySelector('#ee-error');error.textContent=`Enter a whole episode count from 0 to ${total||9999}.`;error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;}prog=Number(input.value);if(status==='planned'&&prog>0)setStatus('current');setBusy(true);pop.querySelector('#ee-error').hidden=true;
+      if(busy||!accountValid())return;if(!validProgress()){const error=pop.querySelector('#ee-error');error.textContent=`Enter a whole episode count from 0 to ${total||9999}.`;error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;}prog=Number(input.value);const progressChanged=prog!==Number(e.progress||0),rating=scoreInput.value===''?null:Number(scoreInput.value),ratingChanged=rating!==(Number(e.rating)||null);if(rating!==null&&(!Number.isFinite(rating)||rating<1||rating>10)){showError(Error('Choose a score from 1 to 10.'));return;}const scoreOnly=!!e.id&&ratingChanged&&!progressChanged&&status===originalStatus;if(status==='planned'&&prog>0&&progressChanged)setStatus('current');setBusy(true);pop.querySelector('#ee-error').hidden=true;
       const btn = pop.querySelector('#ee-save'); btn.textContent = 'Saving…';
       let st = status === 'rewatching' ? 'current' : status;
-      if (total && prog >= total && st === 'current' && status !== 'rewatching') st = 'completed';
+      if (progressChanged && total && prog >= total && st === 'current' && status !== 'rewatching') st = 'completed';
       try {
-        await Tracker.saveEntry(animeId, { status: st, progress: prog, reconsuming: status === 'rewatching' });
-        close(); toast(`${Tracker.name}: ${labels[status]} · ${prog}${total ? ` / ${total}` : ''}`, 'good'); this.refresh();
+        await Tracker.saveEntry(animeId, scoreOnly?{scoreOnly:true,rating}:{ status: st, progress: prog, reconsuming: status === 'rewatching',...(ratingChanged?{rating}:{}) });
+        close(); toast(scoreOnly?`${Tracker.name}: ${rating===null?'Score cleared':`Score saved · ${rating} / 10`}`:`${Tracker.name}: ${labels[status]} · ${prog}${total ? ` / ${total}` : ''}`, 'good'); this.refresh();
       } catch (x) { setBusy(false);btn.textContent='Save';showError(x); }
     };
   },
@@ -4625,7 +4628,7 @@ const Views = {
             <span class="ml-chips"><span class="ml-status"><i></i>${esc(label(e))}</span>${lib ? '<span class="ml-lib">In library</span>' : ''}${outNote(e)}</span></div>
         </button>
         <div class="ml-prog"><div class="ml-prog-text"><b>${e.progress}</b><span>/ ${e.anime.episodes || '?'}</span></div>${listTrack(e.progress, e.anime.episodes, air?.aired)}</div>
-        <span class="ml-score" title="Your rating · community score">${e.rating ? `<b>${esc(Number(e.rating).toFixed(Number(e.rating) % 1 ? 1 : 0))}</b>` : '<b class="dim">–</b>'}<small>${e.anime.rating ? `★ ${e.anime.rating}%` : ''}</small></span>
+        <button class="ml-score" data-act="editEntry" data-kitsu="${esc(e.anime.id)}" data-total="${esc(e.anime.episodes||0)}" data-title="${esc(e.anime.title)}" data-watched="${e.progress}" title="Edit your score">${e.rating ? `<b>${esc(Number(e.rating).toFixed(Number(e.rating) % 1 ? 1 : 0))}</b>` : '<b class="dim">–</b>'}<small>${e.anime.rating ? `★ ${e.anime.rating}%` : ''}</small></button>
         <div class="ml-acts">
           ${canBump(e) ? `<button class="ml-bump" data-bump="${esc(e.anime.id)}" title="Watched episode ${e.progress + 1}">${icon('plus')}<span>1</span></button>` : ''}
           <button class="ml-act" data-act="editEntry" data-kitsu="${esc(e.anime.id)}" data-total="${esc(e.anime.episodes || '')}" data-title="${esc(e.anime.title)}" data-watched="${esc(e.progress)}" title="Edit status, progress and rating">${icon('pencil')}</button>
@@ -4642,6 +4645,7 @@ const Views = {
             ${e.status !== 'completed' && pct(e) ? `<div class="bar"><div style="width:${pct(e)}%"></div></div>` : ''}</div>
           <div class="card-title">${esc(e.anime.title)}</div><div class="card-sub">${!tab ? `${esc(label(e))} · ` : ''}${prog(e)} ${outNote(e)}</div>
         </button>
+        <button class="ml-rate-btn" data-act="editEntry" data-kitsu="${esc(e.anime.id)}" data-total="${esc(e.anime.episodes||0)}" data-title="${esc(e.anime.title)}" data-watched="${e.progress}" aria-label="Edit your score for ${esc(e.anime.title)}">${icon('pencil')}${e.rating?`${esc(e.rating)} / 10`:'Rate this show'}</button>
         <button class="sel-dot" data-sel="${esc(e.anime.id)}" title="Select"></button>
         ${canBump(e) ? `<button class="ml-bump on-card" data-bump="${esc(e.anime.id)}" title="Watched episode ${e.progress + 1}">${icon('plus')}<span>1</span></button>` : ''}
       </div>`;
