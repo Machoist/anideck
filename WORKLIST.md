@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 28 October — remove repeated metadata wait from all server checks
+
+Current installer/portable: **preview-ccdb36b**, runtime source **ccdb36b**, **497 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. New installer: `outputs/AniDeck-preview-ccdb36b-Setup.exe`.
+
+- User reported Checking on every server. The shared completion path had called App.refresh, which re-read catalog, tracker entry and request metadata before displaying already-returned episodes. Server/audio changes and retries did the same. Replaced that path with a captured current-title metadata snapshot and partial updates of .detail-main/.hero-actions. Existing heading/logo, scroll container and profile/account data remain in place. Navigation/provider races discard stale updates.
+- Episode lookup starts independently of optional artwork/related-title enrichment. Added a renderer watchdog of6seconds; native catalog tasks cancel at5.5seconds and close their hidden windows. Hung native IPC becomes a retryable error; late answers cannot overwrite that state. Actual episode-list requirement remains intact; no fabricated grids or automatic provider substitution.
+- Three new behavior tests: timeout recovery/late response, metadata-free partial repaint, provider switch during repaint. Native packaged after-render test deliberately makes Kitsu metadata never resolve, then verifies one lookup, zero App.refresh calls, zero further metadata reads and the listed episode rows. Scaled native hung-request fixture exits Checking and keeps the same heading DOM node. Existing UI/layout checks pass; screenshot reviewed in outputs/server-speed-final/.
+- Live isolated public HiAnime lookup: Jujutsu Kaisen Season2 returned actual episodes1-23 in720ms (work/server-speed-live.log). This is one catalog lookup, not a guarantee for every title/network or full playback. Public Anikoto search/title HTML was fast, but episodes depend on page scripts; the plain public list endpoint returned bad request. No token-generation workaround added. Underlying Anikoto reliability remains a worklist item; slow sources now fail promptly instead of re-blocking metadata and retaining Checking.
+- Evidence: work/server-speed-tests.log and work/server-speed-final-native.log. No account/list/message writes or installed-app replacement. Unrelated readme-preview.html and Desktop/anitrack checkout preserved.
+- Remaining acceptance: user playback with HiAnime; Anikoto page reliability; Jikan synopsis service is still timing out; future natural AniList progress advance, Kitsu import, second-device recovery, physicalTV/Jellyfin/OS notifications. Gio and physicalMac stay deferred. No deployment, migration, public release or tag.
+
 ## 28 October — real streaming-server episode availability
 
 Current installer/portable: **preview-3e3c325**, runtime source **3e3c325**, **494 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. New installer: `outputs/AniDeck-preview-3e3c325-Setup.exe`.
