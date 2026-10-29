@@ -1479,17 +1479,17 @@ const App = {
     const scrim = document.createElement('div');
     scrim.id = 'entry-pop'; scrim.className = 'entry-scrim';
     scrim.innerHTML = `<div class="entry-pop" role="dialog" aria-modal="true" aria-label="Update your list${title ? `: ${esc(title)}` : ''}">
-      <div class="entry-pop-heading"><div><span class="ad-eyebrow">YOUR WATCHLIST</span><h2>Update your list</h2>${title?`<p>${esc(title)}</p>`:''}</div><button type="button" class="icon-btn" id="ee-close" aria-label="Close list editor">${icon('close')}</button></div>
-      <div class="ee-chips" id="ee-status">${Object.entries(labels).map(([v, l]) => `<button type="button" class="ee-chip ${status === v ? 'on' : ''}" data-st="${v}">${icon('tick')}${l}</button>`).join('')}</div>
-      <div class="ee-row"><label for="ee-prog">Episodes watched</label><span class="spacer"></span>
+      <div class="entry-pop-heading"><div><span class="ad-eyebrow">YOUR WATCHLIST</span><h2>${esc(title||'Your watchlist')}</h2><p>Progress, status &amp; your personal score.</p></div><button type="button" class="icon-btn" id="ee-close" aria-label="Close list editor">${icon('close')}</button></div>
+      <div class="ee-status-section"><span class="ee-section-label">On your list</span><div class="ee-chips" id="ee-status">${Object.entries(labels).map(([v, l]) => `<button type="button" class="ee-chip ${status === v ? 'on' : ''}" data-st="${v}">${icon('tick')}${l}</button>`).join('')}</div></div>
+      <div class="ee-row"><label for="ee-prog"><span class="ee-field-icon">${icon('play')}</span>Episodes watched</label><span class="spacer"></span>
         <button type="button" class="round-step" id="ee-minus" title="One less">${icon('minus')}</button><b class="ee-count"><input id="ee-prog" class="ee-progress-input" type="number" inputmode="numeric" min="0" max="${total||9999}" step="1" value="${Number(e.progress)||0}" aria-describedby="ee-error">${total ? `<small> / ${total}</small>` : ''}</b><button type="button" class="round-step" id="ee-plus" title="One more">${icon('plus')}</button></div>
-      <div class="ee-score-row"><div><label for="ee-rating">Your score</label><p>Saved to ${esc(Tracker.name)} · out of 10</p></div><select id="ee-rating" aria-label="Your score out of 10"><option value="">Not rated</option>${[...new Set([...Array.from({length:19},(_,i)=>1+i*.5),...(Number(e.rating)>0?[Number(e.rating)]:[])])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${Number(e.rating)===n?'selected':''}>${n} / 10</option>`).join('')}</select></div>
-      <p id="ee-error" class="error" role="alert" hidden></p><div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save</button></div>
+      <div class="ee-score-row"><div><label for="ee-rating"><span class="ee-field-icon">✦</span>Your score</label><p>Your rating · ${esc(Tracker.name)}</p></div><select id="ee-rating" aria-label="Your score out of 10"><option value="">Not rated</option>${[...new Set([...Array.from({length:19},(_,i)=>1+i*.5),...(Number(e.rating)>0?[Number(e.rating)]:[])])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${Number(e.rating)===n?'selected':''}>${n} / 10</option>`).join('')}</select></div>
+      <p id="ee-error" class="error" role="alert" hidden></p><div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save changes ${icon('check')}</button></div>
     </div>`;
     document.body.appendChild(scrim);
     document.body.classList.add('modal-open'); // freezes #main's scroll (see styles.css)
     const pop = scrim.firstElementChild;
-    const input=pop.querySelector('#ee-prog');input.value=String(Number(e.progress)||0);input.focus({preventScroll:true});input.select();
+    const input=pop.querySelector('#ee-prog');input.value=String(Number(e.progress)||0);pop.querySelector('#ee-close').focus({preventScroll:true});
     const scoreInput=pop.querySelector('#ee-rating');scoreInput.value=Number(e.rating)>0?String(Number(e.rating)):'';
     let prog = Number(e.progress) || 0;
     const setProg=v=>{prog=Math.max(0,Math.min(total||9999,Math.trunc(Number(v)||0)));input.value=String(prog);input.removeAttribute('aria-invalid');};
@@ -3483,6 +3483,7 @@ async function listAiring() {
   for (const v of byId.values()) if (v.next) v.aired = Math.max(v.aired, v.next.episode - 1);
   return (anime) => byId.get(String(anime.id)) || (String(anime.id).startsWith('al:')?null:keysOf(anime).map((k) => byKey.get(k)).find(Boolean)) || null;
 }
+function myListScoreButton(e){return `<button class="ml-rate-btn ${e.rating?'is-rated':''}" data-act="editEntry" data-kitsu="${esc(e.anime.id)}" data-total="${esc(e.anime.episodes||0)}" data-title="${esc(e.anime.title)}" data-watched="${Number(e.progress)||0}" aria-label="Edit your score for ${esc(e.anime.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.38 1.06 6.2L12 17.2l-5.56 2.92 1.06-6.2L3 9.54l6.22-.91Z"/></svg><span>${e.rating?`${esc(e.rating)} <small>/ 10</small>`:'Add score'}</span><span class="ml-rate-arrow" aria-hidden="true">↗</span></button>`;}
 // Episodes watched, time spent, completed and your mean score, over your whole list.
 function listStats(entries) {
   const eps = entries.reduce((n, e) => n + (e.progress || 0), 0);
@@ -4645,7 +4646,7 @@ const Views = {
             ${e.status !== 'completed' && pct(e) ? `<div class="bar"><div style="width:${pct(e)}%"></div></div>` : ''}</div>
           <div class="card-title">${esc(e.anime.title)}</div><div class="card-sub">${!tab ? `${esc(label(e))} · ` : ''}${prog(e)} ${outNote(e)}</div>
         </button>
-        <button class="ml-rate-btn" data-act="editEntry" data-kitsu="${esc(e.anime.id)}" data-total="${esc(e.anime.episodes||0)}" data-title="${esc(e.anime.title)}" data-watched="${e.progress}" aria-label="Edit your score for ${esc(e.anime.title)}">${icon('pencil')}${e.rating?`${esc(e.rating)} / 10`:'Rate this show'}</button>
+        ${myListScoreButton(e)}
         <button class="sel-dot" data-sel="${esc(e.anime.id)}" title="Select"></button>
         ${canBump(e) ? `<button class="ml-bump on-card" data-bump="${esc(e.anime.id)}" title="Watched episode ${e.progress + 1}">${icon('plus')}<span>1</span></button>` : ''}
       </div>`;
