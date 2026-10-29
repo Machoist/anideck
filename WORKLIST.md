@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 29 October — alternate title episodes and AniList request pressure
+
+Current installer/portable: **preview-7ee1721**, runtime source **7ee1721**, **522 tests pass**. Final package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-7ee1721-Setup.exe`.
+
+- Reproduced Orb missing episodes: Anikoto returns About the Movement of the Earth / Chi.: Chikyuu no Undou ni Tsuite, while the renderer requested only Orb: On the Movements of the Earth. Pass exact catalog alternate names through title-page and queue data, catalog IPC, player and resolver/cache keys. Anikoto checks those exact names and at most two alternate search terms; retains unique URL, canonical title, sequel, requested audio and real episode checks. Explicit sequel names cannot fall back to an unnumbered first season. No title-specific alias table, fuzzy match or fabricated episode list.
+- Live public Orb sub catalog returns25 actual episodes in267ms (single run, not a latency guarantee), using the exact Japanese catalog alias. Work/orb-search-live.log and orb-catalog-live.log. This verifies listing, not full Orb playback. Native synthetic Orb metadata verifies25 rendered rows and alias propagation into playback context; existing missing/error/pending/real-list UI checks still pass.
+- AniList request pressure: full collections had no in-flight sharing, and entry lookups could launch separately while the same full list was downloading. Collections now share a job by account; ordinary entry lookup waits for it and reuses its recent result. Public metadata requests also share by title ID. Failed jobs clear for retry; a collection begun before a successful progress write cannot replace the newer result. All rate-limit cooldown/unknown-entry protections remain; no mutation replay, stale editable progress or false empty entry. An upstream429 may still produce a temporary unavailable state.
+- Eight new regressions cover exact aliases, ambiguity/sequel safety, alternate search, shared collection/title reads, failure recovery and write race. All522 tests pass. Native final package audit and full isolated smoke pass; no account/list/message writes. Evidence work/orb-tests.log, orb-final-build.log and orb-final-native.log, visuals outputs/orb-final/. No installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack.
+- Next acceptance: user checks Orb listing and list entry in this build, then playback/controls/long session. Jikan still times out; natural AniList progress advance, Kitsu import, second-device recovery, physicalTV/Jellyfin/OS notifications remain. Gio and physicalMac stay deferred.
+
 ## 29 October — queue logo and horizon startup fixes
 
 Current installer/portable: **preview-5b24dcd**, runtime source **5b24dcd**, **514 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-5b24dcd-Setup.exe`.
