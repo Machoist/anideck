@@ -866,6 +866,7 @@ const App = {
       if (id !== this.renderId) return;
       clearTimeout(this.spinTimer);
       main.classList.remove('view-leaving');
+      if(quiet){clearTimeout(this.viewInTimer);main.classList.remove('view-in');}
       this.renderQuiet = quiet; // quiet refreshes don't replay the card animations
       main.innerHTML = html;
       if(view==='home'&&typeof HomeReads!=='undefined')HomeReads.markPaint(id);
@@ -2908,10 +2909,12 @@ function ynHero(it) {
     : it.kind === 'movie' ? `data-act="playMovie" data-id="${esc(it.id)}"` : `data-act="play" data-id="${esc(it.id)}" data-series="${esc(it.series)}"`;
   const open = it.kind === 'remote' ? `data-act="anime" data-id="${esc(it.kitsu)}"` : it.kind === 'movie' ? `data-act="movie" data-id="${esc(it.id)}"` : `data-act="series" data-id="${esc(it.series)}" data-season="${esc(it.season)}"`;
   const art = it.resolvedBackdrop || it.backdrop || it.banner || ''; // Real landscape sources only; never promote a poster into the hero.
+  const logoId=it.alId||(String(it.kitsu||it.kid||'').startsWith('al:')?String(it.kitsu||it.kid).slice(3):typeof AniList==='undefined'?null:AniList.idCache?.[it.kitsu||it.kid]);
+  const cachedLogo=typeof titleLogoCache!=='undefined'&&titleLogoCache.has(String(logoId));
   return `<div class="yn-art"><img class="yn-bg" ${art?`src="${esc(art)}"`:"hidden"} alt=""></div>
     <div class="yn-text">
       ${it.badge ? `<div class="yn-eyebrow">${esc(it.badge)}</div>` : ''}
-      <h1 class="yn-title logo-pending" aria-label="${esc(it.title)}">${queueTitleMarkup(it.title)}</h1>
+      ${cachedLogo?logoHeading(it.title,logoId,it.title,'yn-title'):`<h1 class="yn-title logo-pending" aria-label="${esc(it.title)}">${queueTitleMarkup(it.title)}</h1>`}
       <div class="yn-ep">${esc(it.ep)}</div>
       ${it.about ? `<p class="yn-about">${esc(it.about)}</p>` : ''}
       ${it.wait != null ? `<div class="yn-wait" role="timer">${it.wait > 0
@@ -3620,11 +3623,11 @@ function firstUsableArtwork(groups,measure,score,deadlineMs=2200){
 }
 const HomeReads={active:null,budgetMs:600,
  scope(){return queueScope()+':'+(typeof Cloud==='undefined'?'':Cloud.ident());},
- begin(rid){let b=this.active;if(!b||b.nextRid!==rid||b.scope!==this.scope())b={scope:this.scope(),rid,values:new Map(),pending:new Map(),failed:new Set(),timer:null,nextRid:null,painted:false,dirty:false};b.rid=rid;b.nextRid=null;this.active=b;return b;},
+ begin(rid){let b=this.active;if(!b||b.nextRid!==rid||b.scope!==this.scope())b={scope:this.scope(),rid,values:new Map(),pending:new Map(),deferred:new Set(),failed:new Set(),timer:null,nextRid:null,painted:false,dirty:false};b.rid=rid;b.nextRid=null;this.active=b;return b;},
  markPaint(rid){const b=this.active;if(b?.rid!==rid)return;b.painted=true;if(b.dirty)this.schedule(b);},
  schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;b.dirty=false;b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});},120);},
- async read(b,key,loader,fallback=[]){if(b.values.has(key))return b.values.get(key);if(b.pending.has(key))return fallback;
- const job=Promise.resolve().then(loader).catch(()=>{b.failed.add(key);return fallback;}).then(value=>{b.values.set(key,value);b.pending.delete(key);this.schedule(b);return value;});b.pending.set(key,job);let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>resolve(fallback),this.budgetMs);})]);}finally{clearTimeout(timer);}
+ async read(b,key,loader,fallback=[]){if(b.values.has(key))return b.values.get(key);if(b.pending.has(key)){b.deferred.add(key);return fallback;}
+ const job=Promise.resolve().then(loader).catch(()=>{b.failed.add(key);return fallback;}).then(value=>{b.values.set(key,value);b.pending.delete(key);if(b.deferred.delete(key))this.schedule(b);return value;});b.pending.set(key,job);let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>{b.deferred.add(key);resolve(fallback);},this.budgetMs);})]);}finally{clearTimeout(timer);}
  }
 };
 
