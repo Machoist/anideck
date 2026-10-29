@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 29 October — My List personal scores
+
+Current installer/portable: **preview-5c2ee07**, runtime source **5c2ee07**, **525 tests pass**. Final package audit, isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-5c2ee07-Setup.exe`.
+
+- Answered carousel behavior from code: featured content comes from current-season/trending feeds on Home reload (catalog GET cache20seconds); the personal queue follows Watching/progress. No new periodic discovery poll was added. Rotation changes displayed slides, not the feed data while Home remains open.
+- Added personal score selector to shared list editor, named active tracker, existing rating prefill,1–10 half-point choices and Not rated clearing. Retain an existing non-half decimal as an option. My List grid gets Rate this show/current personal score entry; list view personal score opens the editor. Local mode remains local; connected AniList/Kitsu writes target only the active service.
+- Score-only edits write only scoreRaw to AniList (8.5=>85) or ratingTwenty to Kitsu (8.5=>17), preserving status/progress. Clearing sends0/null respectively. Unchanged ratings are omitted from ordinary status/progress saves. Combined explicit rating/status/progress edits remain supported. Planned entries with progress are not auto-started solely because a score changed; completion auto-change requires an actual progress change. Account checks, busy-state blocking and error retention remain.
+- Three new regressions cover score-only/clear provider payloads, editor score-only planned progress preservation, explicit clear and unchanged-rating omission. All525 tests pass. Keyboard/busy fixtures include select controls. Full isolated native UI checks show existing score, successful simulated score-only/clear saves and640px dialog fit. Screenshot outputs/rating-final/AniDeck-score-editor.png reviewed. Fixtures mock saves; no real account/list writes. Actual tracker readback of a user-entered score remains live acceptance.
+- Evidence work/rating-tests.log, rating-final-build.log, rating-final-native.log. No installed-app replacement, backend deployment, migration, public release or tag. Preserve readme-preview.html and Desktop/anitrack.
+- Next acceptance: user rates a title on the active tracker and confirms external score; existing playback/long-session, Jikan timeout, natural AniList progress advance, Kitsu import, second-device recovery, physicalTV/Jellyfin/OS notification backlog remains. Gio and physicalMac remain deferred.
+
 ## 29 October — alternate title episodes and AniList request pressure
 
 Current installer/portable: **preview-7ee1721**, runtime source **7ee1721**, **522 tests pass**. Final package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-7ee1721-Setup.exe`.
