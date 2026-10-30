@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — hover ownership and short fluid wheel motion
+
+Current installer/portable: **preview-b7bdb2f**, runtime source **b7bdb2f**, **560 tests pass**. Final package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-b7bdb2f-Setup.exe`.
+
+- User reported a synopsis remaining after pointer exit and found the prior scrolling too abrupt. Cause: card:focus-within kept the old story visible after mouse click left focus there, while pointer hover opened another. Visibility now follows one explicit story-active card. Pointer exit dismisses despite retained mouse focus; genuine keyboard navigation retains accessible focus previews. Switching cards, leaving window or scrolling clears stale preview ownership; late metadata still cannot reopen an obsolete card. Expanding/scrolling the synopsis itself remains usable.
+- Supersedes the previous direct-wheel preference with short120ms cubic ease-out for discrete wheel steps on scrollable content within main. Starts on the next frame, accumulates wheel bursts, reverses from current position immediately, clamps to bounds and cancels on native precision input, drag/touch, navigation keys, page replacement, blur/resize or app Reduce motion. Small/fractional/diagonal pixel deltas and modifiers remain native. No row snapping returns; title details remain in one page scroller; explicit milestone navigation remains unchanged. Input classification is heuristic, not physical-trackpad acceptance.
+- Seven new regressions verify focused-card pointer exit, single preview/scroll dismissal, keyboard focus, immediate intermediate wheel movement, burst accumulation/reversal, native/reduced-motion input, cancellation/page replacement and bounds. Full suite560 pass. Packaged actual-source/native-input fixture reproduces retained mouse focus but hidden old story, one visible new story, exit/scroll dismissal and keyboard visibility. Page/row300px gestures show intermediate positions and end300px; first movement16.3/13.1ms, settle137.3/129.8ms (one run, not universal latency guarantee).
+- Screenshot reviewed: outputs/smooth-hover-final/AniDeck-hover-corrected.png. Evidence work/smooth-hover-live.log, smooth-hover-tests.log and smooth-hover-final-native.log; fixture traces outputs/smooth-hover-final/live-result.json. No accounts/list/message writes, installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio/physicalMac deferred.
+
 ## 30 October — direct row scrolling and one title-page scroller
 
 Current installer/portable: **preview-1adc76b**, runtime source **1adc76b**, **553 tests pass**. Package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1adc76b-Setup.exe`.
