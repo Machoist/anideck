@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 29 October — contained score picker and AniList score formats
+
+Current installer/portable: **preview-948265a**, runtime source **948265a**, **531 tests pass**. Final package audit, full isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-948265a-Setup.exe`.
+
+- User rejected tall OS dropdown and questioned half scores on AniList. Official docs confirm POINT_10 is integer, POINT_10_DECIMAL allows tenths, plus POINT_100/POINT_5/POINT_3. Replaced select entirely: whole10 uses two rows of buttons; five-star/reaction accounts get their corresponding groups; decimal/100 use a bounded number field. Clear action remains in-menu. Kitsu/local retain half-step numeric controls. Picker follows the known AniList account format, defaulting to whole10 if unavailable.
+- Login now loads/persists scoreFormat; normal entry/collection reads learn it in their existing GraphQL request, without a separate preference request. Logout resets it. AniList native-score edits use documented score:Float, validated against format/range/step; raw import scores remain on existing scoreRaw path. Clear uses scoreRaw0. Personal-score reads now explicitly use POINT_10_DECIMAL to avoid rounding away fractions. Stored existing scores are not silently rounded or overwritten; reaction values are retained unless explicitly changed, avoiding guessed raw-score thresholds.
+- Two new regressions cover all5 native score formats, invalid steps/ranges, clearing, changed format rejection and whole-number editor refusing fractional input. All531 pass. Full native packaged editor check forces actual640px width (temporarily lowers test window minimum), verifies no select, ten score buttons, prefill, button-driven save/clear and dialog fit. Desktop/narrow screenshots reviewed in outputs/score-picker-final/. Fake accounts/saves; no live provider writes. Live score readback still needs user acceptance.
+- Sources: https://docs.anilist.co/reference/enum/scoreformat and https://docs.anilist.co/reference/mutation. Evidence work/score-picker-tests.log, score-picker-final-build.log and score-picker-final-native.log. No installed-app replacement, backend deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Previous next-worklist selection was interrupted by this requested fix; other acceptance backlog remains. Gio and physicalMac stay deferred.
+
 ## 29 October — Home return flicker
 
 Current installer/portable: **preview-4bd12cb**, runtime source **4bd12cb**, **529 tests pass**. Final package audit, isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-4bd12cb-Setup.exe`.
