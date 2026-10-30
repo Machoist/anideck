@@ -721,7 +721,7 @@ const AL_STATUS = { current: 'CURRENT', planned: 'PLANNING', completed: 'COMPLET
 const AL_BACK = { CURRENT: 'current', REPEATING: 'current', PLANNING: 'planned', COMPLETED: 'completed', PAUSED: 'on_hold', DROPPED: 'dropped' };
 const AL_FORMAT = { TV: 'TV', TV_SHORT: 'TV', MOVIE: 'movie', OVA: 'OVA', ONA: 'ONA', SPECIAL: 'special', MUSIC: 'music' };
 const AniList = {
-  token: '', userId: 0, userName: '', avatar: '', clientId: '', idCache: null, coll: null, collAt: 0,
+  token: '', userId: 0, userName: '', avatar: '', scoreFormat:'POINT_10', clientId: '', idCache: null, coll: null, collAt: 0,
   async init() {
     const cfg = await window.native.config();
     this.clientId = cfg.anilistClientId || ANILIST_CLIENT_ID;
@@ -732,8 +732,8 @@ const AniList = {
   },
   available() { return !!this.clientId; },
   loggedIn() { return !!(this.token && this.userId); },
-  async save() { await window.native.setSecret('anilistAuth', JSON.stringify({ token: this.token, userId: this.userId, userName: this.userName, avatar: this.avatar })); },
-  async logout() { this.invalidateEntries();Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', coll: null }); await window.native.setSecret('anilistAuth', null); },
+  async save() { await window.native.setSecret('anilistAuth', JSON.stringify({ token: this.token, userId: this.userId, userName: this.userName, avatar: this.avatar, scoreFormat:this.scoreFormat })); },
+  async logout() { this.invalidateEntries();Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', scoreFormat:'POINT_10', coll: null }); await window.native.setSecret('anilistAuth', null); },
   rateLimitUntil: 0,
   observeRateLimit(response) {
     const headers=Object.fromEntries(Object.entries(response?.headers||{}).map(([key,value])=>[key.toLowerCase(),value]));
@@ -770,8 +770,8 @@ const AniList = {
     const token = new URLSearchParams(url.split('#')[1] || '').get('access_token');
     if (!token) throw new Error('AniList didn’t return a sign-in token.');
     this.token = token;
-    const d = await this.gql('query{ Viewer{ id name avatar{ large } } }');
-    this.userId = d.Viewer.id; this.userName = d.Viewer.name; this.avatar = d.Viewer.avatar?.large || '';
+    const d = await this.gql('query{ Viewer{ id name avatar{ large } mediaListOptions{ scoreFormat } } }');
+    this.userId = d.Viewer.id; this.userName = d.Viewer.name; this.avatar = d.Viewer.avatar?.large || '';this.scoreFormat=d.Viewer.mediaListOptions?.scoreFormat||'POINT_10';
     await this.save();
   },
   // Title-page metadata from AniList (works signed out): its banner and cover art usually beat library art,
@@ -843,6 +843,8 @@ const AniList = {
   fromEntry(e) {
     return { id: e.id, status: AL_BACK[e.status] || 'current', reconsuming: e.status === 'REPEATING', progress: e.progress || 0, rating: e.score || null, updatedAt: e.updatedAt ? new Date(e.updatedAt * 1000).toISOString() : '' };
   },
+  scoreRules(){const format=this.scoreFormat||'POINT_10',spec={POINT_100:[100,1],POINT_10_DECIMAL:[10,.1],POINT_10:[10,1],POINT_5:[5,1],POINT_3:[3,1]}[format]||[10,1];return {format,max:spec[0],step:spec[1]};},
+  nativeScoreFields(value,format){const rule=this.scoreRules();if(format!==rule.format)throw Error('Your AniList scoring format changed. Reopen this editor.');if(value===null)return {scoreRaw:0};if(!Number.isFinite(value)||value<rule.step||value>rule.max||Math.abs(value/rule.step-Math.round(value/rule.step))>.00001)throw Error('Choose a valid score for your AniList format.');return {score:value};},
   entryScope() { return String(this.userId)+':'+this.token; },
   invalidateEntries() { this.entryEpoch=(this.entryEpoch||0)+1;this.entryCache=new Map();this.entryPending=new Map(); },
   async entry(id, {fresh=false}={}) {
@@ -861,8 +863,9 @@ const AniList = {
     if(this.entryPending.has(key))return this.entryPending.get(key).then(value=>value?{...value}:null);
     const epoch=this.entryEpoch;
     const pending=(async()=>{
-      const d=await this.gql('query($id:Int){ Media(id:$id){ id mediaListEntry{ id status progress score(format:POINT_10) repeat updatedAt } } }',{id:mediaId});
+      const d=await this.gql('query($id:Int){ Viewer{ mediaListOptions{scoreFormat} } Media(id:$id){ id mediaListEntry{ id status progress score(format:POINT_10_DECIMAL) repeat updatedAt } } }',{id:mediaId});
       if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
+      if(d?.Viewer?.mediaListOptions?.scoreFormat)this.scoreFormat=d.Viewer.mediaListOptions.scoreFormat;
       const value=d?.Media?.mediaListEntry?this.fromEntry(d.Media.mediaListEntry):null;
       if(epoch!==this.entryEpoch){
         const latest=this.entryCache.get(mediaId);if(latest&&latest.until>Date.now())return latest.value?{...latest.value}:null;
@@ -880,15 +883,16 @@ const AniList = {
     const account=this.userId,scope=this.entryScope();
     const mediaId = await this.mediaId(id);
     if(this.userId!==account||this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
-    const fields=[['status','MediaListStatus'],['progress','Int'],['scoreRaw','Int']].filter(([key])=>vars[key]!==undefined);
-    const d = await this.gql(`mutation($mediaId:Int${fields.map(([key,type])=>', $'+key+':'+type).join('')}){ SaveMediaListEntry(mediaId:$mediaId${fields.map(([key])=>', '+key+':$'+key).join('')}){ id status progress score(format:POINT_10) repeat updatedAt } }`, { mediaId, ...vars });
+    const fields=[['status','MediaListStatus'],['progress','Int'],['scoreRaw','Int'],['score','Float']].filter(([key])=>vars[key]!==undefined);
+    const d = await this.gql(`mutation($mediaId:Int${fields.map(([key,type])=>', $'+key+':'+type).join('')}){ SaveMediaListEntry(mediaId:$mediaId${fields.map(([key])=>', '+key+':$'+key).join('')}){ id status progress score(format:POINT_10_DECIMAL) repeat updatedAt } }`, { mediaId, ...vars });
     if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
     this.coll = null;this.invalidateEntries();
     const value=this.fromEntry(d.SaveMediaListEntry);this.entryOwner=this.entryScope();this.entryCache.set(mediaId,{until:Date.now()+30000,value});
     return value;
   },
-  async saveEntry(id, { status, progress, reconsuming, rating, scoreOnly=false, ifMissing=false, progressOnly=false, expectedStatus, expectedReconsuming=false }) {
+  async saveEntry(id, { status, progress, reconsuming, rating, nativeScore, scoreFormat, scoreOnly=false, ifMissing=false, progressOnly=false, expectedStatus, expectedReconsuming=false }) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
+    if(scoreOnly&&nativeScore!==undefined)return this.write(id,this.nativeScoreFields(nativeScore,scoreFormat));
     if(scoreOnly){if(rating!==null&&(!Number.isFinite(rating)||rating<1||rating>10))throw Error('Choose a score from 1 to 10.');return this.write(id,{scoreRaw:rating===null?0:Math.round(rating*10)});}
     if(progressOnly){
       const scope=this.entryScope(),existing=await this.entry(id,{fresh:true});
@@ -898,7 +902,7 @@ const AniList = {
       return this.write(id,{progress:target});
     }
     if(ifMissing){const account=this.userId,existing=await this.entry(id,{fresh:true});if(this.userId!==account||!this.loggedIn())throw Error('AniList account changed. Start again.');if(existing)return {...existing,unchanged:true};}
-    return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0),...(rating===null?{scoreRaw:0}:Number(rating)>0?{scoreRaw:Math.max(1,Math.min(100,Math.round(Number(rating)*10)))}:{}) });
+    return this.write(id, { status: reconsuming ? 'REPEATING' : AL_STATUS[status] || 'CURRENT', progress: Math.max(0, Number(progress) || 0),...(nativeScore!==undefined?this.nativeScoreFields(nativeScore,scoreFormat):rating===null?{scoreRaw:0}:Number(rating)>0?{scoreRaw:Math.max(1,Math.min(100,Math.round(Number(rating)*10)))}:{}) });
   },
   async setStatus(id, status) {
     if (!this.loggedIn()) throw new Error('Not signed in to AniList');
@@ -931,10 +935,11 @@ const AniList = {
   },
   async readCollection(scope) {
     const epoch=this.entryEpoch||0;
-    const d = await this.gql(`query($u:Int){ MediaListCollection(userId:$u, type:ANIME){ lists{ entries{ id status progress score(format:POINT_10) repeat updatedAt
-      media{ id idMal title{ romaji english native userPreferred } synonyms coverImage{ large extraLarge } episodes format seasonYear averageScore genres status siteUrl } } } } }`, { u: this.userId });
+    const d = await this.gql(`query($u:Int){ MediaListCollection(userId:$u, type:ANIME){ lists{ entries{ id status progress score(format:POINT_10_DECIMAL) repeat updatedAt
+      media{ id idMal title{ romaji english native userPreferred } synonyms coverImage{ large extraLarge } episodes format seasonYear averageScore genres status siteUrl } } } } User(id:$u){mediaListOptions{scoreFormat}} }`, { u: this.userId });
     if(this.entryScope()!==scope||!this.loggedIn())throw Error('AniList account changed. Start again.');
     if(epoch!==(this.entryEpoch||0))throw Error('Your list changed while loading. Reload this page.');
+    if(d?.User?.mediaListOptions?.scoreFormat)this.scoreFormat=d.User.mediaListOptions.scoreFormat;
     this.collOwner=scope;
     const seen = new Set();
     this.coll = (d?.MediaListCollection?.lists || []).flatMap((l) => l.entries || []).filter((e) => !seen.has(e.id) && seen.add(e.id))
@@ -1010,7 +1015,7 @@ const AniList = {
   // People you follow on AniList who have this show on their list.
   async friends(mediaId) {
     if (!this.loggedIn()) return [];
-    const d = await this.gql('query($id:Int){ Page(perPage:50){ mediaList(mediaId:$id, isFollowing:true, sort:UPDATED_TIME_DESC){ status progress updatedAt score(format:POINT_10) user{ name avatar{ medium } siteUrl } } } }', { id: mediaId });
+    const d = await this.gql('query($id:Int){ Page(perPage:50){ mediaList(mediaId:$id, isFollowing:true, sort:UPDATED_TIME_DESC){ status progress updatedAt score(format:POINT_10_DECIMAL) user{ name avatar{ medium } siteUrl } } } }', { id: mediaId });
     return (d?.Page?.mediaList || []).map((e) => ({ ...e, status: AL_BACK[e.status] || 'current', rewatching: e.status === 'REPEATING' }));
   },
   async kitsuIdFor(alId, malId) {

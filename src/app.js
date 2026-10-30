@@ -1476,6 +1476,7 @@ const App = {
     const e=existing||{status:'current',progress:watched};
     let status = e.reconsuming ? 'rewatching' : (e.status || 'current');
     const originalStatus=status;
+    const scoreRule=Tracker.name==='AniList'?(Tracker.svc?.scoreRules?.()||{format:'POINT_10',max:10,step:1}):{format:'LOCAL_10',max:10,step:.5},scoreMin=Tracker.name==='AniList'?scoreRule.step:1,scoreStart=Number(e.rating)>0?String(scoreRule.format==='POINT_3'?e.rating:Number((Number(e.rating)*scoreRule.max/10).toFixed(2))):'';
     const labels = { current: 'Watching', planned: 'Planning', completed: 'Completed', on_hold: 'Paused', dropped: 'Dropped', rewatching: 'Rewatching' };
     const scrim = document.createElement('div');
     scrim.id = 'entry-pop'; scrim.className = 'entry-scrim';
@@ -1484,14 +1485,18 @@ const App = {
       <div class="ee-status-section"><span class="ee-section-label">On your list</span><div class="ee-chips" id="ee-status">${Object.entries(labels).map(([v, l]) => `<button type="button" class="ee-chip ${status === v ? 'on' : ''}" data-st="${v}">${icon('tick')}${l}</button>`).join('')}</div></div>
       <div class="ee-row"><label for="ee-prog"><span class="ee-field-icon">${icon('play')}</span>Episodes watched</label><span class="spacer"></span>
         <button type="button" class="round-step" id="ee-minus" title="One less">${icon('minus')}</button><b class="ee-count"><input id="ee-prog" class="ee-progress-input" type="number" inputmode="numeric" min="0" max="${total||9999}" step="1" value="${Number(e.progress)||0}" aria-describedby="ee-error">${total ? `<small> / ${total}</small>` : ''}</b><button type="button" class="round-step" id="ee-plus" title="One more">${icon('plus')}</button></div>
-      <div class="ee-score-row"><div><label for="ee-rating"><span class="ee-field-icon">✦</span>Your score</label><p>Your rating · ${esc(Tracker.name)}</p></div><select id="ee-rating" aria-label="Your score out of 10"><option value="">Not rated</option>${[...new Set([...Array.from({length:19},(_,i)=>1+i*.5),...(Number(e.rating)>0?[Number(e.rating)]:[])])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${Number(e.rating)===n?'selected':''}>${n} / 10</option>`).join('')}</select></div>
+      <div class="ee-score-row"><div class="ee-score-heading"><div><label for="ee-rating"><span class="ee-field-icon">✦</span>Your score</label><p>${esc(Tracker.name)} · ${scoreRule.format==='POINT_5'?'5 stars':scoreRule.format==='POINT_3'?'Reactions':scoreRule.max+' point'+(scoreRule.step<1?' · decimals':'')}</p></div><button type="button" class="ee-score-clear" id="ee-clear-score">Clear score</button></div>
+        ${scoreRule.step===1&&scoreRule.max<=10?`<input id="ee-rating" type="hidden"><div class="ee-score-grid ${scoreRule.max===3?'reactions':''}" id="ee-score-grid" role="group" aria-label="Your score">${Array.from({length:scoreRule.max},(_,i)=>`<button type="button" data-score="${i+1}" aria-pressed="false">${scoreRule.format==='POINT_5'?(i+1)+' ★':scoreRule.format==='POINT_3'?['☹','◯','☺'][i]:i+1}</button>`).join('')}</div>`:`<div class="ee-score-number"><input id="ee-rating" type="number" inputmode="decimal" min="${scoreMin}" max="${scoreRule.max}" step="${scoreRule.step}" placeholder="—" aria-label="Your score"><span>/ ${scoreRule.max}</span></div>`}<div class="ee-score-caption" id="ee-score-caption" aria-live="polite"></div>
+      </div>
       <p id="ee-error" class="error" role="alert" hidden></p><div class="ee-foot"><button class="ee-remove" id="ee-remove" ${e.id ? '' : 'hidden'}>${icon('trash')}Remove</button><span class="spacer"></span><button class="btn primary ee-save" id="ee-save">Save changes ${icon('check')}</button></div>
     </div>`;
     document.body.appendChild(scrim);
     document.body.classList.add('modal-open'); // freezes #main's scroll (see styles.css)
     const pop = scrim.firstElementChild;
     const input=pop.querySelector('#ee-prog');input.value=String(Number(e.progress)||0);pop.querySelector('#ee-close').focus({preventScroll:true});
-    const scoreInput=pop.querySelector('#ee-rating');scoreInput.value=Number(e.rating)>0?String(Number(e.rating)):'';
+    const scoreInput=pop.querySelector('#ee-rating');scoreInput.value=scoreStart;let scorePicked=false;
+    const paintScore=()=>{const current=scoreInput.value;pop.querySelectorAll('[data-score]').forEach(button=>{const on=current===button.dataset.score&&(scoreRule.format!=='POINT_3'||scorePicked);button.classList.toggle('on',on);button.setAttribute('aria-pressed',String(on));});pop.querySelector('#ee-score-caption').textContent=current===''?'Not rated':scoreRule.format==='POINT_3'&&!scorePicked?'Existing score will be kept':scoreRule.format==='POINT_3'?['','Not for me','It was okay','Loved it'][Number(current)]:`${current} / ${scoreRule.max}`;};
+    const scoreGrid=pop.querySelector('#ee-score-grid');if(scoreGrid)scoreGrid.onclick=event=>{const button=event.target.closest('[data-score]');if(!button||button.disabled)return;scoreInput.value=button.dataset.score;scorePicked=true;paintScore();};scoreInput.oninput=()=>{scorePicked=true;paintScore();};pop.querySelector('#ee-clear-score').onclick=()=>{scoreInput.value='';scorePicked=true;paintScore();};paintScore();
     let prog = Number(e.progress) || 0;
     const setProg=v=>{prog=Math.max(0,Math.min(total||9999,Math.trunc(Number(v)||0)));input.value=String(prog);input.removeAttribute('aria-invalid');};
     const validProgress=()=>input.value.trim()!==''&&Number.isInteger(Number(input.value))&&Number(input.value)>=0&&Number(input.value)<=(total||9999);
@@ -1516,13 +1521,13 @@ const App = {
       catch(error){showError(error);setBusy(false);}
     };
     pop.querySelector('#ee-save').onclick = async () => {
-      if(busy||!accountValid())return;if(!validProgress()){const error=pop.querySelector('#ee-error');error.textContent=`Enter a whole episode count from 0 to ${total||9999}.`;error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;}prog=Number(input.value);const progressChanged=prog!==Number(e.progress||0),rating=scoreInput.value===''?null:Number(scoreInput.value),ratingChanged=rating!==(Number(e.rating)||null);if(rating!==null&&(!Number.isFinite(rating)||rating<1||rating>10)){showError(Error('Choose a score from 1 to 10.'));return;}const scoreOnly=!!e.id&&ratingChanged&&!progressChanged&&status===originalStatus;if(status==='planned'&&prog>0&&progressChanged)setStatus('current');setBusy(true);pop.querySelector('#ee-error').hidden=true;
+      if(busy||!accountValid())return;if(!validProgress()){const error=pop.querySelector('#ee-error');error.textContent=`Enter a whole episode count from 0 to ${total||9999}.`;error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;}prog=Number(input.value);const progressChanged=prog!==Number(e.progress||0),nativeScore=scoreInput.value===''?null:Number(scoreInput.value),ratingChanged=scorePicked||scoreInput.value!==scoreStart,rating=nativeScore===null?null:nativeScore*10/scoreRule.max;if(ratingChanged&&nativeScore!==null&&(!Number.isFinite(nativeScore)||nativeScore<scoreMin||nativeScore>scoreRule.max||Math.abs(nativeScore/scoreRule.step-Math.round(nativeScore/scoreRule.step))>.00001)){showError(Error('Choose a valid score for this scoring format.'));return;}const scoreOnly=!!e.id&&ratingChanged&&!progressChanged&&status===originalStatus;if(status==='planned'&&prog>0&&progressChanged)setStatus('current');setBusy(true);pop.querySelector('#ee-error').hidden=true;
       const btn = pop.querySelector('#ee-save'); btn.textContent = 'Saving…';
       let st = status === 'rewatching' ? 'current' : status;
       if (progressChanged && total && prog >= total && st === 'current' && status !== 'rewatching') st = 'completed';
       try {
-        await Tracker.saveEntry(animeId, scoreOnly?{scoreOnly:true,rating}:{ status: st, progress: prog, reconsuming: status === 'rewatching',...(ratingChanged?{rating}:{}) });
-        close(); toast(scoreOnly?`${Tracker.name}: ${rating===null?'Score cleared':`Score saved · ${rating} / 10`}`:`${Tracker.name}: ${labels[status]} · ${prog}${total ? ` / ${total}` : ''}`, 'good'); this.refresh();
+        await Tracker.saveEntry(animeId, scoreOnly?{scoreOnly:true,rating,...(Tracker.name==='AniList'?{nativeScore,scoreFormat:scoreRule.format}:{})}:{ status: st, progress: prog, reconsuming: status === 'rewatching',...(ratingChanged?{rating,...(Tracker.name==='AniList'?{nativeScore,scoreFormat:scoreRule.format}:{})}:{}) });
+        close(); toast(scoreOnly?`${Tracker.name}: ${rating===null?'Score cleared':`Score saved · ${nativeScore} / ${scoreRule.max}`}`:`${Tracker.name}: ${labels[status]} · ${prog}${total ? ` / ${total}` : ''}`, 'good'); this.refresh();
       } catch (x) { setBusy(false);btn.textContent='Save';showError(x); }
     };
   },
