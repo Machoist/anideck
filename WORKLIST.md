@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — direct row scrolling and one title-page scroller
+
+Current installer/portable: **preview-1adc76b**, runtime source **1adc76b**, **553 tests pass**. Package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1adc76b-Setup.exe`.
+
+- User reported delayed scroll on Home/show rows and title pages. Native synthetic wheel fixture reproduced a300px horizontal gesture snapping to348px and settling after189ms. Remove home-shelf scroll snapping and default smooth CSSOM behavior on rails/schedule strips; manual movement follows input while arrow buttons retain their explicit smooth scroll request. No global native scrolling/GPU flags or custom JavaScript wheel interception added. Plain vertical scrolling was already prompt in the isolated fixture, so do not claim an app-wide latency diagnosis.
+- Title About/Details/Related previously had an independent sticky bounded scroller that trapped wheel input. These details now flow in the main title-page scroll surface, eliminating the nested scroll boundary. Existing expanding synopsis, related links, responsiveness and explicit animated milestone navigation remain.
+- Final packaged fixture uses real CSS and Chromium wheel events: requested300px finishes300px (row4.8ms/page7.3ms in one run); arrow target600 retained. At actual1344px and624px viewports, wheel over details advances main300px while sidebar stays0, no horizontal overflow. Reviewed outputs/scroll-final/AniDeck-title-scroll.png. Timings/layouts are synthetic single-run observations, not universal hardware or user-session performance guarantees; intermediate arrow animation was not asserted.
+- All553 existing tests and final full native checks pass; this CSS-only change adds no mirrored unit test. Evidence work/probe-scroll.cjs, probe-scroll-packaged.cjs, scroll-before.json, scroll-final-result.json, scroll-tests.log and scroll-final-native.log; copied native comparison results under outputs/scroll-final/. No accounts/list/message writes, installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio/physicalMac deferred.
+
 ## 30 October — format-aware Anikoto matching and duplicate Related cards
 
 Current installer/portable: **preview-3482570**, runtime source **3482570**, **553 tests pass**. Final package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-3482570-Setup.exe`.
