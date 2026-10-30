@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — full media traversal and live AniList score readback
+
+Current installer remains **preview-b344667**. No app changes or rebuild; installed resources/app.asar SHA256 matches the tested package exactly. Prior full suite remains542 passed;14 focused playback lifecycle/subtitle/cancellation tests rerun and pass today.
+
+- Isolated Electron uses packaged player.js bind, attachSource, play/pause button handlers, speed menu and subtitle renderer against real HiAnime sub media for Jujutsu Kaisen Season2 episode1. First60seconds at normal speed, remainder at8x, no seeking during traversal: reached the natural end at1435.1seconds in239seconds wall time. Video decoded34406frames, no fatal playback error/toast. Normal-speed sample dropped0frames; accelerated run total dropped121frames. Recorded2 waiting events include startup/control transitions; this is not evidence of an entire normal-speed session without buffering.
+- All381 subtitle cues parsed, with caption text drawn during16 of the60 normal-speed samples. Play/pause and speed-menu button checks pass. Synthetic control DOM and stubbed storage/subtitle bridge; actual public subtitle text fetched first. Tracking/report/tick/end callbacks disabled to avoid writes or automatic episode transition. This improves native control/subtitle evidence but does not verify audible sound, human caption synchronization/appearance, automatic next episode, or full production player lifecycle/normal-speed stability.
+- User explicitly approved a temporary live AniList score test and restoration. Used installed AniDeck My List editor; independent unauthenticated public GraphQL reads confirmed both the temporary value and original value after restoration, with status and episode progress unchanged. Original score is restored in AniDeck and AniList. Title/account/value evidence remains local in outputs/AniDeck-score-live-2026-10-30.json; no credentials accessed or account data committed. Kitsu live write/readback remains pending.
+- Local evidence: outputs/AniDeck-playback-full-2026-10-30.json/.log; work/probe-playback-full.cjs, run-playback-full.cjs, playback-followup-tests.log. No installer replacement, backend deployment, migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Remaining live acceptance: normal-speed viewer session/audio/caption timing, Kitsu, physicalTV, second-device recovery and private Jellyfin. Gio and physicalMac stay explicitly deferred.
+
 ## 29 October — deeper native playback verification
 
 Current runtime/installer stays **preview-b344667**; no application changes or rebuild. Existing regression result remains **542 tests passed**, not rerun for this documentation-only checkpoint.
