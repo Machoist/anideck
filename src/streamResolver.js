@@ -209,7 +209,7 @@ class StreamResolver {
     if (!Number.isInteger(season) || season < 1) throw new Error(label+' specials require their own title');
     let protocolEmbeds;
     if(provider.metadata){
-      protocolEmbeds=await provider.metadata(async url=>{this.signal?.throwIfAborted();const response=await net.fetch(url,{headers:{'User-Agent':CHROME_UA,Referer:provider.BASE+'/',...(providerId==='anikoto'?{'X-Requested-With':'XMLHttpRequest'}:{})},signal:this.signal?AbortSignal.any([this.signal,AbortSignal.timeout(5000)]):AbortSignal.timeout(5000)});if(!response.ok)throw Error(label+' catalog request unavailable');const text=await response.text();if(text.length>3000000||/<title>\s*(?:just a moment|access denied)|verify you are human/i.test(text.slice(0,1200)))throw Error(label+' is temporarily unavailable');return text;},title,episodeNum,audio,request);
+      protocolEmbeds=await provider.metadata(async url=>{this.signal?.throwIfAborted();const response=await net.fetch(url,{headers:{'User-Agent':CHROME_UA,Referer:provider.BASE+'/',...(providerId==='anikoto'?{'X-Requested-With':'XMLHttpRequest'}:{})},signal:this.signal?AbortSignal.any([this.signal,AbortSignal.timeout(5000)]):AbortSignal.timeout(5000)});if(!response.ok)throw Error(label+' catalog request unavailable (HTTP '+response.status+')');const text=await response.text();if(text.length>3000000||/<title>\s*(?:just a moment|access denied)|verify you are human/i.test(text.slice(0,1200)))throw Error(label+' is temporarily unavailable');return text;},title,episodeNum,audio,request);
       if(request.catalogOnly)return protocolEmbeds;
     }
     const slot = acquireAnikotoSession();

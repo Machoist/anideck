@@ -4,9 +4,11 @@ const {norm}=require('./hianime');
 const BASE='https://anikototv.to',cache=new Map();
 function siteUrl(value){const u=new URL(value,BASE);if(u.origin!==BASE||u.username||u.password||!u.pathname.startsWith('/watch/'))throw Error('Unexpected Anikoto title address');return u.href;}
 function titleIdentity(value){const u=new URL(siteUrl(value));return u.origin+u.pathname.replace(/\/ep-[^/]+\/?$/,'').replace(/\/$/,'');}
+// These suffixes distinguish seasons/specials (K-On!!, Quintuplets ~/*/∬); ordinary punctuation still normalizes.
+function titleKey(value){const raw=String(value||'').normalize('NFKC').replace(/\(tv\)/gi,'').trim(),suffix=raw.match(/[!~〜∽∬∫*+]+$/u)?.[0]||'';return norm(raw)+'|'+suffix;}
 function titles(html){const $=load(html);return $('a[href*="/watch/"]').map((_,a)=>{const el=$(a);try{return {url:siteUrl(el.attr('href')),title:el.attr('title')||el.text().trim(),jp:el.attr('data-jp'),alt:el.find('img').attr('alt')};}catch{return null;}}).get().filter(Boolean);}
 function chooseTitle(items,title,season,aliases=[]){
- const named=/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(title),matching=t=>items.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&norm(v)===norm(t)));
+ const named=/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(title),matching=t=>items.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&titleKey(v)===titleKey(t)));
  let hits=season>1&&!named?matching(title+' Season '+season):[];const seasonal=named||hits.length>0;if(!hits.length)hits=matching(title);
  const unique=[...new Map(hits.map(x=>[titleIdentity(x.url),x])).values()];if(!unique.length){const alternate=aliases.filter(v=>!named||season<=1||/season\s*\d+|\d+(?:st|nd|rd|th)\s*season|\s(?:ii|iii|iv|v|vi)$/i.test(v)).map(v=>chooseTitle(items,v,season)).filter(Boolean),matches=[...new Map(alternate.map(x=>[titleIdentity(x.url),x])).values()];if(matches.length>1)throw Error('Anikoto returned ambiguous alternate title matches');return matches[0]||null;}if(unique.length!==1)throw Error('Anikoto returned ambiguous title matches');return {...unique[0],seasonal};
 }
@@ -31,4 +33,4 @@ async function metadata(read,title,number,audio,request={}){
  if(!urls.length)throw Error('Anikoto has no usable server for this episode and audio');return [...new Set(urls)];
  }catch(error){cache.delete(JSON.stringify([title,season,aliases]));throw error;}
 }
-module.exports={BASE,titleIdentity,titles,chooseTitle,pageId,episodes,serverIds,metadata,cache};
+module.exports={BASE,titleIdentity,titleKey,titles,chooseTitle,pageId,episodes,serverIds,metadata,cache};
