@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 29 October — shared Anikoto semantic-suffix matching audit
+
+Current installer/portable: **preview-1dc4c6b**, runtime source **1dc4c6b**, **535 tests pass**. Final package audit, full isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1dc4c6b-Setup.exe`.
+
+- User confirmed latest build and The Quintessential Quintuplets first season. Reproduced ambiguity: removing punctuation/symbols made base series collide with specials ~/* and Japanese sequel ∬. Fix exact title comparison generally by retaining meaningful trailing !, ?, colon, apostrophe, wave/star/plus and Unicode symbol suffixes; ordinary punctuation and ordinal-season normalization remain. Existing canonical-link grouping and cross-origin/true-ambiguity protections retained. No per-title mapping, fuzzy first-result pick, invented episodes or provider substitution.
+- Availability no longer discards every failure into a generic outage: safe reason/message distinguishes matching, timeout, busy and incomplete response. HTTP status included in native failure message for classification; renderer escapes user-facing text. Genuine errors and unavailable audio still do not create episode cards. Native error-state fixture verifies matching explanation and retry without Play/cards.
+- Four new behavior regressions cover base/special/sequel suffixes, !/!!/!!! and full-width forms, question/colon/apostrophe/Unicode versions, and distinct failure reasons. All535 tests pass. Actual Electron read-only audit (helper windows forbidden) passes18 positive variants plus a no-match control: Quintuplets1/2 (12 each), both specials (2 each), K-On!/!!, Wagnaria!!/!!!, Slime3/4, JJK2, Orb, Nisekoi/colon sequel, Is the Order a Rabbit?/??, Dog Days/apostrophe sequel. Counts and single-run timings saved in outputs/AniDeck-latest-test-info.json; catalog lists only, not full playback or universal future availability.
+- Native return-to-Home fixture initially entered legacy layout migration and enabled unmocked sections; set current layout3 explicitly in that fixture. Failure log retained at work/anikoto-audit-fixture-failure.log; corrected final full native run passes. Product Home logic was unchanged in this task.
+- Evidence work/quintuplets-before.log, anikoto-audit-live.log, anikoto-audit-tests.log, anikoto-audit-final-build.log and anikoto-audit-final-native.log. Full packaged native smoke passes with informative error UI; existing layouts verified by harness. No account/list/message writes, installed-app replacement, backend deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — contained score picker and AniList score formats
 
 Current installer/portable: **preview-948265a**, runtime source **948265a**, **531 tests pass**. Final package audit, full isolated native checks, visual review, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-948265a-Setup.exe`.
