@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 29 October — deeper native playback verification
+
+Current runtime/installer stays **preview-b344667**; no application changes or rebuild. Existing regression result remains **542 tests passed**, not rerun for this documentation-only checkpoint.
+
+- Read-only public-stream checks in isolated Electron profiles used the current packaged StreamResolver, media relay and HLS engine for Jujutsu Kaisen Season 2 episode1. Anikoto sub/dub, HiAnime sub and AniWatch sub all decoded video, paused without advancing, resumed, sought beyond the initial buffer to90seconds and advanced at1.5x. No fatal HLS/video errors observed. First decoded playback exceeded1second after approximately5.1/6.1/4.3/7.2seconds respectively, single runs including resolution; not performance guarantees.
+- HiAnime exposed1 subtitle track: HTTP200, valid WEBVTT header and381 cue markers. Other tested provider/audio combinations exposed0 separate tracks; this does not establish missing burned-in subtitles. Actual audible audio, caption appearance/timing, App.Player button wiring and full-episode stability remain live acceptance work. This was a native media API probe, not automated acceptance of the complete player UI.
+- Evidence: outputs/AniDeck-playback-controls-2026-10-29.json and work/playback-controls-{anikoto-sub,anikoto-dub,hianime-sub,aniwatch-sub}.log. Probe/launcher are work/probe-playback-controls.cjs and work/run-playback-controls.cjs. No production accounts/list/progress/message writes, installed-app replacement, deployment, release or tag. Gio and physicalMac tests remain deferred. Next useful checks: real viewer playback session and external score readback when available; remaining account/device acceptance stays on the backlog.
+
 ## 29 October — repeated Random action recovery
 
 Current installer/portable: **preview-b344667**, runtime source **b344667**, **542 tests pass**. Final package audit, full isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-b344667-Setup.exe`.
