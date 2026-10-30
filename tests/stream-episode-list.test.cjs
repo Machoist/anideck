@@ -40,3 +40,6 @@ test('unlisted playback is refused and the player drawer contains only listed ep
  await play.call(instance,{title:'Missing',episodeNum:1,kitsuId:'5',total:12});assert.equal(opened,undefined);assert.match(notice,/wasn’t found/);
  listing={status:'ready',episodes:[1,3]};await play.call(instance,{title:'Fixture',episodeNum:1,kitsuId:'5',total:12});assert.deepEqual(Array.from(opened.episodes,e=>e.IndexNumber),[1,3]);
 });
+
+
+test('same-title TV and movie checks cannot share cached availability',async()=>{let calls=0;const c=catalog(async p=>{calls++;return {provider:p.provider,episodes:p.mediaFormat==='MOVIE'?[1]:[1,2,3]}}),p={provider:'anikoto',title:'Same title',seasonNumber:1,audio:'sub'};assert.equal((await c.load({...p,mediaFormat:'TV'})).episodes.length,3);assert.equal((await c.load({...p,mediaFormat:'MOVIE'})).episodes.length,1);assert.equal(calls,2);});

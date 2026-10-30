@@ -18,3 +18,20 @@ test('aborted public requests propagate and unsafe embed URLs are rejected',asyn
 test('catalog alternate names match an exact Japanese title when the provider uses different English wording',async()=>{const f=fixture(),display='Orb: On the Movements of the Earth',aliases=['Chi.: Chikyuu no Undou ni Tsuite'];const read=url=>url.includes('/filter')?'<a href="'+page+'" data-jp="Chi.: Chikyuu no Undou ni Tsuite">About the Movement of the Earth</a>':f.read(url);assert.deepEqual(await api.metadata(read,display,1,'sub',{titleAliases:aliases,catalogOnly:true}),{episodes:[1,3]});assert.deepEqual(await api.metadata(read,display,1,'dub',{titleAliases:aliases}),['https://embed.test/dub']);assert.deepEqual(await api.metadata(read,'Unrelated',1,'sub',{catalogOnly:true}),{episodes:[]});});
 test('alternate matches stay unambiguous and cannot turn an explicit sequel into its first season',()=>{const items=[{url:page,title:'Alternate',jp:'Alias'},{url:api.BASE+'/watch/other',title:'Other alias'}];assert.throws(()=>api.chooseTitle(items,'Unknown',1,['Alias','Other alias']),/ambiguous/);assert.equal(api.chooseTitle([{url:page,title:'Fixture'}],'Fixture Season 2',2,['Fixture']),null);});
 test('a bounded alternate query can find a provider that does not index the display title',async()=>{const f=fixture(),queries=[];const read=url=>{if(url.includes('/filter')){const q=new URL(url).searchParams.get('keyword');queries.push(q);return q==='Alias'?'<a href="'+page+'">Alias</a>':'No results';}return f.read(url);};assert.deepEqual(await api.metadata(read,'Display',1,'sub',{titleAliases:['Alias'],catalogOnly:true}),{episodes:[1,3]});assert.deepEqual(queries,['Display','Alias']);});
+
+
+test('exact format distinguishes same-name TV and movie entries without guessing unresolved versions',()=>{
+ const html=['TV','MOVIE'].map((format,i)=>`<div class="inner"><div class="ani poster"><a href="/watch/version-${i}/ep-1"><img alt="Fixture"><div class="right">${format}</div></a></div><div class="info"><a href="/watch/version-${i}/ep-1" data-jp="Alternate">Fixture</a></div></div>`).join('');
+ const rows=api.titles(html);assert.deepEqual(rows.map(x=>x.format),['TV','TV','MOVIE','MOVIE']);
+ assert(api.chooseTitle(rows,'Fixture',1,[],'TV').url.includes('version-0'));
+ assert(api.chooseTitle(rows,'Other',1,['Alternate'],'movie').url.includes('version-1'));
+ assert.throws(()=>api.chooseTitle(rows,'Fixture',1),/ambiguous/);
+ assert.throws(()=>api.chooseTitle([...rows,{title:'Fixture',url:api.BASE+'/watch/unknown'}],'Fixture',1,[],'TV'),/ambiguous/);
+ assert.throws(()=>api.chooseTitle([...rows,{title:'Fixture',format:'TV',url:api.BASE+'/watch/another-tv'}],'Fixture',1,[],'TV'),/ambiguous/);
+});
+
+test('same-title formats retain separate catalog caches and playback listings',async()=>{
+ api.cache.clear();const read=async url=>{const u=new URL(url);if(u.pathname==='/filter')return ['TV','MOVIE'].map((format,i)=>`<div class="inner"><div class="ani poster"><a href="/watch/version-${i}"><img alt="Fixture"><div class="right">${format}</div></a></div></div>`).join('');if(u.pathname.startsWith('/watch/'))return `<div class="watch-wrap" data-id="${u.pathname.endsWith('0')?20:21}" data-url="${url}"></div>`;if(u.pathname.startsWith('/ajax/episode/list'))return JSON.stringify({status:200,result:`<a data-id="100" data-num="${u.pathname.endsWith('20')?10:1}" data-ids="ids" data-sub="1"></a>`});throw Error('Unexpected read');};
+ assert.deepEqual((await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,mediaFormat:'TV'})).episodes,[10]);
+ assert.deepEqual((await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,mediaFormat:'MOVIE'})).episodes,[1]);
+});

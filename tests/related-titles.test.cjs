@@ -1,0 +1,9 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{load}=require('cheerio');
+const src=fs.readFileSync(require('node:path').join(__dirname,'../src/app.js'),'utf8'),part=src.slice(src.indexOf('const relationsCache ='),src.indexOf('// "now", "5m"'));
+function fixture(){const $=load('<section id="related-box"><div class="rel-list"><button data-id="library-1">Library season</button></div></section>');const box=$('#related-box')[0],list=$('.rel-list')[0];
+ box.querySelector=()=>list;list.querySelectorAll=selector=>$(list).find(selector).get().map(el=>({dataset:{id:$(el).attr('data-id')},remove:()=>$(el).remove()}));list.insertAdjacentHTML=(_pos,html)=>$(list).append(html);
+ const row={relation:'PREQUEL',anime:{id:'al:42',title:'Earlier season',titles:[],subtype:'TV'}};let rows=[row,row,{...row,relation:'SEQUEL'},{relation:'SEQUEL',anime:{id:'al:99',title:'Self'}}];
+ const App={showMediaId:async()=>99,showCtx:{id:null},stale:()=>false},ctx={App,$:()=>box,AniList:{relations:async()=>rows},REL_ORDER:['PREQUEL','SEQUEL'],esc:s=>String(s||''),relLabel:s=>s};
+ return {$,App,ctx,fill:vm.runInNewContext(part+';fillRelated',ctx)};}
+test('repeated and concurrent Related fills keep one card per title and preserve library rows',async()=>{const f=fixture();for(let i=0;i<15;i++)await f.fill(1);await Promise.all([f.fill(1),f.fill(1)]);assert.equal(f.$('[data-related-generated]').length,1);assert.equal(f.$('[data-id="library-1"]').length,1);assert.equal(f.$('[data-id="al:99"]').length,0);assert.match(f.$('[data-related-generated]').text(),/PREQUEL/);});
+test('a stale Related response cannot append into the current page',async()=>{const f=fixture();f.App.stale=()=>true;await f.fill(1);assert.equal(f.$('[data-related-generated]').length,0);assert.equal(f.$('[data-id="library-1"]').length,1);});

@@ -5,7 +5,7 @@ function remotePlaybackProvider(server = activeStreamingServer) { return server 
 const RemoteEpisodes = {
   cache:new Map(),pending:new Map(),timeoutMs:6000,
   read(p){return window.native.streamEpisodes(p);},
-  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[]]);},
+  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[],p.mediaFormat||'']);},
   peek(p){const hit=this.cache.get(this.key(p));return hit&&hit.until>Date.now()?hit.state:null;},
   clear(p){this.cache.delete(this.key(p));},
   failure(error){const detail=String(error?.message||'');let reason='unavailable',message='This server couldn’t return its episode list. Try again or choose another server.';if(/ambiguous|exact season|different title/i.test(detail)){reason='matching';message='This server lists multiple versions of the title. AniDeck couldn’t safely choose the right one.';}else if(/timed out|timeout/i.test(detail)){reason='timeout';message='This server took too long to respond. Try again or choose another server.';}else if(/429|rate.limit/i.test(detail)){reason='busy';message='This server is receiving too many requests. Wait a moment before trying again.';}else if(/invalid response|metadata unavailable|episode list unavailable|incomplete/i.test(detail)){reason='incomplete';message='This server returned incomplete episode information. Try again or choose another server.';}return {status:'error',episodes:[],reason,message};},
@@ -1632,11 +1632,11 @@ const App = {
     try{const entry=await Tracker.entry(d.kitsu);if(!valid())return;const episode=Number(entry?.progress||0)+1,total=Number(d.total)||0;
       if(total&&episode>total)return toast('All episodes are logged. Open details to choose a rewatch.');
       if(episode!==Number(d.ep)){const metadata=await AniList.details(d.kitsu);if(!valid())return;if(!metadata)throw Error('Couldn’t verify the next episode.');if(metadata.episodes&&episode>Number(metadata.episodes))return toast('All episodes are logged. Open details to choose a rewatch.');const next=metadata.next;if(/upcoming|not yet released/i.test(metadata.status||'')||(next?.at>Date.now()&&episode>=next.episode))return toast('You’re caught up. The next episode hasn’t aired yet.');}
-      return await this.playRemoteEpisode({title:d.title,titleAliases:JSON.parse(d.titles||'[]'),episodeNum:episode,kitsuId:d.kitsu,poster:d.poster,movie:d.movie==='1',total});
+      return await this.playRemoteEpisode({title:d.title,mediaFormat:d.format,titleAliases:JSON.parse(d.titles||'[]'),episodeNum:episode,kitsuId:d.kitsu,poster:d.poster,movie:d.movie==='1',total});
     }catch(error){if(valid())toast('Couldn’t check your latest progress. '+error.message,'bad');}
   },
 
- async playRemoteEpisode({ title, titleAliases=[], episodeNum, kitsuId, poster, movie: movieHint = false, total: totalHint = 0 }) {
+ async playRemoteEpisode({ title, titleAliases=[], mediaFormat, episodeNum, kitsuId, poster, movie: movieHint = false, total: totalHint = 0 }) {
     const renderId=this.renderId,service=typeof Tracker==='undefined'?null:Tracker.svc,user=service?.userId;
     const provider = remotePlaybackProvider();
     const audio = this.settings.showAudio?.[kitsuId] || (this.settings.audioLang === 'eng' ? 'dub' : 'sub');
@@ -1646,7 +1646,7 @@ const App = {
     const knownMatch = String(this.showCtx?.match?.id) === String(kitsuId) ? this.showCtx.match : null;
     const movie = knownMatch?.movie === true || movieHint;
     if (movie) episodeNum = 1;
-    const listing=await RemoteEpisodes.load({provider,title,titleAliases:knownMatch?.titleAliases||titleAliases,seasonNumber:seasonNumberIn(title)||1,audio});
+    const listing=await RemoteEpisodes.load({provider,title,mediaFormat:knownMatch?.mediaFormat||mediaFormat||(movie?'MOVIE':null),titleAliases:knownMatch?.titleAliases||titleAliases,seasonNumber:seasonNumberIn(title)||1,audio});
     if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
     if(listing.status!=='ready')return toast('Couldn’t check this server. Open Episodes & Details to try another server.','bad');
     if(!listing.episodes.includes(episodeNum))return toast('This episode wasn’t found on '+shortServerName(provider)+'. Try another server.');
@@ -1655,7 +1655,7 @@ const App = {
     const total = movie ? 1 : Number(knownMatch?.episodes) || Number(totalHint) || 0;
     const remoteEpisodes = movie ? [fakeEp] : listing.episodes.filter(n=>!total||n<=total).map(n=>({...fakeEp,Id:`remote-${kitsuId}-${n}`,Name:`Episode ${n}`,IndexNumber:n}));
     return Player.open({ episode: fakeEp, series: { Id: `kitsu-${kitsuId}`, Name: title },
-      season: { Id: 's1', IndexNumber: 1 }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases, episodes: total || null },
+      season: { Id: 's1', IndexNumber: 1 }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases, mediaFormat:mediaFormat||(movie?'MOVIE':null), episodes: total || null },
       provider, audio, remoteOnly: true, movie }, () => { if (['anime','home'].includes(this.view)) this.refresh(); }); // progress may have moved
   },
   async requestAnime(kitsuId) {
@@ -2903,7 +2903,7 @@ function buildQueue(resume, up, watching, airing = null) {
     const unreleased=!air&&/upcoming|not[ _]yet[ _]released/i.test(a.status||'');
     const unknownOngoing=!air&&/^(current|releasing|airing)$/i.test(a.status||'');
     const wait=unreleased||unknownOngoing||air?.aired===null?-1:air&&num>air.aired?(air.next?.episode===num?air.next.at:-1):null;
-    q.push({ kind: 'remote', kitsu: a.id, title: a.title, titleAliases:[...(a.titles||[]),a.canonical].filter(v=>v&&v!==a.title).slice(0,8), num, movie, total, ep: movie?'Movie':`Episode ${num}`, pct: 0,
+    q.push({ kind: 'remote', kitsu: a.id, title: a.title, mediaFormat:a.subtype||a.format||'', titleAliases:[...(a.titles||[]),a.canonical].filter(v=>v&&v!==a.title).slice(0,8), num, movie, total, ep: movie?'Movie':`Episode ${num}`, pct: 0,
       backdrop: '', banner:a.coverHd||a.cover||'', thumb: a.poster || '', poster: a.poster || '', about: a.synopsis || '', badge: '',
       kid: al ? null : String(a.id), alId: al ? String(a.id).slice(3) : null, wait });
   }
@@ -2916,7 +2916,7 @@ function queueTitleMarkup(title) {
   return (season?`<span class="yn-title-season">Season ${Number(season[2]||season[3])}</span>`:'')+`<span class="yn-title-name">${esc(season?season[1]:text)}</span>`;
 }
 function ynHero(it) {
-  const play = it.kind === 'remote' ? `data-act="queuePlay" data-titles="${esc(JSON.stringify(it.titleAliases||[]))}" data-title="${esc(it.title)}" data-ep="${it.num}" data-kitsu="${esc(it.kitsu)}" data-poster="${esc(it.poster || '')}" data-movie="${it.movie?'1':'0'}" data-total="${it.total||0}"`
+  const play = it.kind === 'remote' ? `data-act="queuePlay" data-format="${esc(it.mediaFormat||'')}" data-titles="${esc(JSON.stringify(it.titleAliases||[]))}" data-title="${esc(it.title)}" data-ep="${it.num}" data-kitsu="${esc(it.kitsu)}" data-poster="${esc(it.poster || '')}" data-movie="${it.movie?'1':'0'}" data-total="${it.total||0}"`
     : it.kind === 'movie' ? `data-act="playMovie" data-id="${esc(it.id)}"` : `data-act="play" data-id="${esc(it.id)}" data-series="${esc(it.series)}"`;
   const open = it.kind === 'remote' ? `data-act="anime" data-id="${esc(it.kitsu)}"` : it.kind === 'movie' ? `data-act="movie" data-id="${esc(it.id)}"` : `data-act="series" data-id="${esc(it.series)}" data-season="${esc(it.season)}"`;
   const art = it.resolvedBackdrop || it.backdrop || it.banner || ''; // Real landscape sources only; never promote a poster into the hero.
@@ -3357,16 +3357,19 @@ async function fillRelated(rid) {
     const rank = (r) => { const i = REL_ORDER.indexOf(r); return i < 0 ? 99 : i; };
     // Prequels/sequels that are other seasons of this same library show are already listed (from Jellyfin).
     const sameShow = (r) => ['PREQUEL', 'SEQUEL'].includes(r.relation) && App.libIndex?.find(r.anime)?.Id === App.showCtx?.id;
-    const cards = [...rels].filter((r) => !sameShow(r)).sort((a, b) => rank(a.relation) - rank(b.relation)).slice(0, 10).map(({ relation, anime: a }) => {
+    const list=box.querySelector('.rel-list');if(!list)return;
+    list.querySelectorAll('[data-related-generated]').forEach(card=>card.remove());
+    const key=value=>String(value||'').replace(/^al:/,'');
+    const seen=new Set([key(id),...[...list.querySelectorAll('[data-id]')].map(card=>key(card.dataset.id))]);
+    const cards = [...rels].filter((r) => r.anime?.id&&!sameShow(r)).sort((a, b) => rank(a.relation) - rank(b.relation)).filter(r=>{const value=key(r.anime.id);if(seen.has(value))return false;seen.add(value);return true;}).slice(0, 10).map(({ relation, anime: a }) => {
       const meta = [a.subtype, a.year, App.libIndex?.find(a) ? 'In library' : ''].filter(Boolean).join(' · ');
-      return `<button class="rel-card" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
+      return `<button class="rel-card" data-related-generated="1" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
         <div class="rel-poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : ''}</div>
         <div class="rel-text"><span class="rel-badge">${esc(relLabel(relation))}</span><div class="rel-title">${esc(a.title)}</div>${meta ? `<div class="small muted">${esc(meta)}</div>` : ''}</div>
       </button>`;
     });
-    if (!cards.length) return;
-    box.querySelector('.rel-list').insertAdjacentHTML('beforeend', cards.join(''));
-    box.hidden = false;
+    list.insertAdjacentHTML('beforeend', cards.join(''));
+    box.hidden = !list.children.length;
   } catch { /* not on AniList, or offline: just leave the section out */ }
 }
 
@@ -4168,7 +4171,7 @@ const Views = {
     const [a, requested, entryState, al]=values;
     App.remoteEpisodeSnapshot={id,range,values};
     const {entry,error:entryError}=entryState;
-    App.showCtx = { id: null, n: 1, match: { id: a.id, title: a.title, titleAliases:[...new Set([...(a.titles||[]),a.canonical,...(al?.titles||[])].filter(v=>v&&v!==a.title))].slice(0,8), url: a.url, episodes: a.episodes, movie: String(a.subtype || al?.format || '').toLowerCase() === 'movie' } };
+    App.showCtx = { id: null, n: 1, match: { id: a.id, title: a.title, mediaFormat:a.subtype||al?.format||'', titleAliases:[...new Set([...(a.titles||[]),a.canonical,...(al?.titles||[])].filter(v=>v&&v!==a.title))].slice(0,8), url: a.url, episodes: a.episodes, movie: String(a.subtype || al?.format || '').toLowerCase() === 'movie' } };
     const inLib = App.libIndex?.find(a);
     const remServer = remotePlaybackProvider();
     const audioMode = App.settings.showAudio?.[a.id] || (App.settings.audioLang === 'eng' ? 'dub' : 'sub');
@@ -4177,7 +4180,7 @@ const Views = {
     const aired = al?.next ? al.next.episode - 1 : null;
     // Not out yet (AniList says "not yet released", or episode 1 is the next to air): no episode list at all.
     const notOut = /not.?yet|upcoming|unreleased|tba/i.test(String(al?.status || a.status || '')) || al?.next?.episode === 1;
-    const episodeRequest={provider:remServer,title:a.title,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,audio:audioMode};
+    const episodeRequest={provider:remServer,title:a.title,mediaFormat:App.showCtx.match.mediaFormat,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,audio:audioMode};
     const availability=notOut?{status:'ready',episodes:[]}:RemoteEpisodes.peek(episodeRequest);
     App.remoteEpisodeRequest=episodeRequest;
     const available=notOut?[]:(availability?.episodes||[]).filter(n=>aired==null||n<=aired);

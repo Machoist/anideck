@@ -789,7 +789,7 @@ ipcMain.handle('stream:resolve', async (_e, source, episodeData) => {
 ipcMain.handle('cancelStreamResolution', () => { streamResolver.cancelPending(); return true; });
 
 // Used by window.native.resolveStream (show page + in-player server switcher). Errors reach the renderer.
-ipcMain.handle('stream:episodes', async (_e, params) => streamResolver.runResolution({provider:params?.provider,title:params?.title,titleAliases:params?.titleAliases,audio:params?.audio,seasonNumber:params?.seasonNumber,catalogOnly:true}));
+ipcMain.handle('stream:episodes', async (_e, params) => streamResolver.runResolution({provider:params?.provider,title:params?.title,titleAliases:params?.titleAliases,mediaFormat:params?.mediaFormat,audio:params?.audio,seasonNumber:params?.seasonNumber,catalogOnly:true}));
 ipcMain.handle('resolveStream', async (_e, params) => {
   try { return await streamResolver.resolve(params); }
   catch (err) { if(err.name!=='AbortError')console.error('[Main IPC] resolveStream error:', err); throw err; }
