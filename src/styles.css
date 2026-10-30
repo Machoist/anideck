@@ -324,7 +324,7 @@ h2 { font-family: var(--display); font-size: 18px; margin: 28px 0 12px; }
 .tb-search { margin: 0 auto; }
 
 /* ---------- rows: arrows instead of scrollbars ---------- */
-.rail { scrollbar-width: none; scroll-behavior: smooth; padding-bottom: 4px; }
+.rail { scrollbar-width: none; scroll-behavior: auto; padding-bottom: 4px; }
 .rail::-webkit-scrollbar { display: none; }
 .rail-wrap { position: relative; }
 .rail-arrow { position: absolute; top: calc(50% - 40px); z-index: 5; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.15);
@@ -2619,7 +2619,7 @@ body:has(.player:not([hidden])) #shell .topbar::before { display: none; }
 .wk2 { display: grid; gap: 14px; }
 .wk2-days .sch-dtab { padding: 10px 12px 9px; gap: 7px; }
 .wk2-days .sch-dtab-top b { font-size: 20px; }
-.wk2-panel { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain; padding: 2px 2px 8px; scroll-behavior: smooth;
+.wk2-panel { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain; padding: 2px 2px 8px; scroll-behavior: auto;
   scrollbar-width: thin; scrollbar-color: transparent transparent; --fs: 28px; --fe: 40px;
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fs), #000 calc(100% - var(--fe)), transparent 100%);
           mask-image: linear-gradient(to right, transparent 0, #000 var(--fs), #000 calc(100% - var(--fe)), transparent 100%); }
@@ -2740,7 +2740,7 @@ body:has(.player:not([hidden])) #shell .topbar::before { display: none; }
 .ad-shelf-mark::before,.ad-shelf-mark::after{content:"";position:absolute;width:19px;height:25px;border:1px solid currentColor;border-radius:4px;background:var(--bg);top:2px;left:3px;transform:rotate(-12deg);opacity:.45}.ad-shelf-mark::after{left:7px;top:4px;transform:rotate(7deg);background:linear-gradient(145deg,rgba(var(--accent-rgb),.1),var(--bg));opacity:1}
 .ad-home-shelf .see-all{align-self:center;flex-shrink:0;font-size:11px;font-weight:550;gap:5px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.015);transition:color .18s,border-color .18s,background .18s}
 .ad-home-shelf .see-all:hover{color:var(--accent);border-color:rgba(var(--accent-rgb),.28);background:rgba(var(--accent-rgb),.055)}
-.ad-home-shelf .rail-wrap{margin-bottom:0}.ad-home-shelf .rail{gap:14px;padding:5px 1px 10px;scroll-snap-type:x proximity;scroll-padding-inline:1px}
+.ad-home-shelf .rail-wrap{margin-bottom:0}.ad-home-shelf .rail{gap:14px;padding:5px 1px 10px;scroll-snap-type:none;scroll-padding-inline:1px}
 .ad-home-shelf .card{position:relative;gap:7px;padding:7px 7px 10px;border:1px solid rgba(255,255,255,.045);border-radius:13px;background:linear-gradient(160deg,rgba(255,255,255,.024),rgba(255,255,255,.008));min-width:0;scroll-snap-align:start;transition:border-color .2s,background .2s,transform .24s cubic-bezier(.2,.8,.2,1)}
 .ad-home-shelf .card .poster{border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,.16);isolation:isolate}.ad-home-shelf .card .poster img{transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .3s}
 .ad-home-shelf .card-title{font-size:12px;line-height:1.45;min-height:2.9em;margin:2px 3px 0;font-weight:550}.ad-home-shelf .card-sub{font-size:10px;line-height:1.4;margin:0 3px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3767,8 +3767,8 @@ button.ad3-pill:hover { background: rgba(255,255,255,.08); color: var(--text); }
 .detail-side .rel-list { gap: 6px; }
 @media (max-width: 1000px) { .detail-body > .detail-side { padding: 0; border-left: 0; border-image: none; } }
 
-/* Show pages: About collapses to six lines; scrolling the info column never scrolls the page */
-.detail-body > .detail-side { overscroll-behavior: contain; }
+/* Title details share the page scroller; no nested wheel trap beside the episode list. */
+.detail-body > .detail-side { position:static; max-height:none; overflow:visible; overscroll-behavior:auto; }
 .about-wrap { display: grid; gap: 6px; justify-items: start; }
 .about-wrap.clamped .about { display: -webkit-box; -webkit-line-clamp: 6; line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
