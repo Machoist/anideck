@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — format-aware Anikoto matching and duplicate Related cards
+
+Current installer/portable: **preview-3482570**, runtime source **3482570**, **553 tests pass**. Final package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-3482570-Setup.exe`.
+
+- Reproduced reported Bleach Calamity ambiguity: Anikoto has distinct TV and MOVIE entries with identical English/Japanese titles. Parse provider card format, carry catalog mediaFormat through title/queue/player/native catalog IPC, and include it in listing/stream-prefetch/in-flight keys. Use exact known format to distinguish entries generally; do not pick the first result. Missing/unknown formats or multiple same-format matches remain safely ambiguous. Existing title/alias/season/canonical-origin protections remain.
+- Live final packaged catalog checks: Bleach Calamity TV lists10 actual episodes in403ms; same-name MOVIE lists1 in119ms (single runs, not guarantees or playback acceptance). No provider browser windows, manufactured episode grids or account/list writes.
+- Related used insertAdjacentHTML on every after-render pass, so refreshing just the episode area repeatedly appended the same prequel. Replace only generated related cards, deduplicate by normalized title ID, exclude self, preserve library-season rows, rank relations and retain stale-page protection. Unit checks cover15 sequential plus concurrent fills, duplicate source rows, self omission, library preservation and stale responses. Actual packaged renderer given20 duplicates remains at1 card after repeated/concurrent fills; screenshot reviewed at outputs/bleach-final3/AniDeck-related-fixed.png.
+- Five added regressions bring full suite to553 passed. Native availability/progressive-image fixtures needed the new format key; initial failure retained at work/bleach-final-native.log, corrected final run passes all checks at work/bleach-final3-native.log. Product assertions were not weakened. Public-source logs work/bleach-match-before.log, bleach-live.log and bleach-packaged.log. No installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing acceptance backlog remains; Gio/physicalMac deferred.
+
 ## 30 October — responsive exact-season synopsis fallback
 
 Current installer/portable: **preview-2f54f61**, runtime source **2f54f61**, **548 tests pass**. Package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-2f54f61-Setup.exe`.
