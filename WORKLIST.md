@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — full normal-speed playback and fractional rating checks
+
+Current installer remains **preview-b344667**; no app changes/rebuild. Prior full suite remains542 passed. Reran24 focused import-provider-write, title-entry-editor and local-tracker tests: all pass. Fractional AniList account-native8.5, whole-format fractional rejection, Kitsu8.5-to17 mapping and local rating behavior remain covered; no live account format change or new score writes.
+
+- Full uninterrupted1x normal-speed HiAnime sub playback of Jujutsu Kaisen Season2 episode1 reached its natural end at1435.109seconds after1439.938seconds wall time, including resolution/startup. Native packaged player source/relay/HLS and subtitle renderer in an isolated synthetic-control DOM; no seeking or accelerated playback. Startup ready after5140ms. Recorded one waiting event at media time0.184sec, lasting579.5ms; no post-startup waiting events. Decoded34406 video frames, dropped1, no native video errors or error toasts.
+- WebAudio analyser detected non-silent decoded audio in1403 of1420 one-second samples (threshold RMS0.001; maximum0.213); decoded audio bytes23418154. Zero-gain destination deliberately suppressed speaker output. All381 subtitle cues parsed; caption text drawn in849 samples. These verify digital audio/caption delivery, not human listening, speaker/device output, perceived lip-sync or visual caption quality. Physical viewer listening remains pending; do not label it passed.
+- Current signed-in AniList account uses whole10 scoring, so no half-rating live write is appropriate without a user-chosen decimal scoring format. Decimal-format AniList, Kitsu and local fractional paths pass fixtures; no preference changes were made. Previous approved live integer-score test remains confirmed and restored. Kitsu live readback still pending.
+- Evidence: outputs/AniDeck-playback-realtime-2026-10-30.json/.log; work/probe-playback-realtime.cjs, run-playback-realtime.cjs and fractional-rating-followup.log. Tracking/report/tick/end callbacks disabled; real public VTT text supplied through a stub download bridge. One provider/title/network sample, not universal availability/performance or full production player/next-episode acceptance. No account/list changes, installer replacement, deployment, migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Gio and physicalMac remain deferred.
+
 ## 30 October — full media traversal and live AniList score readback
 
 Current installer remains **preview-b344667**. No app changes or rebuild; installed resources/app.asar SHA256 matches the tested package exactly. Prior full suite remains542 passed;14 focused playback lifecycle/subtitle/cancellation tests rerun and pass today.
