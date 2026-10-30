@@ -388,7 +388,7 @@ function createWindow() {
           if(Object.values(forumCheck).some(value=>value!==true))throw Error('Title/forum presentation failed: '+JSON.stringify(forumCheck));
           console.log('AniDeck title and forum presentation: '+JSON.stringify(forumCheck));
           const availabilityCheck=await win.webContents.executeJavaScript(`(async()=>{
-            const params={provider:remotePlaybackProvider(),title:'JUJUTSU KAISEN Season 2',seasonNumber:2,audio:App.settings.showAudio?.['42']||(App.settings.audioLang==='eng'?'dub':'sub')},key=RemoteEpisodes.key(params);
+            const params={provider:remotePlaybackProvider(),title:'JUJUTSU KAISEN Season 2',mediaFormat:'TV',seasonNumber:2,audio:App.settings.showAudio?.['42']||(App.settings.audioLang==='eng'?'dub':'sub')},key=RemoteEpisodes.key(params);
             const render=async state=>{RemoteEpisodes.cache.set(key,{state,until:Date.now()+120000});document.querySelector('#main').innerHTML=await Views.anime({id:'42'},App.renderId);};
             await render({status:'ready',episodes:[]});const missing=!document.querySelector('.ep-list .ep')&&!document.querySelector('.hero-actions [data-act="playRemote"]')&&document.querySelector('.remote-episode-state')?.textContent.includes('No episodes found');
             globalThis.unavailablePreview=document.querySelector('#main').innerHTML;
