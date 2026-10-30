@@ -29,3 +29,7 @@ AniDeck continues the maintainer's earlier AniShelf project. This repository beg
 ## Mac test builds
 
 Pushes to main also run the Mac test build workflow for Intel and Apple Silicon. It uploads test ZIPs as Actions artifacts and does not publish a release. Native build/launch and real-device results must pass before treating macOS as verified. See [Mac testing](MAC-TESTING.md).
+
+## Synopsis enrichment
+
+Full existing descriptions are retained. Missing/relationship-only descriptions may use exact MyAnimeList IDs through [Tenrai](https://api.tenrai.org/llms.txt) (public, read-only, currently beta), then [Jikan](https://github.com/jikan-me/jikan-rest/blob/master/storage/api-docs/api-docs.json). Responses must match the requested MAL ID; no title search or prequel substitution. Requests are paced, bounded, coalesced per ID and backed off after failures. These services improve coverage without guaranteeing that every season has a published plot. Enrichment runs after title rendering and never opens a browser-verification window.
