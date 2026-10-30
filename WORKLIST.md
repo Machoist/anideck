@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 29 October — repeated Random action recovery
+
+Current installer/portable: **preview-b344667**, runtime source **b344667**, **542 tests pass**. Final package audit, full isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-b344667-Setup.exe`.
+
+- User showed repeated Couldn’t find something to pick right now notices after using Random. Reproduced failure paths: popular browse errors were converted to an empty success and cached30seconds; duplicate IDs could leave zero alternatives after avoiding the previous pick. Each repeated attempt created another identical toast. This establishes code failure paths, not the exact upstream response seen by the user.
+- Deduplicate candidates by ID and allow the single unique title rather than treating duplicates as a multi-title pool. Empty pools clear immediately for recovery. Popular discovery tries a bounded set of3 distinct offsets for sparse/filtered empty pages; service errors propagate without retrying3 failed requests. A recent valid pool can survive transient refresh failure for up to5minutes, only with the identical source/account/hideNSFW key. Scope changes/expiry cannot reuse it; all candidates remain previously validated/SFW-filtered. Same-message notices coalesce per scope for8seconds; successful pick clears that state. Existing click coalescing, disabled-button cleanup, navigation/account guards and private-library isolation remain.
+- Seven new regressions cover duplicate pools, empty retry, fallback/scope/expiry, duplicate notices, distinct sparse pages and unmasked service errors. All542 tests pass. Native actual Random method runs6 duplicate-source picks,6 empty-result attempts with exactly1 matching visible toast, then recovers with valid data and releases the button. Catalog/list data and navigation are mocked; no real account/list/message writes. Full native smoke and package audit pass.
+- Evidence work/random-tests.log, random-final-build.log and random-final-native.log. No installed-app replacement, backend deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Existing live acceptance backlog remains; Gio and physicalMac stay deferred.
+
 ## 29 October — shared Anikoto semantic-suffix matching audit
 
 Current installer/portable: **preview-1dc4c6b**, runtime source **1dc4c6b**, **535 tests pass**. Final package audit, full isolated native checks, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-1dc4c6b-Setup.exe`.
