@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 30 October — responsive exact-season synopsis fallback
+
+Current installer/portable: **preview-2f54f61**, runtime source **2f54f61**, **548 tests pass**. Package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-2f54f61-Setup.exe`.
+
+- Reproduced Jikan timing out after7seconds. Public Tenrai exact-MAL-ID responses for Vinland Saga Season2 and Jujutsu Kaisen Season2 returned full descriptions in approximately460ms. Add this read-only source before Jikan, validate returned MAL identity and string synopsis, preserve existing full text, attribute the source and retain honest unavailability where no plot exists. No title search, prequel substitution, fabricated plot or challenge window.
+- Bound mapping reads to2seconds and source requests to3seconds (3.1second helper watchdog), pace by provider, skip cooldown/backlogged providers, coalesce exact-ID work, cache valid plots24hours and back off empty/failed results30seconds.429 cools that provider60seconds. Remove global network serialization so one slow title does not block another. Each failed caller retains its own original text, and stale supplied AniList mappings are ignored. Standard catalog contribution notices count as placeholders.
+- Six new regressions cover alternate source, per-caller shared failure/backoff, source429, stalled/stale mappings, independent title progress and malformed/contribution notices. All548 tests pass. Actual packaged helper and About renderer with real public responses replace fixture placeholders: Vinland2=978characters/347ms, JJK2=1304characters; source link and clamp fit without overflow. Screenshot reviewed in outputs/synopsis-final/AniDeck-synopsis-live.png. These are mixed fixture UI/live public-source checks, not claims that those titles currently lack catalog descriptions or universal latency guarantees.
+- Tenrai is currently beta, documented at https://api.tenrai.org/llms.txt; Jikan schema at https://github.com/jikan-me/jikan-rest/blob/master/storage/api-docs/api-docs.json. Existing AniList/Kitsu selection remains first. No account/list/message writes, installed-app replacement, deployment/migration, release or tag. Preserve readme-preview.html and Desktop/anitrack. Remaining physical/listening/account acceptance stays pending; Gio and physicalMac remain deferred.
+
 ## 30 October — full normal-speed playback and fractional rating checks
 
 Current installer remains **preview-b344667**; no app changes/rebuild. Prior full suite remains542 passed. Reran24 focused import-provider-write, title-entry-editor and local-tracker tests: all pass. Fractional AniList account-native8.5, whole-format fractional rejection, Kitsu8.5-to17 mapping and local rating behavior remain covered; no live account format change or new score writes.
