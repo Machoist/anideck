@@ -58,3 +58,10 @@ test('explicit combined parts require known first-part bounds and preserve actua
 test('an unmatched sequel alias cannot label a base-series match as independently numbered',()=>{const hit=api.chooseTitle([{url:page,title:'Example'}],'Example',2,['Example Season 2'],'TV');assert.equal(hit.seasonal,false);});
 
 test('part numbers alone are not interchangeable with season numbers',()=>{assert.equal(api.chooseTitle([{url:page,title:'Example Season 2',format:'TV'}],'Example Part 2',1,[],'TV'),null);});
+
+test('full catalog aliases cannot turn a fourth-series-season name into a later cour request',async()=>{
+ const f=fixture(),title='Haikyuu!!: To the Top',read=url=>url.includes('/filter')?'<a href="'+page+'">Haikyuu!!: To the Top (Part 1+2)</a>':f.read(url);
+ const aliases=['Haikyuu!! (Shin Series)','ハイキュー!! (新シリーズ)','Haikyuu!! (2020)','Haikyuu!! Fourth Season','Haikyuu!! 4th Season','Haikyuu 4','Haikyuu!! TO THE TOP','HAIKYU!! TO THE TOP'];
+ assert.deepEqual(await api.metadata(read,title,1,'sub',{seasonNumber:1,mediaFormat:'TV',episodeCount:1,titleAliases:aliases,catalogOnly:true}),{episodes:[1]});
+ assert.deepEqual(await api.metadata(read,title+' Part 2',1,'sub',{seasonNumber:1,mediaFormat:'TV',episodeCount:1,titleAliases:aliases,catalogOnly:true}),{episodes:[]});
+});

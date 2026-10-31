@@ -13,7 +13,7 @@ const CardSynopsis={
  warmVisible(){
   const main=document.getElementById('main');if(!main||typeof IntersectionObserver==='undefined'||typeof MutationObserver==='undefined')return;
   let rid=App.renderId,remaining=6,seen=new WeakSet(),queue=[],running=0,scheduled=false;
-  const pump=()=>{while(running<2&&queue.length){const item=queue.shift();if(item.rid!==App.renderId||!item.card.isConnected)continue;running++;this.metadata(item.card.dataset.id).finally(()=>{running--;pump();});}};
+  const pump=()=>{while(running<2&&queue.length){const item=queue.shift();if(item.rid!==App.renderId||!item.card.isConnected||AniList.canPrefetch?.()===false)continue;running++;this.metadata(item.card.dataset.id).finally(()=>{running--;pump();});}};
   const observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;observer.unobserve(entry.target);if(remaining<=0||(entry.target.dataset.synopsis&&!TitleSynopsis.isStub(entry.target.dataset.synopsis)))continue;remaining--;queue.push({card:entry.target,rid:App.renderId});}pump();},{root:main,threshold:.1});
   const scan=()=>{scheduled=false;if(rid!==App.renderId){rid=App.renderId;remaining=6;seen=new WeakSet();queue=[];observer.disconnect();}for(const card of main.querySelectorAll('.card[data-act="anime"]')){if(seen.has(card)||!card.querySelector('.poster'))continue;seen.add(card);if(TitleSynopsis.isStub(card.dataset.synopsis))observer.observe(card);}};
   new MutationObserver(()=>{if(!scheduled){scheduled=true;if(typeof requestAnimationFrame==='function')requestAnimationFrame(scan);else scan();}}).observe(main,{childList:true,subtree:true});scan();

@@ -734,21 +734,31 @@ const AniList = {
   loggedIn() { return !!(this.token && this.userId); },
   async save() { await window.native.setSecret('anilistAuth', JSON.stringify({ token: this.token, userId: this.userId, userName: this.userName, avatar: this.avatar, scoreFormat:this.scoreFormat })); },
   async logout() { this.invalidateEntries();Object.assign(this, { token: '', userId: 0, userName: '', avatar: '', scoreFormat:'POINT_10', coll: null }); await window.native.setSecret('anilistAuth', null); },
-  rateLimitUntil: 0,
+  rateLimitUntil: 0, requestBudget:[], rateLimitMax:30,
+  budgetSlots(){const now=Date.now();this.requestBudget=this.requestBudget.filter(x=>now-x.at<60000);return this.requestBudget;},
+  canPrefetch(){return Date.now()>=(this.rateLimitUntil||0)&&this.budgetSlots().length<Math.max(1,Math.min(this.rateLimitMax||30,30)-12);},
+  admitRequest(query,auth){
+    const slots=this.budgetSlots(),limit=Math.max(1,Math.min(this.rateLimitMax||30,30)-2),reserve=Math.min(6,Math.floor(limit/4)),account=!!auth&&/\bmutation\b|mediaListEntry|MediaListCollection|\bViewer\b/.test(query);
+    const publicSlots=slots.filter(x=>!x.account),blocked=slots.length>=limit?slots:!account&&publicSlots.length>=limit-reserve?publicSlots:null;
+    if(blocked)throw this.rateLimitError(Math.min(...blocked.map(x=>x.at))+60000);
+    slots.push({at:Date.now(),account});
+  },
   observeRateLimit(response) {
     const headers=Object.fromEntries(Object.entries(response?.headers||{}).map(([key,value])=>[key.toLowerCase(),value]));
+    if(Number(headers['x-ratelimit-limit'])>0)this.rateLimitMax=Number(headers['x-ratelimit-limit']);
     if(Number(response?.status)!==429&&String(headers['x-ratelimit-remaining'])!=='0')return;
     const now=Date.now(),retry=String(headers['retry-after']||''),seconds=Number(retry),reset=Number(headers['x-ratelimit-reset'])*1000;
     const retryAt=retry?(Number.isFinite(seconds)?now+seconds*1000:Date.parse(retry)):0;
     const until=Math.max(Number.isFinite(retryAt)&&retryAt>now?retryAt:0,Number.isFinite(reset)&&reset>now?reset:0)||now+60000;
     this.rateLimitUntil=Math.max(this.rateLimitUntil||0,until);
   },
-  rateLimitError() {
-    const error=new Error('AniList is temporarily limiting requests. Try again in '+Math.max(1,Math.ceil(((this.rateLimitUntil||Date.now()+60000)-Date.now())/1000))+' seconds. Please wait before trying again.');
-    error.status=429;error.retryAt=this.rateLimitUntil;return error;
+  rateLimitError(retryAt=this.rateLimitUntil||Date.now()+60000) {
+    const error=new Error('AniList is temporarily limiting requests. Try again in '+Math.max(1,Math.ceil((retryAt-Date.now())/1000))+' seconds. Please wait before trying again.');
+    error.status=429;error.retryAt=retryAt;return error;
   },
   async gql(query, variables = {}, auth = true, { timeout = 15000 } = {}) {
     if(Date.now()<(this.rateLimitUntil||0))throw this.rateLimitError();
+    this.admitRequest(query,auth);
     const headers = { Accept: 'application/json' },token=this.token;
     if (auth && token) headers.Authorization = `Bearer ${token}`;
     let r;
@@ -855,7 +865,7 @@ const AniList = {
     if(this.entryOwner!==scope){this.invalidateEntries();this.entryOwner=scope;}
     const cached=this.entryCache.get(mediaId);
     if(!fresh&&cached&&cached.until>Date.now())return cached.value?{...cached.value}:null;
-    if (!fresh && this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 30000) {
+    if (!fresh && this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 120000) {
       const hit = this.coll.find((e) => String(e.anime?.id) === `al:${mediaId}`);
       return hit?{id:hit.id,status:hit.status,reconsuming:hit.reconsuming,progress:hit.progress,rating:hit.rating,updatedAt:hit.updatedAt}:null;
     }
@@ -925,10 +935,10 @@ const AniList = {
     if (e && e.progress >= episode && e.status !== 'planned') return { ...e, unchanged: true };
     return this.write(id, { progress: Math.max(episode, e?.progress || 0), status: e?.reconsuming && status === 'CURRENT' ? 'REPEATING' : status });
   },
-  // Whole list, kept for 30 seconds so tabs and scrolling don't re-download it.
+  // Whole list, kept for two minutes so tabs and scrolling don't re-download it.
   async collection() {
     const scope=this.entryScope();
-    if (this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 30000) return this.coll;
+    if (this.coll && (!this.collOwner||this.collOwner===scope) && Date.now() - this.collAt < 120000) return this.coll;
     if(this.collectionPending?.scope===scope)return this.collectionPending.promise;
     const promise=this.readCollection(scope),task={scope,promise};this.collectionPending=task;
     try{return await promise;}finally{if(this.collectionPending===task)this.collectionPending=null;}
@@ -1182,7 +1192,7 @@ const Tracker = {
   get avatar() { return this.svc.avatar || ''; },
   loggedIn() { return LocalTracker.loggedIn() || Kitsu.loggedIn() || AniList.loggedIn(); },
   logout() { return this.svc.logout(); },
-  entry(id) { return this.svc.entry(id); },
+  entry(id,options) { return this.svc.entry(id,options); },
   setStatus(id, s) { return this.svc.setStatus(id, s); },
   setProgress(id, ep, total) { return this.svc.setProgress(id, ep, total); },
   saveEntry(id, v) { return this.svc.saveEntry(id, v); },

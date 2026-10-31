@@ -26,3 +26,5 @@ test('repeated rate-limited editor clicks show one notice per cooldown and never
  for(let i=0;i<4;i++)await f.app.editEntry('al:42',12,'Example');
  assert.equal(f.notices.length,1);assert.equal(f.closed,0);assert.equal(f.refreshes,0);
 });
+
+test('opening an editor requires a fresh provider read rather than using the browsing snapshot',async()=>{let options;await setup({entry:async(_id,opts)=>{options=opts;return {status:'current',progress:2};}});assert.equal(options.fresh,true);});

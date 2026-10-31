@@ -81,3 +81,16 @@ test('a newly fetched collection supersedes an older individual entry cache',asy
  const f=fixture(request=>JSON.parse(request.body).query.includes('MediaListCollection')?reply({MediaListCollection:{lists:[{entries:[{id:7,status:'CURRENT',progress:9,score:8,media:{id:42,title:{english:'Fixture'}}}]}]}}):reply(media(3)));
  assert.equal((await f.AniList.entry('al:42')).progress,3);await f.AniList.collection();assert.equal((await f.AniList.entry('al:42')).progress,9);assert.equal(f.calls,2);
 });
+
+test('public browsing reserves request headroom for account reads and never retries a write',async()=>{
+ const f=fixture(()=>reply({ok:true}));for(let i=0;i<22;i++)await f.AniList.gql('query Public'+i+' { Media { id } }',{},false);
+ await assert.rejects(f.AniList.gql('query Extra { Media { id } }',{},false),e=>e.status===429&&e.retryAt===f.now+60000);assert.equal(f.calls,22);assert.equal(f.AniList.canPrefetch(),false);
+ for(let i=0;i<6;i++)await f.AniList.gql('query Account'+i+' { Viewer { id } }');assert.equal(f.calls,28);
+ await assert.rejects(f.AniList.gql('mutation Save { SaveMediaListEntry { id } }'),e=>e.status===429);assert.equal(f.calls,28);
+ f.advance(60001);await f.AniList.gql('query Recovered { Media { id } }',{},false);assert.equal(f.calls,29);
+});
+test('a verified two-minute collection serves title views while explicit editing still reads fresh',async()=>{
+ const f=fixture(()=>reply(media(5)));f.AniList.coll=[{id:7,status:'current',progress:3,anime:{id:'al:42'}}];f.AniList.collAt=f.now;f.AniList.collOwner=f.AniList.entryScope();f.advance(90000);
+ assert.equal((await f.AniList.entry('al:42')).progress,3);assert.equal(await f.AniList.entry('al:99'),null);assert.equal(f.calls,0);
+ assert.equal((await f.AniList.entry('al:42',{fresh:true})).progress,5);assert.equal(f.calls,1);
+});

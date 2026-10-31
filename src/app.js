@@ -914,6 +914,7 @@ const App = {
   /* ---------------- actions ---------------- */
   async act(name, d, el) {
     switch (name) {
+      case 'retryListEntry': return TrackingRecovery.retry(true);
       case 'retry': if(this.view==='home')QueueRecovery.tries=0;return this.refresh();
       case 'back': return this.back();
       case 'series': return this.openItem(d.id, d.season);
@@ -1476,7 +1477,7 @@ const App = {
   async editEntry(animeId, total, title, _anchor, watched = 0) {
     this.closeEntryEditor?.();document.getElementById('entry-pop')?.remove();
     const editorSeq=this.entryEditorSeq=(this.entryEditorSeq||0)+1,renderId=this.renderId,service=Tracker.svc,userId=service?.userId;
-    let existing;try{existing=await Tracker.entry(animeId);}catch(error){if(editorSeq===this.entryEditorSeq&&renderId===this.renderId&&service===Tracker.svc&&userId===service?.userId){if(Number(error.status)===429){if((this.entryRateNoticeUntil||0)>Date.now())return;this.entryRateNoticeUntil=error.retryAt||Date.now()+60000;}toast(`Couldn’t load your list entry: ${error.message}`,'bad');}return;}
+    let existing;try{existing=await Tracker.entry(animeId,{fresh:true});}catch(error){if(editorSeq===this.entryEditorSeq&&renderId===this.renderId&&service===Tracker.svc&&userId===service?.userId){if(Number(error.status)===429){if((this.entryRateNoticeUntil||0)>Date.now())return;this.entryRateNoticeUntil=error.retryAt||Date.now()+60000;}toast(`Couldn’t load your list entry: ${error.message}`,'bad');}return;}
     if(editorSeq!==this.entryEditorSeq||renderId!==this.renderId||service!==Tracker.svc||userId!==service?.userId)return;
     const e=existing||{status:'current',progress:watched};
     let status = e.reconsuming ? 'rewatching' : (e.status || 'current');
@@ -2450,14 +2451,14 @@ function statusPicker(animeId, status, reconsuming = false) {
 }
 
 // Progress card in a show page's side column: status, "3 / ?" and a bar. Clicking it opens the list editor.
-async function trackingEntryState(id) {
+async function trackingEntryState(id,options) {
   if(!Tracker.loggedIn())return {entry:null,error:null};
   const service=Tracker.svc,userId=service?.userId;
-  try{const entry=await Tracker.entry(id);if(service!==Tracker.svc||userId!==service?.userId)throw Error('Your tracking account changed. Reload this page.');return {entry,error:null};}
+  try{const entry=await Tracker.entry(id,options);if(service!==Tracker.svc||userId!==service?.userId)throw Error('Your tracking account changed. Reload this page.');return {entry,error:null};}
   catch(error){return {entry:null,error};}
 }
-function progressCard({ editable, kitsuId, total, title, label, num, of, pct, note = '', error = null }) {
-  if(error)return `<div class="side-card prog-card" role="status"><div class="prog-head"><span class="side-status">List entry unavailable</span></div><p class="small muted">${esc(error.message||'Could not check your saved progress.')}</p><button class="btn ghost sm" data-act="retry">Retry list lookup</button></div>`;
+function progressCard({ editable, kitsuId, total, title, label, num, of, pct, note = '', error = null, recovery = false }) {
+  if(error)return `<div class="side-card prog-card" role="status"><div class="prog-head"><span class="side-status">${error.status===429?'List check paused':'List entry unavailable'}</span></div><p class="small muted">${esc(error.status===429?'AniList is busy. Your saved list has not been changed.':error.message||'Could not check your saved progress.')}</p><button class="btn ghost sm" ${recovery?'data-list-retry data-act="retryListEntry"':'data-act="retry"'}>Retry list lookup</button></div>`;
   return `<div class="side-card prog-card ${editable ? 'editable' : ''}" ${editable ? `data-act="editEntry" data-kitsu="${esc(kitsuId)}" data-total="${esc(total || '')}" data-title="${esc(title)}" data-watched="${num}"` : ''}>
     <div class="prog-head">${editable ? icon('bookmark', 'fill st-ico') : ''}<span class="side-status">${esc(label)}</span><b class="prog-num">${num} / ${esc(of || '?')}</b>${editable ? `<span class="pencil" title="Edit">${icon('pencil')}</span>` : ''}</div>
     <div class="side-bar"><div style="width:${pct}%"></div></div>
@@ -2744,7 +2745,7 @@ const Prefetch = {
     this.done.add(key);
     setTimeout(() => this.done.delete(key), 25000); // Jellyfin answers are shared for 30s
     const quiet = (p) => p?.catch?.(() => {});
-    const anime = (kid) => { quiet(Kitsu.animeFull(kid)); quiet(AniList.details(kid).then((al) => al && AniZip.get(al.id))); };
+    const anime = (kid) => { quiet(Kitsu.animeFull(kid)); if(AniList.canPrefetch())quiet(AniList.details(kid).then((al) => al && AniZip.get(al.id))); };
     if (act === 'anime') { if (!String(id).startsWith('al:')) anime(id); return; }
     quiet(Jellyfin.item(id));
     if (act === 'series') quiet(Jellyfin.seasons(id));
@@ -4232,7 +4233,7 @@ const Views = {
     const editable = Tracker.loggedIn()&&!entryError;
     const statusLabel = entry ? (entry.reconsuming ? 'Rewatching' : (STATUS_LABELS[entry.status] || entry.status)) : editable ? 'Add to your list' : 'Not on your list';
     const progressCardHtml = progressCard({
-      error:entryError, editable, kitsuId: a.id, total, title: a.title, label: statusLabel, num: watchedEps, of: total,
+      error:entryError, recovery:true, editable, kitsuId: a.id, total, title: a.title, label: statusLabel, num: watchedEps, of: total,
       pct: total ? Math.min(100, (watchedEps / total) * 100) : 0, note: editable ? '' : 'Sign in to Kitsu or AniList to track this',
     });
     const details = [
@@ -4282,7 +4283,7 @@ const Views = {
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="anime">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">
               ${playBtn}
-              ${entryError ? '<button class="btn ghost" data-act="retry">Retry list lookup</button>' : editable ? statusPicker(a.id, entry?.status, entry?.reconsuming) : '<button class="btn ghost" data-act="goAccount">Sign in to track</button>'}
+              ${entryError ? '<button class="btn ghost" data-list-retry data-act="retryListEntry">Retry list lookup</button>' : editable ? statusPicker(a.id, entry?.status, entry?.reconsuming) : '<button class="btn ghost" data-act="goAccount">Sign in to track</button>'}
               ${!inLib && requested ? '<button class="status-btn" disabled>✓ Requested</button>' : ''}
               <div class="chip-wrap"><button class="icon-btn more-btn" data-act="toggleMenu" title="More">${icon('more')}</button><div class="chip-menu right" hidden>${menu}</div></div>
             </div>
@@ -4305,6 +4306,7 @@ const Views = {
       </div>`;
   },
   async animeAfter({ id, tab = 'episodes' }, rid) {
+    if(typeof TrackingRecovery!=='undefined')TrackingRecovery.bind(rid,id);
     checkRemoteEpisodes(rid); // Start independently of optional artwork/related-title enrichment.
     enrichTitleStory(rid).catch(()=>{});
     upgradeBackdrop(rid);

@@ -1,6 +1,6 @@
 'use strict';
 const BASE = 'https://aniwatchtv.ro';
-const {norm}=require('./hianime'),{load}=require('cheerio');
+const matching=require('./provider-title-match'),{norm}=matching,{load}=require('cheerio');
 const listingCache=new Map(),searchCache=new Map();
 function searchTerms(title){
  const plain=String(title||'').normalize('NFKC').replace(/[‘’]/g,"'").trim();
@@ -12,17 +12,7 @@ function siteUrl(value) {
   if (url.origin !== BASE || url.username || url.password) throw new Error('Unexpected AniWatch navigation');
   return url.href;
 }
-function chooseTitle(links, title, season = 1) {
-  const matches = wanted => links.filter(link => [link.title, link.jp].some(s => norm(s) === norm(wanted)));
-  const namedSeason = /(?:season\s*\d+|\d+(?:st|nd|rd|th)\s*season)/i.test(title);
-  let hits = season > 1 && !namedSeason ? matches(`${title} Season ${season}`) : [];
-  const seasonal = hits.length > 0 || namedSeason;
-  if (!hits.length) hits = matches(title);
-  const urls = [...new Set(hits.map(hit => siteUrl(hit.url)))];
-  if (!urls.length) throw new Error(`AniWatch: No exact title match for ${title}`);
-  if (urls.length > 1) throw new Error('AniWatch returned multiple matching titles; cannot select reliably');
-  return { url: urls[0], seasonal };
-}
+function chooseTitle(links,title,season=1,aliases=[],format,count){const hit=matching.chooseTitle(links,title,season,aliases,format,count,{identity:x=>siteUrl(x.url),label:'AniWatch'});if(!hit)throw Error(`AniWatch: No exact title match for ${title}`);return {...hit,url:siteUrl(hit.url)};}
 function chooseEpisode(episodes, number, request, seasonal) {
   const season = request.seasonNumber == null ? 1 : Number(request.seasonNumber);
   const target = seasonal || season <= 1 ? number : Number(request.absoluteEpisodeNum);
@@ -55,10 +45,10 @@ function inspectPage() {
 function parseTitles(html){const $=load(html);return $('#main-content .film-name a, #main-content h3 a').map((_,a)=>{const e=$(a);try{return {title:e.attr('title')||e.text().trim(),jp:e.attr('data-jname'),url:siteUrl(e.attr('href'))};}catch{return null;}}).get().filter(Boolean);}
 async function metadata(read,title,number,audio,request={}){
  const season=request.seasonNumber??1;if(!Number.isInteger(season)||season<1)throw Error('AniWatch specials require their own title');if(!['sub','dub'].includes(audio))throw Error('Unsupported AniWatch audio');
- const key=JSON.stringify([title,season]);try{let data=listingCache.get(key);if(!data||Date.now()-data.at>120000){let match;for(const term of searchTerms(title)){try{const hit=searchCache.get(term);let items=hit&&Date.now()-hit.at<60000?hit.items:null;if(!items){items=parseTitles(await read(BASE+'/?s='+encodeURIComponent(term)));if(items.length){if(searchCache.size>=100)searchCache.delete(searchCache.keys().next().value);searchCache.set(term,{items,at:Date.now()});}}match=chooseTitle(items,title,season);break;}catch(error){if(!/No exact title match/.test(error.message))throw error;}}
+ const aliases=matching.aliases(request,title),key=JSON.stringify([title,season,aliases,request.mediaFormat,request.episodeCount]);try{let data=listingCache.get(key);if(!data||Date.now()-data.at>120000){let match;for(const term of [...new Set([...searchTerms(title),...aliases])].slice(0,4)){try{const hit=searchCache.get(term);let items=hit&&Date.now()-hit.at<60000?hit.items:null;if(!items){items=parseTitles(await read(BASE+'/?s='+encodeURIComponent(term)));if(items.length){if(searchCache.size>=100)searchCache.delete(searchCache.keys().next().value);searchCache.set(term,{items,at:Date.now()});}}match=chooseTitle(items,title,season,aliases,request.mediaFormat,request.episodeCount);break;}catch(error){if(!/No exact title match/.test(error.message))throw error;}}
  if(!match){if(request.catalogOnly)return {episodes:[]};throw Error('AniWatch has no exact title match');}
  const $=load(await read(match.url)),ids=[...new Set($('#ani_detail[data-anime-id],.anis-watch-detail .anis-content[data-anime-id]').map((_,e)=>$(e).attr('data-anime-id')).get())];if(ids.length!==1||!/^\d+$/.test(ids[0]))throw Error('AniWatch title metadata unavailable');
- const result=JSON.parse(await read(BASE+'/wp-json/v1/otakuthemes/episode/list/'+ids[0]));if(!result.status||typeof result.html!=='string')throw Error('AniWatch episode list unavailable');const e=load(result.html),episodes=e('a.ep-item[data-number][data-id]').map((_,a)=>({number:Number(e(a).attr('data-number')),id:e(a).attr('data-id'),url:siteUrl(e(a).attr('href'))})).get().filter(a=>Number.isInteger(a.number)&&a.number>0&&a.number<=3000&&/^\d+$/.test(a.id));data={at:Date.now(),match,episodes};if(listingCache.size>=100)listingCache.delete(listingCache.keys().next().value);listingCache.set(key,data);}
+ const result=JSON.parse(await read(BASE+'/wp-json/v1/otakuthemes/episode/list/'+ids[0]));if(!result.status||typeof result.html!=='string')throw Error('AniWatch episode list unavailable');const e=load(result.html),episodes=e('a.ep-item[data-number][data-id]').map((_,a)=>({number:Number(e(a).attr('data-number')),id:e(a).attr('data-id'),url:siteUrl(e(a).attr('href'))})).get().filter(a=>Number.isInteger(a.number)&&a.number>0&&a.number<=3000&&/^\d+$/.test(a.id));data={at:Date.now(),match,episodes:matching.boundEpisodes(episodes,match,request.episodeCount,'AniWatch')};if(listingCache.size>=100)listingCache.delete(listingCache.keys().next().value);listingCache.set(key,data);}
  if(request.catalogOnly){if(season>1&&!data.match.seasonal)throw Error('AniWatch needs an exact season title to list episodes');return {episodes:data.episodes.map(e=>e.number)};}
  const url=chooseEpisode(data.episodes,number,request,data.match.seasonal),episode=data.episodes.find(e=>e.url===url);const result=JSON.parse(await read(BASE+'/wp-json/v1/otakuthemes/episode/servers?episodeId='+episode.id));if(!result.status||typeof result.html!=='string')throw Error('AniWatch servers unavailable');const $=load(result.html),servers=$('.server-item[data-hash]').map((_,e)=>({audio:$(e).attr('data-type'),name:$(e).attr('data-server-name'),hash:$(e).attr('data-hash')})).get();return chooseEmbeds(servers,audio);
  }catch(error){listingCache.delete(key);throw error;}
