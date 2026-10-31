@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 31 October — episode still recovery and related-season resilience
+
+Current installer/portable: **preview-50bc095**, runtime source **50bc095**, **584 tests pass**. Final package audit, full isolated native smoke/checks, visual inspection, ZIP integrity and installer/portable runtime equality pass.
+
+- User reported Fairy Tail Season2 repeating the hero image on episode cards and missing related seasons. Public data contains distinct episode stills and prequel/sequel records; fresh-profile baseline loaded them. Existing optional-service failures could leave repeated title-art fallbacks and silently hidden Related forever. This is a resilience fix, not a claim that the upstream datasets never fail.
+- Remote episode cards now use actual episode-specific sources only. A failed AniZip metadata load gets one bounded retry tied to the mounted list; stale/detached pages do not retry. If no still loads, use a distinct numbered Preview unavailable frame rather than the same banner/poster on every episode. Preserve warm still cache and existing Jellyfin image behavior. No provider availability or episode numbering changes.
+- Include anime relations in the main AniList detail response and reuse them without another request. Exact Kitsu media-relationship records provide prequel/sequel/side-story fallback when AniList fails or is rate limited. Exclude manga and unknown destinations. If both services fail, show a scoped retry control instead of hiding the section. Preserve deduplication and navigation/stale-response guards.
+- Public live Fairy Tail Kitsu8203/AniList20626: three distinct loaded episode stills, prequel/first-season and Final Season links. Forced AniList relation failure restored Kitsu prequel4676 and sequel13658. Public-probe renderer/API/styles byte-match the final package. Native deterministic failure/recovery checks pass for numbered neutral state, independent source, bounded retry, recovered images and related fallback. Evidence work/episode-related-public.json, episode-related-tests.log and episode-related-final-native.log; reviewed visuals outputs/episode-related-final/.
+- All584 tests pass. No real account/list/message changes, installed-app replacement, public release/tag, deployment or migration. Preserve readme-preview.html and Desktop/anitrack. Existing provider-specific availability and physical/listening acceptance limits remain; Gio and physical Mac stay deferred.
+
 ## 31 October — actual app-path episode matching and AniList cooldown recovery
 
 Current installer/portable: **preview-34f0ccc**, runtime source **34f0ccc**, **579 tests pass**. Final package audit, full isolated native smoke/checks, ZIP integrity and installer/portable runtime equality pass.
