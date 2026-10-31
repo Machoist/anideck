@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 31 October — Random pick service-failure recovery
+
+Current installer/portable: **preview-31a22df**, runtime source **31a22df**, **588 tests pass**. Final package audit, full isolated native smoke/checks, ZIP integrity and installer/portable runtime equality pass.
+
+- User reported Couldn’t load random picks. Reproduced failure paths: Planning read errors aborted before public fallback; public selection depended on fresh cross-provider eligibility requests even after eligible popular titles had loaded. Title navigation failures were also mislabeled as candidate-pool failures.
+- Planning failures can fall back to public picks without repeating the failed account read. Remember only verified public popular anime with complete category/content metadata in a bounded300-item memory seed, expiring entries after ten minutes. Reapply current safe-content filters and available account-list exclusions. No private library/account entries enter this public seed; existing account/filter scope guards remain.
+- Respect AniList speculative-prefetch budget and use the prepared exact Kitsu identity on click. Keep busy/repeated-click coalescing and toast deduplication. Distinguish a failed title opening from failed pool loading. If no verified pool exists and initial services are offline, failure remains explicit; no invented entries or eligibility bypass.
+- All588 tests pass. Live isolated native action seeded20 actual verified public titles, then forced Planning/fresh browsing unavailable plus AniList cooldown: Random opened One Punch Man, one account read, zero browse reads, no error notices and released busy state. Public-probe app/API source byte-matches final package. Full packaged native smoke passes. Evidence work/random-recovery-public.json, random-recovery-tests.log and random-recovery-final-native.log.
+- No real account/list/message writes, installed-app replacement, public release/tag, deployment or migration. Preserve readme-preview.html and Desktop/anitrack. Prior provider availability and physical/listening acceptance limits remain; Gio and physical Mac stay deferred.
+
 ## 31 October — episode still recovery and related-season resilience
 
 Current installer/portable: **preview-50bc095**, runtime source **50bc095**, **584 tests pass**. Final package audit, full isolated native smoke/checks, visual inspection, ZIP integrity and installer/portable runtime equality pass.
