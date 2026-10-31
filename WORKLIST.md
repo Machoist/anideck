@@ -1,5 +1,9 @@
 # AniDeck worklist
 
+## 30 October — README link simplification
+
+- Top navigation now links directly to Releases, Ko-fi and Feedback. Removed same-page section jumps and moved developer navigation out of the top action row. README link/diff review passes; no runtime change or rebuild.
+
 ## 30 October — GitHub presentation refresh
 
 - Rebuilt README around an original AniDeck SVG hero, clear navigation, five demo screenshots, concise feature groups, setup, imports, Social, account/privacy explanations and contribution links. AniView used only as a presentation reference; no copied branding, text or assets. Corrected stale Friends naming, profile customization location, message-request consent and reviewed progress-update descriptions.

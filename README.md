@@ -7,10 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="#get-anideck">Get AniDeck</a> &nbsp;·&nbsp;
-  <a href="#a-look-inside">A look inside</a> &nbsp;·&nbsp;
-  <a href="#make-it-your-deck">Features</a> &nbsp;·&nbsp;
-  <a href="docs/DEVELOPMENT.md">Build from source</a> &nbsp;·&nbsp;
+  <a href="https://github.com/Machoist/anideck/releases">Releases</a> &nbsp;·&nbsp;
+  <a href="https://ko-fi.com/machorp">Support on Ko-fi</a> &nbsp;·&nbsp;
   <a href="https://github.com/Machoist/anideck/issues">Feedback</a>
 </p>
 
