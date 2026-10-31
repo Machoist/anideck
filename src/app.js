@@ -2242,11 +2242,11 @@ function preconnectImageHosts() {
 // Library episodes Jellyfin has no image for: use Kitsu's still for that episode instead of the show's backdrop.
 function setEpisodeThumb(row,sources){
  const thumb=row.querySelector('.thumb'),img=thumb?.querySelector('img');if(!img||!row.isConnected)return;
- const fallback=thumb.dataset.fallback;if(fallback){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
+ const fallback=thumb.dataset.fallback;if(fallback&&!thumb.classList.contains?.('thumb-pending')){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
  const candidates=[...new Set([...sources,thumb.dataset.poster].filter(Boolean))],key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
  const next=()=>{if(!row.isConnected||img._thumbKey!==key)return;const url=candidates.find(u=>!img._thumbFailed.has(u));if(!url){img.style.visibility='hidden';return;}img.hidden=false;img.style.visibility='';
- img.onload=()=>{if(row.isConnected&&img._thumbKey===key)img.classList.add('ready');};img.onerror=()=>{img._thumbFailed.add(url);img.classList.remove('ready');next();};
- if(img.getAttribute('src')!==url){img.classList.remove('ready');img.src=url;}if(img.complete&&img.naturalWidth)img.classList.add('ready');};next();thumb.classList.remove('skel');
+ const ready=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');thumb.classList.remove('thumb-pending');const artKey=thumb.dataset.episodeArt;if(artKey&&url!==fallback&&url!==thumb.dataset.poster){setEpisodeThumb.cache??=new Map();setEpisodeThumb.cache.set(artKey,url);if(setEpisodeThumb.cache.size>300)setEpisodeThumb.cache.delete(setEpisodeThumb.cache.keys().next().value);}}};img.onload=ready;img.onerror=()=>{if(setEpisodeThumb.cache?.get(thumb.dataset.episodeArt)===url)setEpisodeThumb.cache.delete(thumb.dataset.episodeArt);img._thumbFailed.add(url);img.classList.remove('ready');next();};
+ if(img.getAttribute('src')!==url){img.classList.remove('ready');img.src=url;}if(img.complete&&img.naturalWidth)ready();};next();thumb.classList.remove('skel');
 }
 async function fillMissingThumbs(rid) {
   const rows = [...document.querySelectorAll('.ep-list .ep[data-kthumb]')];
@@ -2784,7 +2784,7 @@ function skeleton(view) {
 const CARD_SEL = '.grid > *, .rail > *, .ml-rows > *, .sch-list > .sch-card';
 const seenCards = new WeakMap(); // container → keys already animated there ("Load more" redraws shouldn't replay)
 function animateCards(nodes) {
-  if (App.settings.reduceMotion) return; // AniDeck's own setting; Windows' "Animation effects" doesn't turn these off
+  if (App.settings.reduceMotion||Date.now()<(App.scrollUntil||0)) return; // AniDeck's own setting; Windows' "Animation effects" doesn't turn these off
   const rows = new Map();
   for (const el of nodes) {
     if (el.matches('.loading, .empty')) continue;
@@ -3639,7 +3639,7 @@ const HomeReads={active:null,budgetMs:600,
  scope(){return queueScope()+':'+(typeof Cloud==='undefined'?'':Cloud.ident());},
  begin(rid){let b=this.active;if(!b||b.nextRid!==rid||b.scope!==this.scope())b={scope:this.scope(),rid,values:new Map(),pending:new Map(),deferred:new Set(),failed:new Set(),timer:null,nextRid:null,painted:false,dirty:false};b.rid=rid;b.nextRid=null;this.active=b;return b;},
  markPaint(rid){const b=this.active;if(b?.rid!==rid)return;b.painted=true;if(b.dirty)this.schedule(b);},
- schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;b.dirty=false;b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});},120);},
+ schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;if(Date.now()<(App.scrollUntil||0)){this.schedule(b);return;}b.dirty=false;b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});},120);},
  async read(b,key,loader,fallback=[]){if(b.values.has(key))return b.values.get(key);if(b.pending.has(key)){b.deferred.add(key);return fallback;}
  const job=Promise.resolve().then(loader).catch(()=>{b.failed.add(key);return fallback;}).then(value=>{b.values.set(key,value);b.pending.delete(key);if(b.deferred.delete(key))this.schedule(b);return value;});b.pending.set(key,job);let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>{b.deferred.add(key);resolve(fallback);},this.budgetMs);})]);}finally{clearTimeout(timer);}
  }
@@ -4213,9 +4213,9 @@ const Views = {
     const epNums = available.filter(n=>n>=firstEp&&n<=lastEp);
     if (App.settings.epSort === 'desc') epNums.reverse();
     const epRows = epNums.map((n) => {
-      const played = n <= watchedEps, isNext = n === nextEpNum;
+      const played = n <= watchedEps, isNext = n === nextEpNum, initialThumb=setEpisodeThumb.cache?.get(a.id+'|'+n)||al?.streams?.[n]?.thumb||'';
       return `<div class="ep ${isNext ? 'next' : ''} ${played ? 'played' : ''}" id="ep-row-${n}" data-num="${n}">
-        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" alt="" ${thumbFallback?`src="${esc(thumbFallback)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
+        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb ${initialThumb?'':'thumb-pending'}" data-episode-art="${esc(a.id+'|'+n)}" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" alt="" ${initialThumb?`src="${esc(initialThumb)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
         <div class="ep-info"><div class="ep-num">Episode ${n}${isNext ? ' <span class="up-next">UP NEXT</span>' : ''} <span class="ep-meta"></span></div>
           <div class="ep-title"></div>
           <div class="ep-overview muted">Streams from <span class="ep-sub-srv">${esc(shortServerName(remServer))}</span> · ${audioMode.toUpperCase()}</div></div>
@@ -4316,7 +4316,7 @@ const Views = {
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;
-    let eps=[],zip=null;
+    let eps=[],zip=null,settled=0;
     const apply=()=>{if(App.stale(rid))return;
     const byNum = new Map(eps.map((e) => [e.number, e]));
     // An episode with an air date still ahead isn't out: take it off the list (clicking it would open an empty player).
@@ -4333,7 +4333,7 @@ const Views = {
       // Each detail from the best source that has it: ani.zip (TheTVDB), then Kitsu, then AniList's streaming episodes.
       if (z) e = { ...(e || {}), title: z.title || e?.title, synopsis: z.overview || e?.synopsis, airdate: z.airDate || e?.airdate, length: z.runtime || e?.length, thumb: z.image || e?.thumb };
       if (st?.title && !e?.title) row.querySelector('.ep-title').textContent = st.title;
-      setEpisodeThumb(row,[z?.image,byNum.get(n)?.thumb,st?.thumb,row.querySelector('.thumb')?.dataset.fallback]);
+      const sources=[z?.image,byNum.get(n)?.thumb,st?.thumb,settled===2?row.querySelector('.thumb')?.dataset.fallback:null].filter(Boolean);if(sources.length)setEpisodeThumb(row,sources);
       if (!e) continue;
       if (e.title && !/^episode \d+$/i.test(e.title)) row.querySelector('.ep-title').textContent = e.title;
       row.querySelector('.ep-meta').textContent = [e.length ? `${e.length} min` : '', e.airdate || ''].filter(Boolean).join(' · ');
@@ -4342,8 +4342,8 @@ const Views = {
     };
     apply();
     await Promise.allSettled([
-      Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;apply();}),
-      AniZip.get(App.showAl?.id).then(value=>{zip=value;apply();})
+      Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;}).finally(()=>{settled++;apply();}),
+      AniZip.get(App.showAl?.id).then(value=>{zip=value;}).finally(()=>{settled++;apply();})
     ]);
   },
 
