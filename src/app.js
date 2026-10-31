@@ -1105,11 +1105,11 @@ const App = {
       const previous=cache?.key===key&&Date.now()-(cache.itemsAt||0)<300000?cache:null;
       cache={key,at:Date.now(),promise:null,items:null,itemsAt:0};this.shufflePool=cache;
       cache.promise=(async()=>{
-        if(source==='planning'&&Tracker.loggedIn()){
-          const {entries=[]}=await Tracker.list('planned',0,200);
+        let planningFailed=false;if(source==='planning'&&Tracker.loggedIn()){
+          const {entries=[]}=await Tracker.list('planned',0,200).catch(()=>{planningFailed=true;return {entries:[]};});
           const list=sfw(entries.map(e=>e.anime).filter(Boolean));if(list.length)return list;
         }
-        return popularUnwatchedPool();
+        return popularUnwatchedPool({skipList:planningFailed});
       })().then(list=>{const items=[...new Map((list||[]).filter(a=>a?.id).map(a=>[String(a.id),a])).values()];if(items.length){cache.items=items;cache.itemsAt=Date.now();return items;}if(previous?.items?.length){cache.items=previous.items;cache.itemsAt=previous.itemsAt;return previous.items;}if(this.shufflePool===cache)this.shufflePool=null;return [];}).catch(error=>{if(key===this.shuffleKey()&&previous?.items?.length){cache.items=previous.items;cache.itemsAt=previous.itemsAt;return previous.items;}if(this.shufflePool===cache)this.shufflePool=null;throw error;});
     }
     const pool=await cache.promise;if(key!==this.shuffleKey())return null;if(!pool.length)return null;if(this.shufflePool!==cache)return null;
@@ -1121,7 +1121,7 @@ const App = {
       // Resolve the catalog mapping before a click, then warm only public title data.
       pick.ready=(async()=>{
         const id=String(a.id).startsWith('al:')?await AniList.kitsuIdFor(String(a.id).slice(3),a.malId||null).catch(()=>null):a.id;
-        if(id){Kitsu.animeFull(id).catch(()=>{});AniList.details(id).catch(()=>{});}
+        if(id){Kitsu.animeFull(id).catch(()=>{});if(AniList.canPrefetch?.()!==false)AniList.details(id).catch(()=>{});}
         return id;
       })();
     }
@@ -1132,17 +1132,18 @@ const App = {
 
   async shuffle() {
     if(this.shuffleBusy)return;this.shuffleBusy=true;
-    const button=$('#tb-shuffle'),key=this.shuffleKey(),rid=this.renderId;
+    const button=$('#tb-shuffle'),key=this.shuffleKey(),rid=this.renderId;let phase='pool';
     if(button){button.disabled=true;button.setAttribute('aria-busy','true');button.title='Finding your next pick…';}
     try{
       const from=this.shuffleSource();
       if(from!=='library'&&!(this.view==='library'&&this.params.cat)){
         const pick=await this.prepareShuffle();if(key!==this.shuffleKey()||rid!==this.renderId)return;
         if(!pick)return this.shuffleNotice('No suitable pick was returned. Try Random again in a moment.');
-        await pick.ready;if(key!==this.shuffleKey()||rid!==this.renderId)return;
+        const mapped=await pick.ready;if(key!==this.shuffleKey()||rid!==this.renderId)return;
+        if(!mapped){this.lastShuffleId=pick.a.id;this.shufflePick=null;return this.shuffleNotice('That pick couldn’t be matched. Try another pick.');}
         this.lastShuffleId=pick.a.id;this.shufflePick=null;this.shuffleNoticeState=null;
         const a=pick.a;
-        return await this.act('anime',{id:a.id,mal:a.malId||'',titles:JSON.stringify(a.titles||[])});
+        phase='open';return await this.act('anime',{id:mapped,mal:a.malId||'',titles:JSON.stringify(a.titles||[])});
       }
       const unwatched=list=>{const fresh=list.filter(x=>!x.UserData?.Played);return fresh.length?fresh:list;};
       let pool;
@@ -1150,7 +1151,7 @@ const App = {
       else{const anime=unwatched(this.allItems.filter(x=>this.isAnime(x.Id))),other=unwatched(this.allItems.filter(x=>!this.isAnime(x.Id)));pool=anime.length&&other.length?(Math.random()<.5?anime:other):anime.length?anime:other;}
       if(!pool?.length)return toast('Your library is empty');
       return await this.openItem(pool[Math.floor(Math.random()*pool.length)].Id);
-    }catch(error){this.shuffleNotice('Couldn’t load random picks. Please try again in a moment.');console.warn('Random pick:',error.message);}
+    }catch(error){this.shuffleNotice(phase==='open'?'Couldn’t open that title. Try another pick.':'Couldn’t load random picks. Please try again in a moment.');console.warn('Random pick:',error.message);}
     finally{this.shuffleBusy=false;if(button){button.disabled=false;button.removeAttribute('aria-busy');button.title='Pick something random';}}
   },
 
@@ -1969,13 +1970,15 @@ function pickShuffleSource() {
   });
 }
 // A random popular anime that isn't already on your list (completed, watching, dropped…).
-async function popularUnwatchedPool() {
-  const mine=Tracker.loggedIn()?await Tracker.list('',0,500).then(r=>r.entries).catch(()=>[]):[],onList=new Set();
+async function popularUnwatchedPool({skipList=false}={}) {
+  const mine=!skipList&&Tracker.loggedIn()?await Tracker.list('',0,500).then(r=>r.entries).catch(()=>[]):[],onList=new Set();
   for(const e of mine){if(!e.anime||e.status==='planned')continue;onList.add(String(e.anime.id));for(const t of e.anime.titles||[])if(titleKey(t))onList.add(titleKey(t));}
+  const eligible=page=>{const safe=sfw(page),fresh=safe.filter(a=>!onList.has(String(a.id))&&!(a.titles||[]).some(t=>onList.has(titleKey(t))));return fresh.length?fresh:safe;};
+  const remembered=eligible(Kitsu.recentDiscovery?.()||[]);if(remembered.length)return remembered;
   const start=Math.floor(Math.random()*25);
   // A filtered or sparse page is not an exhausted catalog. Try a bounded set of different pages.
   for(const shift of [0,7,13]){
-    const {items=[]}=await Kitsu.browse({sort:'popular'},((start+shift)%25)*20,20),page=sfw(items);
+    const {items=[]}=await Kitsu.browse({sort:'popular'},((start+shift)%25)*20,20),page=eligible(items);
     if(!page.length)continue;
     const fresh=page.filter(a=>!onList.has(String(a.id))&&!(a.titles||[]).some(t=>onList.has(titleKey(t))));
     return fresh.length?fresh:page;

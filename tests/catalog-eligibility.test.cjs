@@ -24,3 +24,12 @@ test('TVDB logo index accepts only clearlogo assets belonging to the exact mappe
  let reads=0;const ctx={URL,URLSearchParams,Map,Set,Date,console,setTimeout,clearTimeout,window:{native:{get:async()=>({}),set:async()=>{}}},testHttp:async (url,options)=>{reads++;assert.equal(options.allowChallenge,false);assert.equal(url,'https://thetvdb.com/dereferrer/series/352408');return '<img src="https://artworks.thetvdb.com/banners/v4/series/352408/clearlogo/a.png"><img src="https://artworks.thetvdb.com/banners/v4/series/999/clearlogo/b.png"><img src="https://artworks.thetvdb.com/banners/v4/series/352408/posters/c.png">';}};
  const api=vm.runInNewContext(source+';http=testHttp;AniZip',ctx);assert.deepEqual(Array.from(await api.clearlogos(352408)),['https://artworks.thetvdb.com/banners/v4/series/352408/clearlogo/a.png']);await api.clearlogos(352408);assert.equal(reads,1);assert.equal((await api.clearlogos('../other')).length,0);assert.equal(reads,1);
 });
+
+test('Random public seed contains only verified popular titles with content metadata and expires after ten minutes',async()=>{
+ const {Kitsu,AniList}=fixture();AniList.gql=async()=>({byId:{media:[{id:1,type:'ANIME',format:'TV'}]}});
+ const good=row(1);good.attributes.popularityRank=5;good.relationships.categories={data:[{id:'cat'}]};
+ await Kitsu.discoveryData({data:[good],included:[mapping('m1','anilist/anime',1),{id:'cat',type:'categories',attributes:{title:'Action'}}]});
+ assert.equal(Kitsu.recentDiscovery().length,1);assert.equal(Kitsu.recentDiscovery()[0].genres[0],'Action');Kitsu.discoveryPool.get('1').at-=600001;assert.equal(Kitsu.recentDiscovery().length,0);
+ AniList.gql=async()=>{throw Error('Rate limited');};const bad=row(2);bad.attributes.popularityRank=2;bad.relationships.categories={data:[]};await assert.rejects(Kitsu.discoveryData({data:[bad],included:[mapping('m2','anilist/anime',2)]}));assert.equal(Kitsu.discoveryPool.size,0);
+ Kitsu.rememberDiscovery([row(3)],[]);assert.equal(Kitsu.discoveryPool.size,0);
+});

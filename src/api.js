@@ -405,6 +405,13 @@ const Kitsu = {
       url: `https://kitsu.app/anime/${a.slug || d.id}`,
     };
   },
+  discoveryPool:new Map(),
+  recentDiscovery(){const now=Date.now();for(const [id,hit] of this.discoveryPool)if(now-hit.at>600000)this.discoveryPool.delete(id);return [...this.discoveryPool.values()].map(hit=>hit.anime);},
+  rememberDiscovery(rows,included){
+    const cats=new Map((included||[]).filter(x=>x.type==='categories').map(x=>[String(x.id),x.attributes?.title]));
+    for(const row of rows){const rank=Number(row.attributes?.popularityRank);if(!Number.isInteger(rank)||rank<1||rank>500||!Array.isArray(row.relationships?.categories?.data))continue;const anime={...this.toAnime(row),genres:(row.relationships?.categories?.data||[]).map(c=>cats.get(String(c.id))).filter(Boolean)};this.discoveryPool.set(String(row.id),{at:Date.now(),anime});}
+    while(this.discoveryPool.size>300)this.discoveryPool.delete(this.discoveryPool.keys().next().value);
+  },
   async discoveryData(response){
     if(!ANIME_ONLY)return response.data||[];
     let rows=(response.data||[]).filter(d=>String(d.attributes?.subtype||'').toLowerCase()!=='music');
@@ -415,7 +422,7 @@ const Kitsu = {
       rows=rows.map(d=>exact.has(String(d.id))?{...d,relationships:{...d.relationships,mappings:exact.get(String(d.id)).relationships?.mappings}}:d);
       response={...response,included:[...(response.included||[]),...(extra.included||[])]};
     }
-    return CatalogEligibility.filter(rows,response.included||[]);
+    const eligible=await CatalogEligibility.filter(rows,response.included||[]);this.rememberDiscovery(eligible,response.included||[]);return eligible;
   },
   async search(text, limit = 20) {
     const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit, include: 'mappings' })}`);
