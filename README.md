@@ -1,75 +1,105 @@
 <p align="center">
-  <img src="docs/assets/readme-header.svg" alt="AniDeck — Your anime, on deck." width="100%">
+  <img src="docs/assets/readme-header.svg" alt="AniDeck — Your anime, on deck. Discover, watch, track, connect." width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/Machoist/anideck/releases"><strong>Downloads</strong></a> &nbsp;·&nbsp;
-  <a href="#getting-started">Getting started</a> &nbsp;·&nbsp;
-  <a href="https://github.com/Machoist/anideck/issues">Feedback</a> &nbsp;·&nbsp;
-  <a href="https://ko-fi.com/machorp">Support AniDeck</a>
+  <strong>A home for your next watch—and the people you share it with.</strong>
 </p>
 
-AniDeck brings anime discovery, watching, tracking, and friends together in one Windows app. Build a home screen around your watching habits, keep your lists in sync, and find your next watch with your circle.
+<p align="center">
+  <a href="#get-anideck">Get AniDeck</a> &nbsp;·&nbsp;
+  <a href="#a-look-inside">A look inside</a> &nbsp;·&nbsp;
+  <a href="#make-it-your-deck">Features</a> &nbsp;·&nbsp;
+  <a href="docs/DEVELOPMENT.md">Build from source</a> &nbsp;·&nbsp;
+  <a href="https://github.com/Machoist/anideck/issues">Feedback</a>
+</p>
 
-> **In development.** A public installer has not been released yet. Downloads will appear on the [Releases page](https://github.com/Machoist/anideck/releases) when ready. Experimental [Mac test builds](docs/MAC-TESTING.md) are being prepared for Intel and Apple Silicon.
+AniDeck brings anime discovery, playback, tracking, and conversation into one desktop app. Pick up your queue, find something new, shape a profile around your favorites, and plan a watch with your circle.
 
-## On your deck
+**Windows preview · In active development · AniList & Kitsu · Optional local tracking**
 
-| Feature | What it brings |
+## Get AniDeck
+
+AniDeck is currently in testing. **There is no public release installer yet.** Public downloads will appear on the [Releases page](https://github.com/Machoist/anideck/releases).
+
+| Platform | Availability |
 | :--- | :--- |
-| **Make Home yours** | Arrange decks and widgets for your queue, tonight’s picks, quick logging, and shows you’re almost finished with. |
-| **Keep your place** | Save lists and episode progress on your device, or connect AniList or Kitsu to sync them. |
-| **Find the next one** | Explore titles, browse discovery shelves, or let shuffle choose a watch. |
-| **Settle in** | Use subtitles, episode navigation, playback controls, and compatible TV playback from your PC. |
-| **Bring your friends** | Message your circle, share anime cards, compare tastes, and agree on your next watch. |
-| **Connect your library** | Add Jellyfin if you use it. Your own media server is optional. |
+| **Windows · x64** | Primary desktop target. Preview installers are available through successful [Windows build workflow runs](https://github.com/Machoist/anideck/actions/workflows/check.yml). GitHub sign-in is required to download Actions artifacts. |
+| **macOS · Apple Silicon & Intel** | Experimental test builds. Physical Mac verification is still pending; see [Mac testing](docs/MAC-TESTING.md). |
 
-## Getting started
+Installed builds do not require Node.js, terminal commands, or a self-hosted backend. When a public update is available, AniDeck can point you to its GitHub release.
 
-Once the Windows app is available:
+## A look inside
 
-1. **Choose how to track.** Continue without an account to save progress on this device, or connect AniList or Kitsu to sync your list.
-2. **Make it social, optionally.** The next step offers an AniDeck profile. Choose a handle, sign in with an existing AniDeck key, or select Skip for now; playback and local tracking remain available.
-3. **Arrange your deck.** Choose the Home widgets and collections you want close by.
-4. **Find your people.** Open Friends, choose a handle, and add someone by handle or friend code.
-5. **Start watching.** Pick a title, choose an available source, and continue where you left off.
+<p align="center">
+  <img src="docs/assets/preview-home.png" alt="AniDeck Home preview with a continue-watching queue and upcoming episode widget" width="100%">
+</p>
+<p align="center"><sub>Home keeps your next episode and upcoming shows close by.</sub></p>
 
-The installed app will not require Node.js, terminal commands, or your own backend.
+| Your profile | Your watchlist |
+| :---: | :---: |
+| <img src="docs/assets/preview-profile.png" alt="Profile preview with a level, milestone, most-watched genres, About me and favorites" width="100%"> | <img src="docs/assets/preview-list.png" alt="Watchlist editor with status, episode progress and a personal score" width="100%"> |
+| A place for your favorites, introduction, and watching milestones. | Progress, status, and ratings in one place. |
 
-### Your lists and library
+<details>
+<summary><strong>More: discussions and review cards</strong></summary>
 
-Settings → Account offers a preview before importing your device watchlist into AniList or Kitsu. Choose titles to import; existing destination entries and your local list are preserved.
+<p><img src="docs/assets/preview-discussions.png" alt="Title discussions with separate topics and reply counts" width="100%"></p>
+<p><img src="docs/assets/preview-review.png" alt="Shareable activity and taste cards for a selected period" width="100%"></p>
 
-Connect Jellyfin only in Settings → Account. Its dedicated library supports your private media, including non-anime. It stays separate from global anime search, Home recommendations and Friends activity.
+</details>
 
-### Discussion
+<sub>Captured from the desktop app with an isolated demo profile and sample data. Screens are previews; availability and artwork depend on connected services. Anime artwork belongs to its respective owners.</sub>
 
-An AniDeck profile enables public AniDeck title conversations without an external tracker. Public AniList threads can be read without signing in; replying and liking require AniList. When both accounts are available, Discussion offers a source switch.
+## Make it your deck
 
-### Watching on TV
+| Discover & settle in | Keep it personal |
+| :--- | :--- |
+| **A Home that fits you.** Arrange widgets for your queue, tonight’s picks, upcoming episodes, and your backlog. | **Tracking your way.** Keep a list on this device, or connect AniList or Kitsu for progress, status, and rating sync. |
+| **Find the next one.** Explore discovery shelves, browse titles, or let Deal me a show choose from your planning list. | **A profile with personality.** Add a picture, banner, formatted About me, timezone, and up to eight favorite anime. |
+| **A focused player.** Episode navigation, subtitles, playback controls, and compatible browser-based TV playback. | **Your watching, in cards.** Explore your activity, genres, milestones, and shareable review cards. |
+| **Your own library.** Connect an optional Jellyfin server in Settings → Account. Its media stays separate from anime discovery and Social. | **Your people, on deck.** Send messages, share titles, compare tastes, and make watch plans. Title discussions have separate topics and replies. |
 
-Open Settings → TV and follow the connection steps in your TV’s browser. Keep the PC and TV on the same network. Compatible playback can be controlled from AniDeck on the PC; browser and codec support vary by device.
+### Start in a few steps
 
-### Making watch plans
+1. **Choose your tracker.** Connect AniList or Kitsu, or continue with a device-only list.
+2. **Create your AniDeck profile.** Choose a handle, sign in with your existing private key, or skip for now.
+3. **Make Home yours.** Arrange your widgets and pick a title. Episodes appear when a streaming source returns a matching episode list.
+4. **Find your circle.** Open Social to add friends, send a message, or share a watch plan.
 
-Share a title and time with a friend. They can accept, decline, or suggest another time. Watch invitations save a shared plan; synchronized watch parties are not included yet.
+### Bring your list with you
 
-## Privacy and connected services
+In **Settings → Account**, review your local list before sending selected titles to AniList or Kitsu. The review distinguishes new entries from existing entries and eligible progress updates. Your local list is retained; existing destination entries are not blindly replaced.
 
-AniDeck profiles are optional, including when you use a local watchlist. Choose up to eight favorite anime and arrange your personal profile shelf. Favorites belong to AniDeck and return on other devices with your profile; they do not change provider favorites or watchlist status. Edit your AniDeck display name, picture and bio from your profile or Settings → Account. These details are visible to people opening your profile, separately from watcher-card privacy. A standalone profile uses a private recovery key available in Settings → Account → Sign-in & recovery; keep it safe to restore your Friends profile on another device. Local watchlists stay on the device and are separate from connected tracker lists. You choose who can see your watcher card, and only accepted friends can message you. Social profiles and messages are stored by AniDeck; messages are not end-to-end encrypted. Desktop message alerts are optional.
+### Keep the conversation going
 
-Anime information, artwork, and streaming sources come from connected services and third-party providers. Availability depends on those services. Jellyfin playback uses the library you connect.
+AniDeck discussions use your AniDeck profile. Public AniList forums are also readable; AniList sign-in is required for replying or liking there. Social supports friends and message requests subject to the recipient’s privacy setting. Accepting a message request opens chat without automatically adding a friend.
 
-## Feedback and support
+Watch plans let someone accept, decline, or suggest a time. They are shared plans; synchronized watch parties are not included.
 
-Found a bug or have an idea? [Open an issue](https://github.com/Machoist/anideck/issues) and describe what happened, what you expected, and your app version. Keep passwords, tokens, and private server addresses out of reports.
+## Accounts & privacy
 
-If you’d like to support development, you can [support AniDeck on Ko-fi](https://ko-fi.com/machorp).
+- **An AniDeck profile is optional.** Local watching and tracking remain available without one.
+- **Your private key signs you in on another device.** Keep it safe. It restores your AniDeck identity; a local watchlist remains on its original device.
+- **Profile details and watcher-card sharing are separate.** Your introduction and favorite shelf are visible to people opening your profile; watcher-card visibility has its own controls.
+- **Messages are stored by AniDeck and are not end-to-end encrypted.** Recipient privacy settings control message requests. Desktop alerts are optional.
+- **Jellyfin stays in its own library.** Private library titles do not feed global anime search, recommendations, or friends’ activity.
+
+Metadata, artwork, subtitles, and streaming availability depend on external services. AniDeck is not affiliated with AniList, Kitsu, Jellyfin, or the third-party streaming providers. A catalog listing does not guarantee a playable stream. Use media only where you have the right to access it.
+
+## Help shape the next chapter
+
+[Report a bug or suggest an improvement](https://github.com/Machoist/anideck/issues). Include your app version, the steps to reproduce, and what you expected. Remove private keys, tokens, and server addresses from screenshots and reports.
+
+For local setup and contribution checks, start with the [development guide](docs/DEVELOPMENT.md). The [worklist](WORKLIST.md) records completed work and remaining verification. The package is marked `UNLICENSED`; this repository does not currently grant a reuse license.
+
+If you would like to support development, [support AniDeck on Ko-fi](https://ko-fi.com/machorp).
 
 ---
 
 <p align="center">
-  <a href="docs/DEVELOPMENT.md">Build from source</a> &nbsp;·&nbsp;
+  <a href="docs/DEVELOPMENT.md">Development</a> &nbsp;·&nbsp;
+  <a href="docs/MAC-TESTING.md">Mac testing</a> &nbsp;·&nbsp;
   <a href="server/README.md">Self-hosting</a> &nbsp;·&nbsp;
   <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a>
 </p>

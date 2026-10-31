@@ -1,5 +1,20 @@
 # AniDeck worklist
 
+## 30 October — GitHub presentation refresh
+
+- Rebuilt README around an original AniDeck SVG hero, clear navigation, five demo screenshots, concise feature groups, setup, imports, Social, account/privacy explanations and contribution links. AniView used only as a presentation reference; no copied branding, text or assets. Corrected stale Friends naming, profile customization location, message-request consent and reviewed progress-update descriptions.
+- Verified via connected GitHub releases read that no public releases exist. Windows links to the actual Test build workflow; macOS remains experimental and physically unverified. No fabricated download/version/support claims or new release/tag/deployment. Source remains UNLICENSED.
+- GitHub Markdown API rendering and isolated desktop1240/narrow420 preview checks pass image decoding and horizontal-fit checks. Original SVG parses; all repository-local README links exist. Five sample-profile screenshots reviewed; provenance in docs/assets/README.md. Existing untracked readme-preview.html preserved. This documentation-only step does not rebuild the app; current installer remains preview-86c5f4b,564 tests passed.
+
+## 30 October — consistent wheel gestures and cold episode artwork
+
+Current installer/portable: **preview-86c5f4b**, runtime source **86c5f4b**, **564 tests pass**. Package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass.
+
+- Keep short easing, but latch input mode for each gesture so large/small deltas do not alternate eased/native movement mid-burst. Native movement, middle-button scrolling and scroll anchoring take ownership without old animation offsets snapping back. First wheel cancels entrance animations; late Home refreshes wait until scrolling is quiet. Precision input and reduced motion remain native. No physical input latency guarantee.
+- Episode rows start with a stable neutral frame rather than temporary title artwork. Cached loaded episode stills appear immediately on return; independent metadata sources fill cold rows, and final title fallback waits for both sources. Cache bounded to300 loaded stills. No fabricated episode grid or availability bypass.
+- Four added regressions; full564 pass. Final packaged native thumbnail fixtures pass independent stalled-source and failed-artwork checks. Real native-input fixture confirms120+12 finishes132, external700 offset is retained, middle-button cancels easing, previous hover/keyboard regressions remain passing. Evidence work/scroll-ownership-live.log and scroll-ownership-final-native.log; results outputs/scroll-ownership-final/live-result.json. These use isolated sample DOM/data, not physical hardware acceptance.
+- No user account/list/message changes, installed-app replacement, release/tag/deployment/migration. Desktop/anitrack and unrelated readme-preview.html preserved. Remaining physical/listening/account tests stay pending; Gio and physical Mac remain deferred.
+
 ## 30 October — hover ownership and short fluid wheel motion
 
 Current installer/portable: **preview-b7bdb2f**, runtime source **b7bdb2f**, **560 tests pass**. Final package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass. Installer: `outputs/AniDeck-preview-b7bdb2f-Setup.exe`.
