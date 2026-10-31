@@ -443,6 +443,16 @@ const Kitsu = {
     const r = await this.call(`/edge/anime/${id}`);
     return this.toAnime(r.data);
   },
+  relationCache:new Map(),
+  relations(id){
+    id=String(id);if(!/^[1-9][0-9]*$/.test(id))return Promise.reject(Error('Related titles need an exact Kitsu identity'));
+    const hit=this.relationCache.get(id);if(hit&&Date.now()-hit.at<600000)return hit.promise;
+    const promise=this.call(`/edge/anime/${id}/media-relationships${qs({include:'destination','page[limit]':20})}`).then(r=>{
+      const anime=new Map((r.included||[]).filter(x=>x.type==='anime').map(x=>[String(x.id),this.toAnime(x)]));
+      return (r.data||[]).flatMap(row=>{const dest=row.relationships?.destination?.data,a=dest?.type==='anime'&&anime.get(String(dest.id));return a?[{relation:String(row.attributes?.role||'other').toUpperCase(),anime:a}]:[];});
+    }).catch(error=>{this.relationCache.delete(id);throw error;});
+    if(this.relationCache.size>=100)this.relationCache.delete(this.relationCache.keys().next().value);this.relationCache.set(id,{at:Date.now(),promise});return promise;
+  },
   // Episode titles, thumbnails, synopses and air dates (for title pages of shows not in your library).
   // Cached for the session (also while in flight), so the page can start fetching before it's drawn.
   epCache: new Map(),
@@ -805,13 +815,14 @@ const AniList = {
     const mediaId = await this.mediaId(id);
     const d = await this.gql(`query($id:Int){ Media(id:$id){ id idMal title{ romaji english native } synonyms bannerImage coverImage{ extraLarge large color }
       description(asHtml:false) genres averageScore status season seasonYear episodes duration format studios(isMain:true){ nodes{ name } } nextAiringEpisode{ episode airingAt }
-      streamingEpisodes{ title thumbnail } } }`, { id: mediaId }, false);
+      streamingEpisodes{ title thumbnail } relations{ edges{ relationType(version:2) node{ id idMal type format status seasonYear episodes title{ romaji english native userPreferred } synonyms coverImage{ extraLarge large } siteUrl averageScore genres } } } } }`, { id: mediaId }, false);
     const m = d?.Media;
     if (!m) return null;
     const t = m.title || {};
     const value = {
       id: m.id, malId: m.idMal || null,
       title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'', titles:[t.romaji,t.english,t.native,...(m.synonyms||[])].filter(Boolean),
+      relations: Array.isArray(m.relations?.edges)?this.relatedMedia(m.relations.edges):null,
       synopsis: m.description || '', banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
       genres: m.genres || [], score: m.averageScore || null, status: (m.status || '').toLowerCase().replace(/_/g, ' '),
       season: m.season && m.seasonYear ? `${m.season[0]}${m.season.slice(1).toLowerCase()} ${m.seasonYear}` : '', year: m.seasonYear ? String(m.seasonYear) : '',
@@ -993,10 +1004,12 @@ const AniList = {
   },
   // "al:123" -> Kitsu anime id, so AniList list entries can open the normal show page.
   // Prequels, sequels, spin-offs… of a show (public data, no sign-in needed).
+  relatedMedia(edges){return (edges||[]).filter(e=>e.node?.type==='ANIME').map(e=>({relation:e.relationType,anime:this.toAnime(e.node)}));},
   async relations(mediaId) {
+    const cached=Object.values(this.detailsCache).find(hit=>Date.now()-hit.at<30*60000&&String(hit.value?.id)===String(mediaId)&&Array.isArray(hit.value.relations));if(cached)return cached.value.relations;
     const d = await this.gql(`query($id:Int){ Media(id:$id){ relations{ edges{ relationType(version:2) node{ id idMal type format status seasonYear episodes
       title{ romaji english native userPreferred } synonyms coverImage{ extraLarge large } siteUrl averageScore genres } } } } }`, { id: mediaId }, false);
-    return (d?.Media?.relations?.edges || []).filter((e) => e.node?.type === 'ANIME').map((e) => ({ relation: e.relationType, anime: this.toAnime(e.node) }));
+    return this.relatedMedia(d?.Media?.relations?.edges);
   },
   // Forum threads attached to a show, newest first. `search` narrows it down (e.g. "Episode 5").
   async threads(mediaId, search, perPage = 25) {

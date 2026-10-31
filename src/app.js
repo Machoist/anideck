@@ -915,6 +915,7 @@ const App = {
   async act(name, d, el) {
     switch (name) {
       case 'retryListEntry': return TrackingRecovery.retry(true);
+      case 'retryRelated': return fillRelated(this.renderId);
       case 'retry': if(this.view==='home')QueueRecovery.tries=0;return this.refresh();
       case 'back': return this.back();
       case 'series': return this.openItem(d.id, d.season);
@@ -2244,11 +2245,15 @@ function preconnectImageHosts() {
 // Library episodes Jellyfin has no image for: use Kitsu's still for that episode instead of the show's backdrop.
 function setEpisodeThumb(row,sources){
  const thumb=row.querySelector('.thumb'),img=thumb?.querySelector('img');if(!img||!row.isConnected)return;
- const fallback=thumb.dataset.fallback;if(fallback&&!thumb.classList.contains?.('thumb-pending')){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
- const candidates=[...new Set([...sources,thumb.dataset.poster].filter(Boolean))],key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
- const next=()=>{if(!row.isConnected||img._thumbKey!==key)return;const url=candidates.find(u=>!img._thumbFailed.has(u));if(!url){img.style.visibility='hidden';return;}img.hidden=false;img.style.visibility='';
- const ready=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');thumb.classList.remove('thumb-pending');const artKey=thumb.dataset.episodeArt;if(artKey&&url!==fallback&&url!==thumb.dataset.poster){setEpisodeThumb.cache??=new Map();setEpisodeThumb.cache.set(artKey,url);if(setEpisodeThumb.cache.size>300)setEpisodeThumb.cache.delete(setEpisodeThumb.cache.keys().next().value);}}};img.onload=ready;img.onerror=()=>{if(setEpisodeThumb.cache?.get(thumb.dataset.episodeArt)===url)setEpisodeThumb.cache.delete(thumb.dataset.episodeArt);img._thumbFailed.add(url);img.classList.remove('ready');next();};
+ const episodeOnly=thumb.dataset.episodeOnly==='1',fallback=episodeOnly?'':thumb.dataset.fallback;if(episodeOnly)thumb.style.backgroundImage='';if(fallback&&!thumb.classList.contains?.('thumb-pending')){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
+ const candidates=[...new Set([...sources,episodeOnly?'':thumb.dataset.poster].filter(u=>u&&(!episodeOnly||(u!==thumb.dataset.fallback&&u!==thumb.dataset.poster))))],key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
+ const next=()=>{if(!row.isConnected||img._thumbKey!==key)return;const url=candidates.find(u=>!img._thumbFailed.has(u));if(!url){img.style.visibility='hidden';if(episodeOnly){thumb.classList.remove('thumb-pending');thumb.classList.add('thumb-unavailable');}return;}img.hidden=false;img.style.visibility='';
+ const ready=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');thumb.classList.remove('thumb-pending');thumb.classList.remove('thumb-unavailable');const artKey=thumb.dataset.episodeArt;if(artKey&&url!==fallback&&url!==thumb.dataset.poster){setEpisodeThumb.cache??=new Map();setEpisodeThumb.cache.set(artKey,url);if(setEpisodeThumb.cache.size>300)setEpisodeThumb.cache.delete(setEpisodeThumb.cache.keys().next().value);}}};img.onload=ready;img.onerror=()=>{if(setEpisodeThumb.cache?.get(thumb.dataset.episodeArt)===url)setEpisodeThumb.cache.delete(thumb.dataset.episodeArt);img._thumbFailed.add(url);img.classList.remove('ready');next();};
  if(img.getAttribute('src')!==url){img.classList.remove('ready');img.src=url;}if(img.complete&&img.naturalWidth)ready();};next();thumb.classList.remove('skel');
+}
+function retryEpisodeMetadata(rows,rid,retry){
+ const owner=rows[0];if(!owner||owner._metadataRetry)return;owner._metadataRetry=true;
+ setTimeout(()=>{if(!App.stale(rid)&&owner.isConnected)Promise.resolve(retry()).catch(()=>{});},1200);
 }
 async function fillMissingThumbs(rid) {
   const rows = [...document.querySelectorAll('.ep-list .ep[data-kthumb]')];
@@ -3331,6 +3336,13 @@ const REL_ORDER = ['PREQUEL', 'SEQUEL', 'PARENT', 'SIDE_STORY', 'SPIN_OFF', 'ALT
 const REL_LABELS = { SPIN_OFF: 'Spin-off', SIDE_STORY: 'Side story', PARENT: 'Main story' };
 const relLabel = (r) => REL_LABELS[r] || r.charAt(0) + r.slice(1).toLowerCase().replace(/_/g, ' ');
 const relationsCache = {};
+async function titleRelations(rid){
+ const media=App.showAl,kid=App.showCtx?.match?.id,key=media?.id;
+ if(key&&Array.isArray(media.relations))return {id:key,rels:media.relations};
+ try{const id=key||await App.showMediaId();const rels=relationsCache[id]||(relationsCache[id]=await AniList.relations(id));return {id,rels};}
+ catch(error){if(App.stale(rid))throw error;if(kid&&/^[1-9][0-9]*$/.test(String(kid))&&typeof Kitsu!=='undefined'&&Kitsu.relations)return {id:kid,rels:await Kitsu.relations(kid)};throw error;}
+}
+
 
 // "Related" in the show page's left column: prequels, sequels, spin-offs from AniList.
 // Coming soon: the earlier seasons go behind the cover (the story so far), each opening its season.
@@ -3352,14 +3364,13 @@ async function soonPrequels(rid) {
 
 async function fillRelated(rid) {
   try {
-    const id = await App.showMediaId();
-    const rels = relationsCache[id] || (relationsCache[id] = await AniList.relations(id));
+    const {id,rels}=await titleRelations(rid);
     const box = $('#related-box');
     if (App.stale(rid) || !box) return;
     const rank = (r) => { const i = REL_ORDER.indexOf(r); return i < 0 ? 99 : i; };
     // Prequels/sequels that are other seasons of this same library show are already listed (from Jellyfin).
     const sameShow = (r) => ['PREQUEL', 'SEQUEL'].includes(r.relation) && App.libIndex?.find(r.anime)?.Id === App.showCtx?.id;
-    const list=box.querySelector('.rel-list');if(!list)return;
+    const list=box.querySelector('.rel-list');if(!list)return;list.querySelectorAll('[data-related-state]').forEach(node=>node.remove());
     list.querySelectorAll('[data-related-generated]').forEach(card=>card.remove());
     const key=value=>String(value||'').replace(/^al:/,'');
     const seen=new Set([key(id),...[...list.querySelectorAll('[data-id]')].map(card=>key(card.dataset.id))]);
@@ -3372,7 +3383,8 @@ async function fillRelated(rid) {
     });
     list.insertAdjacentHTML('beforeend', cards.join(''));
     box.hidden = !list.children.length;
-  } catch { /* not on AniList, or offline: just leave the section out */ }
+  } catch {const box=$('#related-box');if(!App.stale(rid)&&box){const list=box.querySelector('.rel-list');if(list&&!list.children.length){list.innerHTML='<div class="related-unavailable" data-related-state><span>Related titles couldn’t load.</span><button class="btn ghost sm" data-act="retryRelated">'+icon('refresh')+'Try again</button></div>';box.hidden=false;}} }
+
 }
 
 // "now", "5m", "3h", "2d", "9mo"… for discussion comments.
@@ -4217,7 +4229,7 @@ const Views = {
     const epRows = epNums.map((n) => {
       const played = n <= watchedEps, isNext = n === nextEpNum, initialThumb=setEpisodeThumb.cache?.get(a.id+'|'+n)||al?.streams?.[n]?.thumb||'';
       return `<div class="ep ${isNext ? 'next' : ''} ${played ? 'played' : ''}" id="ep-row-${n}" data-num="${n}">
-        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb ${initialThumb?'':'thumb-pending'}" data-episode-art="${esc(a.id+'|'+n)}" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" decoding="async" alt="" ${initialThumb?`src="${esc(initialThumb)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
+        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb ${initialThumb?'':'thumb-pending'}" data-episode-only="1" data-episode-art="${esc(a.id+'|'+n)}" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" alt="" ${initialThumb?`src="${esc(initialThumb)}"`:"hidden"}><span class="ep-preview-state"><b>${String(n).padStart(2,'0')}</b><small>Preview unavailable</small></span><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
         <div class="ep-info"><div class="ep-num">Episode ${n}${isNext ? ' <span class="up-next">UP NEXT</span>' : ''} <span class="ep-meta"></span></div>
           <div class="ep-title"></div>
           <div class="ep-overview muted">Streams from <span class="ep-sub-srv">${esc(shortServerName(remServer))}</span> · ${audioMode.toUpperCase()}</div></div>
@@ -4336,7 +4348,7 @@ const Views = {
       // Each detail from the best source that has it: ani.zip (TheTVDB), then Kitsu, then AniList's streaming episodes.
       if (z) e = { ...(e || {}), title: z.title || e?.title, synopsis: z.overview || e?.synopsis, airdate: z.airDate || e?.airdate, length: z.runtime || e?.length, thumb: z.image || e?.thumb };
       if (st?.title && !e?.title) row.querySelector('.ep-title').textContent = st.title;
-      const sources=[z?.image,byNum.get(n)?.thumb,st?.thumb,settled===2?row.querySelector('.thumb')?.dataset.fallback:null].filter(Boolean);if(sources.length)setEpisodeThumb(row,sources);
+      const sources=[z?.image,byNum.get(n)?.thumb,st?.thumb].filter(Boolean);if(sources.length||settled===2)setEpisodeThumb(row,sources);
       if (!e) continue;
       if (e.title && !/^episode \d+$/i.test(e.title)) row.querySelector('.ep-title').textContent = e.title;
       row.querySelector('.ep-meta').textContent = [e.length ? `${e.length} min` : '', e.airdate || ''].filter(Boolean).join(' · ');
@@ -4348,6 +4360,7 @@ const Views = {
       Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;}).finally(()=>{settled++;apply();}),
       AniZip.get(App.showAl?.id).then(value=>{zip=value;}).finally(()=>{settled++;apply();})
     ]);
+    if(!zip&&!App.stale(rid)){const alId=App.showAl?.id;if(alId)retryEpisodeMetadata(rows,rid,async()=>{zip=await AniZip.get(alId);apply();});}
   },
 
   async schedule() {

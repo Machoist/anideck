@@ -4108,3 +4108,10 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
 
 /* Input takes precedence over entrance effects, without scanning every card on each wheel event. */
 #main.manual-scroll .card-in,#main.manual-scroll .card-in *{animation:none!important}
+
+/* Missing episode previews stay honest and distinct from the show backdrop. */
+.ep-preview-state{display:none;position:absolute;left:18px;bottom:15px;pointer-events:none;color:var(--muted)}
+.thumb-unavailable .ep-preview-state{display:flex;flex-direction:column;gap:5px}
+.ep-preview-state b{font-size:clamp(28px,4vw,52px);line-height:1;font-weight:800;color:rgba(183,168,255,.24);font-variant-numeric:tabular-nums}
+.ep-preview-state small{font-size:11px;letter-spacing:.03em}
+.related-unavailable{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:12px}
