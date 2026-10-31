@@ -85,6 +85,24 @@ Watch plans let someone accept, decline, or suggest a time. They are shared plan
 
 Metadata, artwork, subtitles, and streaming availability depend on external services. AniDeck is not affiliated with AniList, Kitsu, Jellyfin, or the third-party streaming providers. A catalog listing does not guarantee a playable stream. Use media only where you have the right to access it.
 
+## Repository guide
+
+AniDeck is an Electron desktop app with a separate social service. Its folders follow that architecture:
+
+```text
+src/          App interface, catalog adapters, player, and styles
+main.js       Electron window, network, storage, and native integration
+preload.js    Restricted bridge between the interface and desktop process
+server/       Social service and database schema
+build/        Desktop icons and packaging resources
+scripts/      Build guards, package audits, and native checks
+tests/        Automated behavior and regression tests
+docs/         Development guides and presentation assets
+.github/      Windows/macOS checks and release workflows
+```
+
+Local installers, caches, logs, and scratch previews are excluded from the repository. See the [repository map](docs/agents/REPOSITORY-MAP.md) for feature starting points.
+
 ## Help shape the next chapter
 
 [Report a bug or suggest an improvement](https://github.com/Machoist/anideck/issues). Include your app version, the steps to reproduce, and what you expected. Remove private keys, tokens, and server addresses from screenshots and reports.

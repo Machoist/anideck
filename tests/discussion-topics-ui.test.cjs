@@ -19,3 +19,5 @@ test('late responses from another thread cannot replace the active conversation'
 test('server-filtered thread pages retain nested replies whose parent is on an earlier page',()=>{
  const f=fixture();f.api.mode='thread';f.api.threadSupport=true;f.api.thread=root('a','Topic A');f.api.comments=[{...root('nested','Nested reply'),parent:'earlier-parent'}];f.api.paint();assert(f.node('discussion-feed').innerHTML.includes('Nested reply'));assert(f.node('discussion-feed').innerHTML.includes('an earlier comment'));
 });
+
+test('AniList topic actions retain external/title routes, reply counts and escaped content',async()=>{const f=fixture(),content={innerHTML:''};f.api.seq=2;f.ctx.commentSkeleton=()=>'';f.ctx.AniList={threads:async()=>[{id:7,title:'[Spoilers] <Opening>',replyCount:24}]};await f.api.forum(content,42,2);assert(content.innerHTML.includes('data-url="https://anilist.co/anime/42"'));assert(content.innerHTML.includes('data-act="thread" data-id="7"'));assert(content.innerHTML.includes('&lt;Opening>'));assert(content.innerHTML.includes('<b>24</b>'));assert(!content.innerHTML.includes('<Opening>'));});

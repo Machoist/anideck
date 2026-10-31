@@ -139,7 +139,7 @@ class StreamResolver {
   }
 
   async resolve(params = {}) {
-    const key=JSON.stringify([params.provider,params.title,params.episodeNum,params.audio,params.seasonNumber,params.absoluteEpisodeNum,params.episodeTitle,params.titleAliases||[],params.mediaFormat||'']);
+    const key=JSON.stringify([params.provider,params.title,params.episodeNum,params.audio,params.seasonNumber,params.absoluteEpisodeNum,params.episodeTitle,params.titleAliases||[],params.mediaFormat||'',params.episodeCount||0]);
     const pending=this.pendingStreams.get(key);
     if(params.prefetch)return pending||this.resolveCached(params);
     if(pending)return pending;
@@ -149,7 +149,7 @@ class StreamResolver {
   }
 
   async resolveCached(params = {}) {
-    const key = JSON.stringify([params.provider, params.title, params.episodeNum, params.audio, params.seasonNumber, params.absoluteEpisodeNum, params.episodeTitle, params.titleAliases||[],params.mediaFormat||'']);
+    const key = JSON.stringify([params.provider, params.title, params.episodeNum, params.audio, params.seasonNumber, params.absoluteEpisodeNum, params.episodeTitle, params.titleAliases||[],params.mediaFormat||'',params.episodeCount||0]);
     const saved = this.prefetchedStreams.get(key);
     if (saved && Date.now() - saved.at < 180000) {
       try {

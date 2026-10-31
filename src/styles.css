@@ -4105,3 +4105,6 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
 
 /* Cold episode artwork keeps a stable neutral frame instead of flashing title art. */
 .ep .thumb.thumb-pending{background:linear-gradient(135deg,#211f2a,#18171f)}
+
+/* Input takes precedence over entrance effects, without scanning every card on each wheel event. */
+#main.manual-scroll .card-in,#main.manual-scroll .card-in *{animation:none!important}

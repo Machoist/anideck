@@ -5,7 +5,7 @@ function remotePlaybackProvider(server = activeStreamingServer) { return server 
 const RemoteEpisodes = {
   cache:new Map(),pending:new Map(),timeoutMs:6000,
   read(p){return window.native.streamEpisodes(p);},
-  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[],p.mediaFormat||'']);},
+  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[],p.mediaFormat||'',p.episodeCount||0]);},
   peek(p){const hit=this.cache.get(this.key(p));return hit&&hit.until>Date.now()?hit.state:null;},
   clear(p){this.cache.delete(this.key(p));},
   failure(error){const detail=String(error?.message||'');let reason='unavailable',message='This server couldn’t return its episode list. Try again or choose another server.';if(/ambiguous|exact season|different title/i.test(detail)){reason='matching';message='This server lists multiple versions of the title. AniDeck couldn’t safely choose the right one.';}else if(/timed out|timeout/i.test(detail)){reason='timeout';message='This server took too long to respond. Try again or choose another server.';}else if(/429|rate.limit/i.test(detail)){reason='busy';message='This server is receiving too many requests. Wait a moment before trying again.';}else if(/invalid response|metadata unavailable|episode list unavailable|incomplete/i.test(detail)){reason='incomplete';message='This server returned incomplete episode information. Try again or choose another server.';}return {status:'error',episodes:[],reason,message};},
@@ -854,6 +854,7 @@ const App = {
     this.renderedAt = Date.now();
     clearTimeout(this.spinTimer);
     if (!quiet) {
+      main.classList.remove('manual-scroll');
       // The old page fades back while the new one loads; the spinner only shows if that takes a moment.
       main.classList.add('view-leaving');
       this.spinTimer = setTimeout(() => {
@@ -1646,7 +1647,7 @@ const App = {
     const knownMatch = String(this.showCtx?.match?.id) === String(kitsuId) ? this.showCtx.match : null;
     const movie = knownMatch?.movie === true || movieHint;
     if (movie) episodeNum = 1;
-    const listing=await RemoteEpisodes.load({provider,title,mediaFormat:knownMatch?.mediaFormat||mediaFormat||(movie?'MOVIE':null),titleAliases:knownMatch?.titleAliases||titleAliases,seasonNumber:seasonNumberIn(title)||1,audio});
+    const listing=await RemoteEpisodes.load({provider,title,mediaFormat:knownMatch?.mediaFormat||mediaFormat||(movie?'MOVIE':null),titleAliases:knownMatch?.titleAliases||titleAliases,seasonNumber:seasonNumberIn(title)||1,episodeCount:Number(knownMatch?.episodes)||Number(totalHint)||null,audio});
     if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
     if(listing.status!=='ready')return toast('Couldn’t check this server. Open Episodes & Details to try another server.','bad');
     if(!listing.episodes.includes(episodeNum))return toast('This episode wasn’t found on '+shortServerName(provider)+'. Try another server.');
@@ -2182,7 +2183,7 @@ function posterCard(e) {
   const src = cover || (imgId ? Jellyfin.img(imgId, 'Primary', { fillHeight: 420 }) : '');
   const sub = [entryYear(e) || '', s.Type === 'Movie' ? 'Movie' : si ? (season === 0 ? 'Specials' : `Season ${season}`) : ''];
   return `<button class="card" data-act="${s.Type === 'Movie' ? 'movie' : 'series'}" data-id="${esc(s.Id)}" ${si ? `data-season="${esc(season)}"` : ''}>
-    <div class="poster">${src ? `<img loading="lazy" src="${esc(src)}" alt="">` : `<div class="ph">◆</div>`}
+    <div class="poster">${src ? `<img loading="lazy" decoding="async" src="${esc(src)}" alt="">` : `<div class="ph">◆</div>`}
       ${posterRating(s, season ?? 1)}
       ${pct ? `<div class="bar"><div style="width:${Math.round(pct)}%"></div></div>` : ''}</div>
     <div class="card-title">${esc(entryTitle(e))}</div>
@@ -2195,7 +2196,7 @@ function episodeCard(ep) {
   if (ep.Type === 'Movie') {
     const img = ep.BackdropImageTags?.length ? Jellyfin.img(ep.Id, 'Backdrop', { fillWidth: 560 }) : Jellyfin.img(ep.Id, 'Primary', { fillWidth: 560 });
     return `<button class="card" data-act="playMovie" data-id="${esc(ep.Id)}">
-      <div class="thumb"><img loading="lazy" src="${esc(img)}" alt="">${pct ? `<div class="bar"><div style="width:${Math.round(pct)}%"></div></div>` : ''}</div>
+      <div class="thumb"><img loading="lazy" decoding="async" src="${esc(img)}" alt="">${pct ? `<div class="bar"><div style="width:${Math.round(pct)}%"></div></div>` : ''}</div>
       <div class="card-title">${esc(ep.Name)}</div>
       <div class="card-sub">${esc([ep.ProductionYear, 'Movie'].filter(Boolean).join(' · '))}</div>
     </button>`;
@@ -2205,7 +2206,7 @@ function episodeCard(ep) {
     : ep.ParentBackdropItemId ? Jellyfin.img(ep.ParentBackdropItemId, 'Backdrop', { fillWidth: 560 })
     : Jellyfin.img(ep.SeriesId, 'Backdrop', { fillWidth: 560 });
   return `<button class="card" data-act="play" data-id="${esc(ep.Id)}" data-series="${esc(ep.SeriesId)}">
-    <div class="thumb"><img loading="lazy" src="${esc(img)}" alt="">
+    <div class="thumb"><img loading="lazy" decoding="async" src="${esc(img)}" alt="">
       ${pct ? `<div class="bar"><div style="width:${Math.round(pct)}%"></div></div>` : ''}</div>
     <div class="card-title">${esc(ep.SeriesName)}</div>
     <div class="card-sub">${esc(epLabel(ep))}</div>
@@ -2216,7 +2217,7 @@ function animeCard(a, extra = '', entry = null) {
   const inLib = App.libIndex?.find(a);
   const badge = (inLib ? '<span class="badge in">In library</span>' : '') + (a.rating ? `<span class="badge right rating">★ ${a.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(a.id)}" hidden></span>`);
   return `<article class="card ta-card" tabindex="0" role="link" ${entry?`data-list-status="${esc(entry.status||'current')}" data-list-progress="${Number(entry.progress)||0}"`: ''} data-synopsis="${esc(String(a.synopsis||'').slice(0,4000))}" data-story-meta="${esc([a.subtype,a.year,a.episodes?a.episodes+' eps':''].filter(Boolean).join(' · '))}" data-total="${Number(a.episodes)||0}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
-    <div class="poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}<span class="ta-overlay"><button type="button" class="ta-play" data-ta="play" aria-label="Play next episode" data-tip="Play next episode">${icon('play','fill')}</button><button type="button" class="ta-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></span></div>
+    <div class="poster">${a.poster ? `<img loading="lazy" decoding="async" src="${esc(a.poster)}" alt="">` : '<div class="ph">◆</div>'}${badge}<span class="ta-overlay"><button type="button" class="ta-play" data-ta="play" aria-label="Play next episode" data-tip="Play next episode">${icon('play','fill')}</button><button type="button" class="ta-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></span></div>
     <div class="card-title">${esc(a.title)}</div>
     <div class="card-sub">${esc(extra || [a.subtype, a.year].filter(Boolean).join(' · '))}</div>
   </article>`;
@@ -2944,7 +2945,7 @@ function yourNextHero(queue, failed = false) {
   return `<section class="yn" id="yn" data-queue="${esc(JSON.stringify(queue))}">
     <div class="yn-hero" id="yn-hero">${ynHero(queue[0])}</div>
     <aside class="yn-queue" aria-label="Your queue"><div class="yn-qhead">Your queue <span>${queue.length}</span></div>${queueWatchingCache?.stale?'<small class="yn-cached-note">Saved queue · Reconnecting to your tracker</small>':''}<div class="yn-qlist at-top">
-      ${queue.map((it, i) => `<button class="yn-item ${i ? '' : 'on'}" data-yn="${i}" aria-pressed="${!i}"><span class="yn-thumb">${it.thumb ? `<img class="${it.kind==='remote'&&!it.resolvedBackdrop?'portrait':''}" src="${esc(it.thumb)}" alt="" loading="lazy">` : ''}${it.pct ? `<i style="width:${Math.round(it.pct)}%"></i>` : ''}</span>
+      ${queue.map((it, i) => `<button class="yn-item ${i ? '' : 'on'}" data-yn="${i}" aria-pressed="${!i}"><span class="yn-thumb">${it.thumb ? `<img class="${it.kind==='remote'&&!it.resolvedBackdrop?'portrait':''}" src="${esc(it.thumb)}" alt="" loading="lazy" decoding="async">` : ''}${it.pct ? `<i style="width:${Math.round(it.pct)}%"></i>` : ''}</span>
         <span class="yn-meta"><b>${esc(it.title)}</b><small>${esc(it.ep)}</small><em class="${it.wait != null ? 'wait' : ''}" ${it.wait > 0 ? `data-until="${it.wait}"` : ''}>${esc(it.wait > 0 ? untilText(it.wait) : it.badge)}</em></span></button>`).join('')}
     </div></aside></section>`;
 }
@@ -3056,7 +3057,7 @@ function weekRibbon(items) {
   const card = (x, i) => {
     const a = x.anime, st = airState(x, now), lib = App.libIndex?.find(a);
     return `<button class="wk2-card ${x.at <= now ? 'aired' : ''} ${x === upNext ? 'next' : ''}" ${schAttrs(a)} title="${esc(a.title)}" style="--i:${Math.min(i, 10)}">
-      <span class="wk2-poster">${a.poster ? `<img src="${esc(a.poster)}" alt="" loading="lazy">` : ''}${lib ? '<i class="wk2-lib" title="In your library"></i>' : ''}</span>
+      <span class="wk2-poster">${a.poster ? `<img src="${esc(a.poster)}" alt="" loading="lazy" decoding="async">` : ''}${lib ? '<i class="wk2-lib" title="In your library"></i>' : ''}</span>
       <span class="wk2-info"><span class="wk2-time">${esc(schClock(x.at))}</span><b>${esc(a.title)}</b><small>Episode ${esc(x.episode)}${a.episodes ? ` of ${esc(a.episodes)}` : ''}</small>
         <span class="tl-state ${st.cls}" ${x.at > now ? `data-until="${x.at}"` : ''}>${esc(st.text)}</span></span></button>`;
   };
@@ -3125,7 +3126,7 @@ function mosaicRow(list) {
           ${lead.synopsis ? `<p class="mz-about">${esc(lead.synopsis.replace(SOURCE_NOTE, ''))}</p>` : ''}
           <div class="row gap">${lib ? `<button class="btn primary" data-act="series" data-id="${esc(lib.Id)}">${icon('play', 'fill')} Watch</button>` : ''}<button class="btn ${lib ? 'ghost' : 'primary'}" ${attrs(lead)}>Details</button></div></div>
       </div>
-      <div class="mz-grid">${rest.map((a, i) => `<article class="mz-tile ta-compact" tabindex="0" role="link" ${attrs(a)}><span class="mz-n">${i + 2}</span><img src="${esc(a.poster || '')}" alt="" loading="lazy">
+      <div class="mz-grid">${rest.map((a, i) => `<article class="mz-tile ta-compact" tabindex="0" role="link" ${attrs(a)}><span class="mz-n">${i + 2}</span><img src="${esc(a.poster || '')}" alt="" loading="lazy" decoding="async">
         <span class="mz-tile-text"><b>${esc(a.title)}</b><small>${esc([a.rating ? `★ ${a.rating}%` : '', a.subtype, a.year].filter(Boolean).join(' · '))}</small>
           ${a.synopsis ? `<span class="mz-tile-about">${esc(a.synopsis.replace(SOURCE_NOTE, ''))}</span>` : ''}</span><button type="button" class="ta-compact-more" data-ta="menu" aria-label="More actions for ${esc(a.title)}">${icon('more')}</button></article>`).join('')}</div>
     </section>`;
@@ -3364,7 +3365,7 @@ async function fillRelated(rid) {
     const cards = [...rels].filter((r) => r.anime?.id&&!sameShow(r)).sort((a, b) => rank(a.relation) - rank(b.relation)).filter(r=>{const value=key(r.anime.id);if(seen.has(value))return false;seen.add(value);return true;}).slice(0, 10).map(({ relation, anime: a }) => {
       const meta = [a.subtype, a.year, App.libIndex?.find(a) ? 'In library' : ''].filter(Boolean).join(' · ');
       return `<button class="rel-card" data-related-generated="1" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}">
-        <div class="rel-poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : ''}</div>
+        <div class="rel-poster">${a.poster ? `<img loading="lazy" decoding="async" src="${esc(a.poster)}" alt="">` : ''}</div>
         <div class="rel-text"><span class="rel-badge">${esc(relLabel(relation))}</span><div class="rel-title">${esc(a.title)}</div>${meta ? `<div class="small muted">${esc(meta)}</div>` : ''}</div>
       </button>`;
     });
@@ -3476,7 +3477,7 @@ function scheduleCard(x, now, isNext = false) {
   const time = new Date(x.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   const meta = [`EP ${esc(x.episode)}`, isNext ? 'next' : '', inLib ? '<span class="sch-lib">In library</span>' : ''].filter(Boolean).join(' · ');
   return `<button class="sch-card ${x.at <= now ? 'aired' : ''} ${isNext ? 'next' : ''}" data-act="anime" data-id="${esc(a.id)}" data-mal="${esc(a.malId || '')}" data-titles="${esc(JSON.stringify(a.titles))}" title="${esc(a.title)}${a.episodes ? ` · ${esc(a.episodes)} episodes` : ''}">
-    <div class="sch-poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : ''}</div>
+    <div class="sch-poster">${a.poster ? `<img loading="lazy" decoding="async" src="${esc(a.poster)}" alt="">` : ''}</div>
     <div class="sch-info"><span class="sch-time">${esc(time)}</span><span class="sch-title">${esc(a.title)}</span><span class="sch-ep">${meta}</span></div>
   </button>`;
 }
@@ -3553,7 +3554,7 @@ function schRow(x, now, i, showTime, isNext) {
   return `<div class="tl-row ${x.at <= now ? 'aired' : ''} ${isNext ? 'next' : ''}" style="--i:${Math.min(i, 14)}">
     <span class="tl-time">${showTime ? esc(schClock(x.at)) : ''}</span><span class="tl-dot" aria-hidden="true"></span>
     <button class="tl-card" ${schAttrs(a)} title="${esc(a.title)}">
-      <span class="tl-poster">${a.poster ? `<img loading="lazy" src="${esc(a.poster)}" alt="">` : ''}</span>
+      <span class="tl-poster">${a.poster ? `<img loading="lazy" decoding="async" src="${esc(a.poster)}" alt="">` : ''}</span>
       <span class="tl-info"><b>${esc(a.title)}</b><small>${esc(sub)}</small></span>
       ${lib ? '<span class="tl-lib">In library</span>' : '<span></span>'}
       <span class="tl-state ${st.cls}" ${x.at > now ? `data-until="${x.at}"` : ''}>${esc(st.text)}</span>
@@ -3965,7 +3966,7 @@ const Views = {
       const e = { item: series, season: s.IndexNumber ?? 1, seasonItem: s };
       const img = s.ImageTags?.Primary ? s.Id : series.ImageTags?.Primary ? id : null;
       return `<button class="rel-card" data-act="series" data-id="${esc(id)}" data-season="${esc(e.season)}">
-        <div class="rel-poster">${img ? `<img loading="lazy" src="${esc(Jellyfin.img(img, 'Primary', { fillHeight: 160 }))}" alt="">` : ''}</div>
+        <div class="rel-poster">${img ? `<img loading="lazy" decoding="async" src="${esc(Jellyfin.img(img, 'Primary', { fillHeight: 160 }))}" alt="">` : ''}</div>
         <div class="rel-text"><span class="rel-badge">${rel}</span><div class="rel-title">${esc(entryTitle(e))}</div><div class="small muted">${esc([entryYear(e) || '', 'In library'].filter(Boolean).join(' · '))}</div></div>
       </button>`;
     }).join('');
@@ -4131,7 +4132,7 @@ const Views = {
         </aside>
         <section class="detail-main">
           ${m.Overview || kfull?.synopsis ? `<h3 style="margin-top:0">About</h3><p class="about about-scroll">${esc(m.Overview || kfull?.synopsis)}</p>` : ''}
-          ${cast.length ? `<h3>Cast</h3><div class="cast">${cast.map((p) => `<div class="person"><span class="avatar">${esc((p.Name || '?').slice(0, 1))}${p.PrimaryImageTag ? `<img loading="lazy" src="${esc(`${Jellyfin.server}/Items/${p.Id}/Images/Primary?fillHeight=120&quality=90`)}" alt="">` : ''}</span><div><div class="p-name">${esc(p.Name)}</div><div class="small muted">${esc(p.Role || '')}</div></div></div>`).join('')}</div>` : ''}
+          ${cast.length ? `<h3>Cast</h3><div class="cast">${cast.map((p) => `<div class="person"><span class="avatar">${esc((p.Name || '?').slice(0, 1))}${p.PrimaryImageTag ? `<img loading="lazy" decoding="async" src="${esc(`${Jellyfin.server}/Items/${p.Id}/Images/Primary?fillHeight=120&quality=90`)}" alt="">` : ''}</span><div><div class="p-name">${esc(p.Name)}</div><div class="small muted">${esc(p.Role || '')}</div></div></div>`).join('')}</div>` : ''}
         </section>
       </div>`;
   },
@@ -4180,7 +4181,7 @@ const Views = {
     const aired = al?.next ? al.next.episode - 1 : null;
     // Not out yet (AniList says "not yet released", or episode 1 is the next to air): no episode list at all.
     const notOut = /not.?yet|upcoming|unreleased|tba/i.test(String(al?.status || a.status || '')) || al?.next?.episode === 1;
-    const episodeRequest={provider:remServer,title:a.title,mediaFormat:App.showCtx.match.mediaFormat,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,audio:audioMode};
+    const episodeRequest={provider:remServer,title:a.title,mediaFormat:App.showCtx.match.mediaFormat,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,episodeCount:Number(total)||null,audio:audioMode};
     const availability=notOut?{status:'ready',episodes:[]}:RemoteEpisodes.peek(episodeRequest);
     App.remoteEpisodeRequest=episodeRequest;
     const available=notOut?[]:(availability?.episodes||[]).filter(n=>aired==null||n<=aired);
@@ -4215,7 +4216,7 @@ const Views = {
     const epRows = epNums.map((n) => {
       const played = n <= watchedEps, isNext = n === nextEpNum, initialThumb=setEpisodeThumb.cache?.get(a.id+'|'+n)||al?.streams?.[n]?.thumb||'';
       return `<div class="ep ${isNext ? 'next' : ''} ${played ? 'played' : ''}" id="ep-row-${n}" data-num="${n}">
-        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb ${initialThumb?'':'thumb-pending'}" data-episode-art="${esc(a.id+'|'+n)}" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" alt="" ${initialThumb?`src="${esc(initialThumb)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
+        <button class="card" data-act="playRemote" data-title="${esc(a.title)}" data-ep="${n}" data-kitsu="${esc(a.id)}" data-poster="${esc(a.poster || '')}"><div class="thumb ${initialThumb?'':'thumb-pending'}" data-episode-art="${esc(a.id+'|'+n)}" data-fallback="${esc(thumbFallback)}" data-poster="${esc(poster||'')}"><img loading="lazy" decoding="async" decoding="async" alt="" ${initialThumb?`src="${esc(initialThumb)}"`:"hidden"}><div class="play">▶</div>${played ? `<span class="ep-badge" title="Watched">${icon('tick')}</span>` : ''}</div></button>
         <div class="ep-info"><div class="ep-num">Episode ${n}${isNext ? ' <span class="up-next">UP NEXT</span>' : ''} <span class="ep-meta"></span></div>
           <div class="ep-title"></div>
           <div class="ep-overview muted">Streams from <span class="ep-sub-srv">${esc(shortServerName(remServer))}</span> · ${audioMode.toUpperCase()}</div></div>
@@ -4509,11 +4510,10 @@ const Views = {
     const t = await AniList.thread(id).catch(() => null);
     if (App.stale(rid)) return '';
     const canPost = AniList.loggedIn();
-    return `<div class="page sub-page thread-page">
-      <div class="sub-head"><button class="icon-btn" data-act="back" title="Back">${icon('arrowLeft')}</button><h1>${esc((t?.title || 'Discussion').replace(/^\s*\[spoilers?\]\s*/i, ''))}</h1>${t?.siteUrl ? `<button class="link-btn sub-head-act" data-act="link" data-url="${esc(t.siteUrl)}">Open on AniList</button>` : ''}</div>
-      <div id="th-list" class="th-list">${commentSkeleton()}</div>
-      <div id="th-more"></div>
-      <form id="th-form" class="th-compose"><input id="th-input" placeholder="${canPost ? 'Add a comment' : 'Sign in to AniList to comment'}" ${canPost ? '' : 'disabled'} autocomplete="off"><button class="icon-btn" title="Post" ${canPost ? '' : 'disabled'}>${icon('send')}</button></form>
+    return `<div class="page sub-page thread-page af-reader">
+      <header class="af-reader-head"><button class="btn ghost af-reader-back" data-act="back">${icon('arrowLeft')}<span>Back to discussions</span></button><span class="ad-eyebrow">ANILIST COMMUNITY</span><div class="af-reader-title"><h1>${esc((t?.title || 'Discussion').replace(/^\s*\[spoilers?\]\s*/i, ''))}</h1>${t?.siteUrl ? `<button class="btn ghost af-external" data-act="link" data-url="${esc(t.siteUrl)}"><span>Open AniList</span>${icon('external')}</button>` : ''}</div><p>${Number(t?.replyCount)||0} replies · Public discussion on AniList${/^\s*\[spoilers?\]/i.test(t?.title||'')?' · Contains spoilers':''}</p></header>
+      <div class="af-reader-body"><section class="af-posts" aria-label="Discussion replies"><div id="th-list" class="th-list">${commentSkeleton()}</div><div id="th-more"></div></section><aside class="af-reader-note"><span class="af-note-mark">${icon('chat')}</span><b>A place to talk anime.</b><p>Keep it thoughtful. Mark spoilers and give everyone room to enjoy the story.</p><small>${canPost?'You’re replying with your AniList account.':'Sign in to AniList to reply or like comments.'}</small>${!canPost?'<button class="btn ghost" data-act="anilistLogin">Connect AniList</button>':''}</aside></div>
+      <section class="af-compose-panel"><div><span class="ad-eyebrow">JOIN THE CONVERSATION</span><h2>Your thoughts, on deck.</h2></div><form id="th-form" class="th-compose"><label class="sr-only" for="th-input">Your comment</label><input id="th-input" placeholder="${canPost ? 'Share a thought or ask a question…' : 'Sign in to AniList to comment'}" ${canPost ? '' : 'disabled'} autocomplete="off"><button class="btn primary af-post-button" title="Post comment" ${canPost ? '' : 'disabled'}><span>Post reply</span>${icon('send')}</button></form></section>
     </div>`;
   },
   async threadAfter({ id }, rid) {
@@ -4641,7 +4641,7 @@ const Views = {
       return `<div class="ml-row ${selected.has(e.anime.id) ? 'sel' : ''}" data-aid="${esc(e.anime.id)}" data-st="${esc(e.reconsuming ? 'current' : e.status)}">
         <button class="sel-dot" data-sel="${esc(e.anime.id)}" title="Select"></button>
         <button class="ml-open" data-act="anime" data-id="${esc(e.anime.id)}" data-mal="${esc(e.anime.malId || '')}" data-titles="${titlesAttr(e)}">
-          ${e.anime.poster ? `<img loading="lazy" src="${esc(e.anime.poster)}" alt="">` : '<div class="ph">◆</div>'}
+          ${e.anime.poster ? `<img loading="lazy" decoding="async" src="${esc(e.anime.poster)}" alt="">` : '<div class="ph">◆</div>'}
           <div class="ml-name"><b>${esc(e.anime.title)}</b><span>${esc(meta)}</span>
             <span class="ml-chips"><span class="ml-status"><i></i>${esc(label(e))}</span>${lib ? '<span class="ml-lib">In library</span>' : ''}${outNote(e)}</span></div>
         </button>
@@ -4658,7 +4658,7 @@ const Views = {
       const lib = App.libIndex?.find(e.anime);
       return `<div class="ml-card ${selected.has(e.anime.id) ? 'sel' : ''}" data-aid="${esc(e.anime.id)}">
         <button class="card" data-list-status="${esc(e.status)}" data-list-progress="${Number(e.progress)||0}" data-total="${Number(e.anime.episodes)||0}" data-act="anime" data-id="${esc(e.anime.id)}" data-mal="${esc(e.anime.malId || '')}" data-titles="${titlesAttr(e)}">
-          <div class="poster">${e.anime.poster ? `<img loading="lazy" src="${esc(e.anime.poster)}" alt="">` : '<div class="ph">◆</div>'}
+          <div class="poster">${e.anime.poster ? `<img loading="lazy" decoding="async" src="${esc(e.anime.poster)}" alt="">` : '<div class="ph">◆</div>'}
             ${e.anime.rating ? `<span class="badge right rating">★ ${e.anime.rating}%</span>` : `<span class="badge right rating" data-rate="${esc(e.anime.id)}" hidden></span>`}${lib ? '<span class="badge in" style="top:auto;bottom:10px">In library</span>' : ''}
             ${e.status !== 'completed' && pct(e) ? `<div class="bar"><div style="width:${pct(e)}%"></div></div>` : ''}</div>
           <div class="card-title">${esc(e.anime.title)}</div><div class="card-sub">${!tab ? `${esc(label(e))} · ` : ''}${prog(e)} ${outNote(e)}</div>
@@ -4824,7 +4824,7 @@ const Views = {
       const meta = [x.rating ? `★ ${x.rating}%` : '', x.kind === 'anime' ? x.subtype : x.kind === 'movie' ? 'Movie' : 'TV', x.year, x.episodes && x.kind !== 'movie' ? `${x.episodes} eps` : ''].filter(Boolean).join(' · ');
       shown++;
       return `<button class="card hover-card" data-act="${act[0]}" data-id="${esc(act[1])}" ${x.titles ? `data-titles="${esc(JSON.stringify(x.titles))}"` : ''}>
-        <div class="poster">${x.poster ? `<img loading="lazy" src="${esc(x.poster)}" alt="">` : `<div class="ph">◆</div>`}
+        <div class="poster">${x.poster ? `<img loading="lazy" decoding="async" src="${esc(x.poster)}" alt="">` : `<div class="ph">◆</div>`}
           ${lib ? '<span class="badge in">In library</span>' : reqs.has(x.id) ? '<span class="badge req">Requested</span>' : ''}
           ${x.rating ? `<span class="badge right rating">★ ${x.rating}%</span>` : src === 'anime' ? `<span class="badge right rating" data-rate="${esc(x.id)}" hidden></span>` : ''}
           <div class="hover-info"><span class="hover-play">${lib ? '▶' : '＋'}</span><div class="hover-meta">${esc(meta)}</div><div class="hover-syn">${esc(x.synopsis || '')}</div></div></div>
@@ -4954,7 +4954,7 @@ const Views = {
       else list.sort((a, b) => a.order - b.order);
       $('#s-count').textContent = `${list.length} result${list.length === 1 ? '' : 's'}`;
       $('#s-grid').innerHTML = list.length ? list.map((x) => `<button class="card" data-act="${x.open[0]}" data-id="${esc(x.open[1])}" ${x.open[2] != null ? `data-season="${esc(x.open[2])}"` : ''} ${x.titles ? `data-titles="${esc(JSON.stringify(x.titles))}"` : ''}>
-          <div class="poster">${x.poster ? `<img loading="lazy" src="${esc(x.poster)}" alt="">` : `<div class="ph">${x.kind === 'movie' ? '🎬' : x.kind === 'show' ? '▦' : '◆'}</div>`}
+          <div class="poster">${x.poster ? `<img loading="lazy" decoding="async" src="${esc(x.poster)}" alt="">` : `<div class="ph">${x.kind === 'movie' ? '🎬' : x.kind === 'show' ? '▦' : '◆'}</div>`}
             ${x.lib ? '<span class="badge in">In library</span>' : x.requested ? '<span class="badge req">Requested</span>' : ''}
             ${x.rating ? `<span class="badge right rating">★ ${x.rating}%</span>` : x.kind === 'anime' ? `<span class="badge right rating" data-rate="${esc(x.key)}" hidden></span>` : ''}</div>
           <div class="card-title">${esc(x.title)}</div>

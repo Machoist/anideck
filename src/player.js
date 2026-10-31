@@ -382,7 +382,7 @@ const Player = {
     let s;
     try {
       s = await window.native.resolveStream({ provider: remotePlaybackProvider(server), title: this.ctx.series?.Name || episode.SeriesName || '',
-        episodeNum: episode.IndexNumber || 1, audio, prefetch, mediaFormat:this.ctx.match?.mediaFormat||(this.ctx.movie?'MOVIE':null), titleAliases:this.ctx.match?.titleAliases||[],
+        episodeNum: episode.IndexNumber || 1, audio, prefetch, episodeCount:Number(this.ctx.match?.episodes)||null, mediaFormat:this.ctx.match?.mediaFormat||(this.ctx.movie?'MOVIE':null), titleAliases:this.ctx.match?.titleAliases||[],
         seasonNumber: episode.ParentIndexNumber ?? this.ctx.season?.IndexNumber ?? 1,
         episodeTitle: /^Episode \d+$/i.test(episode.Name || '') ? '' : episode.Name || '',
         absoluteEpisodeNum: episode.AbsoluteEpisodeNumber || null });

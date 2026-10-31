@@ -793,7 +793,7 @@ const AniList = {
     const hit = this.detailsCache[id];
     if (hit && Date.now() - hit.at < 30 * 60_000) return hit.value;
     const mediaId = await this.mediaId(id);
-    const d = await this.gql(`query($id:Int){ Media(id:$id){ id idMal title{ romaji english } bannerImage coverImage{ extraLarge large color }
+    const d = await this.gql(`query($id:Int){ Media(id:$id){ id idMal title{ romaji english native } synonyms bannerImage coverImage{ extraLarge large color }
       description(asHtml:false) genres averageScore status season seasonYear episodes duration format studios(isMain:true){ nodes{ name } } nextAiringEpisode{ episode airingAt }
       streamingEpisodes{ title thumbnail } } }`, { id: mediaId }, false);
     const m = d?.Media;
@@ -801,7 +801,7 @@ const AniList = {
     const t = m.title || {};
     const value = {
       id: m.id, malId: m.idMal || null,
-      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'', titles:[t.romaji,t.english].filter(Boolean),
+      title: (typeof App !== 'undefined' && App.settings?.titleLang === 'romaji') ? (t.romaji || t.english) : (t.english || t.romaji), englishTitle:t.english||'', titles:[t.romaji,t.english,t.native,...(m.synonyms||[])].filter(Boolean),
       synopsis: m.description || '', banner: m.bannerImage || '', cover: m.coverImage?.extraLarge || m.coverImage?.large || '', color: m.coverImage?.color || '',
       genres: m.genres || [], score: m.averageScore || null, status: (m.status || '').toLowerCase().replace(/_/g, ' '),
       season: m.season && m.seasonYear ? `${m.season[0]}${m.season.slice(1).toLowerCase()} ${m.seasonYear}` : '', year: m.seasonYear ? String(m.seasonYear) : '',

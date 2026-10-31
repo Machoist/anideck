@@ -35,3 +35,26 @@ test('same-title formats retain separate catalog caches and playback listings',a
  assert.deepEqual((await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,mediaFormat:'TV'})).episodes,[10]);
  assert.deepEqual((await api.metadata(read,'Fixture',1,'sub',{catalogOnly:true,mediaFormat:'MOVIE'})).episodes,[1]);
 });
+
+test('complete provider aliases cover series/final-series, ordinal parts, and movie decoration without losing identity',()=>{
+ const rows=[{url:page,title:'Example Final Series',format:'TV'},{url:api.BASE+'/watch/part2',title:'Example: To the Top 2nd Season',format:'TV'},{url:api.BASE+'/watch/movie',jp:'Example!! Movie: Gomi Suteba no Kessen',title:'Alternate movie name',format:'MOVIE'}];
+ assert.equal(api.chooseTitle(rows,'Example Final Season',1,[],'TV').url,page);
+ assert.equal(api.chooseTitle(rows,'Example: To the Top Part 2',1,['Example: To the Top 2'],'TV').url,rows[1].url);
+ assert.equal(api.chooseTitle(rows,'English movie title',1,['Example!!: Gomi Suteba no Kessen'],'MOVIE').url,rows[2].url);
+ assert.equal(api.chooseTitle(rows,'Example Final Season',1,[],'MOVIE'),null);
+ assert.equal(api.chooseTitle(rows,'Example: To the Top Part 3',1,[],'TV'),null);
+ assert.throws(()=>api.chooseTitle([...rows,{url:api.BASE+'/watch/also-final',title:'Example Final Series',format:'TV'}],'Example Final Season',1,[],'TV'),/ambiguous/);
+});
+test('an exact Series 2 title is seasonal and never needs a second appended season suffix',async()=>{const f=fixture(),read=url=>url.includes('/filter')?'<a href="'+page+'">Example Series 2</a>':f.read(url);assert.deepEqual(await api.metadata(read,'Example Series 2',1,'sub',{seasonNumber:2,catalogOnly:true}),{episodes:[1,3]});});
+test('explicit combined parts require known first-part bounds and preserve actual episode/audio availability',async()=>{
+ const f=fixture(),read=url=>url.includes('/filter')?'<a href="'+page+'">Example!!: To the Top (Part 1+2)</a>':f.read(url),request={mediaFormat:'TV',seasonNumber:1,episodeCount:1};
+ assert.deepEqual(await api.metadata(read,'Example!!: To the Top',1,'sub',{...request,catalogOnly:true}),{episodes:[1]});
+ assert.deepEqual(await api.metadata(read,'Example!!: To the Top',1,'sub',request),['https://embed.test/sub']);
+ assert.deepEqual(await api.metadata(read,'Example!!: To the Top Part 2',1,'sub',{...request,catalogOnly:true}),{episodes:[]});
+ assert.deepEqual(await api.metadata(read,'Example!!: To the Top',1,'sub',{mediaFormat:'TV',catalogOnly:true}),{episodes:[]});
+ await assert.rejects(()=>api.metadata(read,'Example!!: To the Top',1,'sub',{...request,episodeCount:2,catalogOnly:true}),/incomplete first-part/);
+});
+
+test('an unmatched sequel alias cannot label a base-series match as independently numbered',()=>{const hit=api.chooseTitle([{url:page,title:'Example'}],'Example',2,['Example Season 2'],'TV');assert.equal(hit.seasonal,false);});
+
+test('part numbers alone are not interchangeable with season numbers',()=>{assert.equal(api.chooseTitle([{url:page,title:'Example Season 2',format:'TV'}],'Example Part 2',1,[],'TV'),null);});
