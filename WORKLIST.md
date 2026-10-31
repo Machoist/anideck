@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 31 October — actual app-path episode matching and AniList cooldown recovery
+
+Current installer/portable: **preview-34f0ccc**, runtime source **34f0ccc**, **579 tests pass**. Final package audit, full isolated native smoke/checks, ZIP integrity and installer/portable runtime equality pass.
+
+- Reproduced Haikyu To the Top failure through actual Views.anime → renderer request → preload IPC → StreamResolver → provider → episode DOM using live public Kitsu aliases. Prior module-only successful checks missed the real alias payload: fourth-season aliases incorrectly rejected its first-cour combined listing. Shared complete-name/alias matching now serves Anikoto, HiAnime and AniWatch with verified contiguous first-part bounds; retain canonical origin, ambiguity, sequel, format and requested-audio controls. No fake episodes or guessed later-part offsets. HiAnime uses explicit second-cour URL identity when its displayed name says second season.
+- Final packaged-source live public full path: Haikyu first part13 on all three providers; Part2=12 on Anikoto/HiAnime. AniWatch Part2 remains0 because inspected searches exposed only a combined listing, with no safe standalone mapping. Other reported cases: Anikoto Fairy Tail Final Season51 and Quintessential Quintuplets season1=12. Episode DOM counts verified, including normal50-item pagination for Fairy Tail. Availability evidence is not full playback acceptance or permanent provider uptime.
+- AniList: conservative rolling request budget reserves headroom for account reads/edits, stops speculative prefetch near budget, and reuses a verified complete account list for two minutes; editor/recovery explicitly read fresh. Existing server cooldown headers retained, including reported limit. Limits from other clients/IP and provider bursts can still occur; no promise of eliminating429s.
+- Rate-limited title controls now say List check paused, disable retries until cooldown ends and perform one read-only automatic retry. Patch only tracking controls; keep hero and episodes mounted. Account/navigation/late-response guards and no false zero-progress/editor states verified. No automatic mutations or real account/list/message changes.
+- 579 regressions pass; final native full renderer/IPC catalog contract and isolated tracking cooldown recovery pass (one fresh read, zero writes, same hero/episode DOM). Public package-runtime evidence work/catalog-built-full-path.json and catalog-built-other-titles-path.json; fixtures/screenshots outputs/catalog-list-final/. Preserve readme-preview.html and Desktop/anitrack. No installed-app replacement, public release/tag, deployment or migration. Physical scrolling/listening acceptance remains pending; Gio and physical Mac remain deferred.
+
 ## 30 October — native cold-start scrolling, shared Anikoto matching and community layout
 
 Current installer/portable: **preview-1425cd5**, runtime source **1425cd5**, **567 tests pass**. Final package audit, full isolated native smoke, ZIP integrity and installer/portable runtime equality pass.
