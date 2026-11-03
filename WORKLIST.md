@@ -1,5 +1,11 @@
 # AniDeck worklist
 
+## 3 November — Kitsu new-title import accepted and independently verified
+
+- User connected Kitsu and explicitly approved both reviewed local entries. On the next inspection the app already showed2 imported,0 failed; the agent did not submit a duplicate import. Reopened the review for fresh readback:0 new,0 optional updates,2 already listed,0 need attention, with both episode counts matching the device list. Apply is disabled; two local titles remain saved.
+- Independent unauthenticated Kitsu API readback confirms both approved titles exist with Watching status, episode progress2 and1 respectively, and no score. Exact account/title identifiers and values are recorded only in local outputs/AniDeck-kitsu-import-live-2026-11-03.json, not committed to source. No credentials were accessed. New-title import and repeat-review recognition are live-verified; this does not mark score editing, rewatch changes, or newer-local-progress updates live-tested.
+- Closed the read-only review and left Kitsu connected/active. No application changes or rebuild; current test package remains preview-ffb65cc with594 passing tests from its build verification. Next account acceptance: reviewed Kitsu score edit/readback/restoration or newer-local-progress update when explicitly chosen. TV, Gio and physical Mac remain deferred; second-device recovery and private Jellyfin remain pending.
+
 ## 3 November — TV retest deferred at user request
 
 - User is not testing the TV now. Leave physical Samsung subtitle display, picture fit, multi-minute stability, PC controls and receiver refresh acceptance pending; resume when requested. Do not treat desktop receiver evidence as physical acceptance.
