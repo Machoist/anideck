@@ -9,8 +9,13 @@ async function api(path,data){
  }finally{clearTimeout(timer);}
 }
 function notice(text){nowPlaying.textContent=text;nowPlaying.hidden=!text;}
+function renderCaptions(){
+ const layer=document.getElementById('captions');if(!layer)return;
+ const cues=media?[...video.textTracks||[]].flatMap(track=>[...track.activeCues||[]]):[];
+ layer.textContent=cues.map(cue=>cue.getCueAsHTML?.().textContent||cue.text||'').join('\n');layer.hidden=!layer.textContent;
+}
 function stop(){
- media=null;needsInteraction=false;playPending=false;video.onloadedmetadata=null;
+ media=null;renderCaptions();needsInteraction=false;playPending=false;video.onloadedmetadata=null;
  // Stop native playback first; a failed streaming-library cleanup must not leave buffered video playing.
  video.pause();video.removeAttribute('src');video.load();video.hidden=true;welcome.hidden=false;activate.hidden=true;notice('');
  const previous=hls;hls=null;try{previous?.destroy();}catch{}
@@ -24,7 +29,7 @@ async function play(){const selected=media;if(!selected)return;playPending=true;
 activate.onclick=()=>play();
 function load(next,autoplay=true){stop();lastSeek=0;pendingSeek=null;media=next;lastContact=Date.now();playbackError='';video.hidden=false;welcome.hidden=true;notice(next.title);video.onloadedmetadata=()=>{const at=pendingSeek??next.at;if(at>0)video.currentTime=at;pendingSeek=null;video.onloadedmetadata=null;};
  for(const track of [...video.querySelectorAll('track')])track.remove();
- for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);if(track.track)track.track.mode='showing';}
+ for(const sub of next.subtitles||[]){const track=document.createElement('track');track.kind='subtitles';track.src=sub.url;track.label=sub.label;track.srclang=sub.language;track.default=true;video.appendChild(track);if(track.track){track.track.mode='hidden';track.track.oncuechange=renderCaptions;}}
  if(next.isHLS&&window.Hls&&Hls.isSupported()){
   hls=new Hls({maxBufferLength:60,backBufferLength:30});hls.on(Hls.Events.ERROR,(_,data)=>{if(data.fatal){playbackError='This stream could not play on the TV. Try another server or quality.';notice(playbackError);}});hls.loadSource(next.url);hls.attachMedia(video);
  }else if(!next.isHLS||video.canPlayType('application/vnd.apple.mpegurl'))video.src=next.url;
@@ -82,7 +87,7 @@ async function tick(){
  }
  finally{starting=false;if(tickAgain){tickAgain=false;tick();}}
 }
-let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
+let lastHeartbeat=0;video.addEventListener('timeupdate',()=>{renderCaptions();checkConnection();const now=Date.now();if(media&&now-lastHeartbeat>=3000){lastHeartbeat=now;tick();}});
 tick();setInterval(tick,1000);setInterval(checkConnection,1000);
 
 window.addEventListener?.('pagehide',()=>{
