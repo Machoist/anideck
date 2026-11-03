@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 3 November — shared AniList/Kitsu rating design
+
+Current installer/portable: **preview-7237dd0**, runtime source **7237dd0**. **596 tests pass**. Package audit, complete isolated native visual checks and separate public-readiness smoke pass; source byte-match, installer/portable equality and ZIP integrity verified.
+
+- User requested matching AniList/Kitsu appearance and a more considered rating design. Replace the boxed numeric field and literal step buttons with a centered rating, small circular minus/plus controls, a lavender score slider and labelled scale. Empty numeric entries show Not rated rather than a dash. AniList whole10 now shares the same instrument as Kitsu/Local; decimal/100 formats use it too. Retain native star/reaction choices for those explicitly selected AniList formats, styled within the shared panel. Do not force unsupported half scores or change account preferences.
+- Slider, numeric typing, stepping and Clear share one value/paint path; preserve provider range/step, score-only saves, status/progress preservation, and explicit unrated values. New shared-slider behavior coverage checks AniList and Kitsu saves plus clearing. Existing whole-point fractional rejection and Kitsu8.5 mapping remain passing.
+- Actual packaged native captures reviewed for AniList whole10 and Kitsu8.5 at desktop/narrow widths. Native checks verify step controls, slider-based shared numeric layout,8.5 prefill, no OS spinners and containment at400px. Synthetic fixtures only; no real account/list writes or installed-app replacement. Evidence work/rating-instrument-tests.log, rating-instrument-final-visual.log and rating-instrument-final-readiness.log; outputs/rating-instrument-final/ contains screenshots.
+- Worklist/backups updated. Physical TV/Gio/Mac remain deferred. Kitsu new-title import remains verified; live score/progress-only acceptance, second-device recovery and private Jellyfin remain pending.
+
 ## 3 November — explicit half-point score controls
 
 Current installer/portable: **preview-324f755**, runtime source **324f755**. **595 tests pass**; final package audit, native visual and separate readiness smoke pass. Runtime source byte-match, installer/portable equality and ZIP integrity verified.
