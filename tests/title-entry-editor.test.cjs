@@ -3,7 +3,7 @@ const source=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),start=
 async function setup(options={}){
  let closed=0,refreshes=0;const notices=[],elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{disabled:false,hidden:false,textContent:'',value:'',focus(){},select(){},setAttribute(){},removeAttribute(){},click(){return this.onclick?.();},classList:{toggle(){}}});return elements.get(id);};
  const pop={querySelector:get,querySelectorAll:selector=>['button,input','button,input,select'].includes(selector)?['#ee-close','#ee-prog','#ee-rating','#ee-remove','#ee-plus','#ee-minus','#ee-save'].map(get):[]};
- const scrim={firstElementChild:pop,remove(){closed++;}},Tracker={name:'AniList',entry:options.entry||(async()=>({id:'entry',status:'current',progress:3})),setStatus:async()=>{throw Error('Tracker unavailable')},saveEntry:async()=>{throw Error('Tracker unavailable')}};
+ const scrim={firstElementChild:pop,remove(){closed++;}},Tracker={name:options.provider||'AniList',entry:options.entry||(async()=>({id:'entry',status:'current',progress:3})),setStatus:async()=>{throw Error('Tracker unavailable')},saveEntry:async()=>{throw Error('Tracker unavailable')}};
  let keyHandler;const ctx={Tracker,document:{getElementById:()=>null,createElement:()=>scrim,body:{appendChild(){},classList:{add(){},remove(){}}},addEventListener(name,fn){if(name==='keydown')keyHandler=fn;},removeEventListener(){}},esc:String,icon:()=>'',toast:(...args)=>notices.push(args)};
  const app=vm.runInNewContext('({'+method+'})',ctx);app.refresh=()=>refreshes++;await app.editEntry('al:42',12,'Example');return {app,Tracker,pop,get,notices,ctx,key:event=>keyHandler(event),get closed(){return closed},get refreshes(){return refreshes}};
 }
@@ -28,3 +28,9 @@ test('repeated rate-limited editor clicks show one notice per cooldown and never
 });
 
 test('opening an editor requires a fresh provider read rather than using the browsing snapshot',async()=>{let options;await setup({entry:async(_id,opts)=>{options=opts;return {status:'current',progress:2};}});assert.equal(options.fresh,true);});
+
+test('Kitsu half-point controls select and save fractional scores without changing progress',async()=>{
+ const f=await setup({provider:'Kitsu',entry:async()=>({id:'entry',status:'current',progress:3,rating:8})});let saved;f.Tracker.saveEntry=async(_,value)=>saved=value;
+ f.get('#ee-score-plus').onclick();assert.equal(f.get('#ee-rating').value,'8.5');await f.get('#ee-save').onclick();assert.deepEqual(JSON.parse(JSON.stringify(saved)),{scoreOnly:true,rating:8.5});
+ const g=await setup({provider:'Kitsu',entry:async()=>({id:'entry',status:'current',progress:3,rating:10})});g.get('#ee-score-plus').onclick();assert.equal(g.get('#ee-rating').value,'10');g.get('#ee-score-minus').onclick();assert.equal(g.get('#ee-rating').value,'9.5');g.get('#ee-rating').value='1';g.get('#ee-score-minus').onclick();assert.equal(g.get('#ee-rating').value,'1');g.get('#ee-clear-score').onclick();assert.equal(g.get('#ee-rating').value,'');
+});
