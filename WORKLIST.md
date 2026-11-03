@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 3 November — explicit half-point score controls
+
+Current installer/portable: **preview-324f755**, runtime source **324f755**. **595 tests pass**; final package audit, native visual and separate readiness smoke pass. Runtime source byte-match, installer/portable equality and ZIP integrity verified.
+
+- User found half-point selection unclear in the redesigned score field. Add styled minus/plus controls labelled with the actual scoring step: Kitsu uses−0.5/+0.5, while AniList's numeric formats use their selected step and whole-point/star/reaction formats retain their own grid. Keep direct numeric entry and hide native spinner chrome. Clamp to the provider's valid range; Clear still produces an unrated value.
+- Unit verification covers selecting/saving8.5 as a score-only Kitsu change, preserving episode progress/status and respecting boundaries. Native synthetic Kitsu check confirms8.5→9→8.5 controls,0.5 step, no spinners and actual400px field containment. Desktop/narrow screenshots reviewed; no real account/list edits. Evidence work/half-score-tests.log and half-score-final-visual.log, outputs/half-score-final/AniDeck-kitsu-editor-narrow.png.
+- Saved/pushed source and refreshed local artifacts; installed app was not replaced. Other acceptance scope unchanged: Kitsu new-title import verified; live score/progress-only writes pending; TV/Gio/physicalMac deferred.
+
 ## 3 November — watchlist editor visual refresh and clean decimal score field
 
 Current installer/portable: **preview-a09f7db**, runtime source **a09f7db**. **594 tests pass**. Final package audit, native visual run and separate live-readiness smoke pass; installer/portable runtime equality, source byte-match and ZIP integrity verified.
