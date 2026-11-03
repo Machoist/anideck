@@ -34,3 +34,11 @@ test('Kitsu half-point controls select and save fractional scores without changi
  f.get('#ee-score-plus').onclick();assert.equal(f.get('#ee-rating').value,'8.5');await f.get('#ee-save').onclick();assert.deepEqual(JSON.parse(JSON.stringify(saved)),{scoreOnly:true,rating:8.5});
  const g=await setup({provider:'Kitsu',entry:async()=>({id:'entry',status:'current',progress:3,rating:10})});g.get('#ee-score-plus').onclick();assert.equal(g.get('#ee-rating').value,'10');g.get('#ee-score-minus').onclick();assert.equal(g.get('#ee-rating').value,'9.5');g.get('#ee-rating').value='1';g.get('#ee-score-minus').onclick();assert.equal(g.get('#ee-rating').value,'1');g.get('#ee-clear-score').onclick();assert.equal(g.get('#ee-rating').value,'');
 });
+
+test('the shared rating slider edits AniList and Kitsu while Clear stays explicitly unrated',async()=>{
+ for(const provider of ['AniList','Kitsu']){
+  const f=await setup({provider,entry:async()=>({id:'entry',status:'planned',progress:2,rating:8})});let saved;f.Tracker.saveEntry=async(_,v)=>saved=v;
+  const range=f.get('#ee-score-range');assert.equal(range.value,'8');range.oninput({target:{value:provider==='Kitsu'?'8.5':'9'}});assert.equal(f.get('#ee-rating').value,provider==='Kitsu'?'8.5':'9');await f.get('#ee-save').onclick();assert.equal(saved.scoreOnly,true);assert.equal(saved.rating,provider==='Kitsu'?8.5:9);assert.equal(saved.progress,undefined);
+  const g=await setup({provider,entry:async()=>({id:'entry',status:'current',progress:2,rating:8})});g.Tracker.saveEntry=async(_,v)=>saved=v;g.get('#ee-clear-score').onclick();assert.equal(g.get('#ee-rating').value,'');await g.get('#ee-save').onclick();assert.equal(saved.rating,null);
+ }
+});
