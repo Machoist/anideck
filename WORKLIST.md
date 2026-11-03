@@ -1,5 +1,11 @@
 # AniDeck worklist
 
+## 3 November — TV retest deferred at user request
+
+- User is not testing the TV now. Leave physical Samsung subtitle display, picture fit, multi-minute stability, PC controls and receiver refresh acceptance pending; resume when requested. Do not treat desktop receiver evidence as physical acceptance.
+- Next active worklist check: Kitsu sign-in and reviewed local-list import, followed by independent tracker readback. Existing automated coverage already passes as part of the594-test suite: exact identity mapping, status/progress/score conversion, preserving destination entries, opt-in progress-only updates, account swaps and interrupted/retried imports. Do not repeat account writes or claim live acceptance from those fixtures.
+- Asked user to connect Kitsu through Settings > Account using the app's own sign-in form. Wait for connection before opening the real import review; review selected titles and changes before applying. No password or private key should be pasted into chat. Gio and physical Mac remain deferred.
+
 ## 3 November — TV interruption recovery and visible receiver captions
 
 Current installer/portable: **preview-ffb65cc**, runtime source **ffb65cc**. **594 tests pass**; final package audit and full isolated native smoke/visual checks pass. Installer/portable runtime equality and ZIP integrity verified.
