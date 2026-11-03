@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 3 November — resumed on the new connection; live TV acceptance started
+
+Runtime remains **preview-31a22df**; no application code changed or installer rebuilt in this session. Previous full suite:588 passing tests. Fresh packaged startup, guest setup and public AniList/Kitsu/AniDeck readiness checks pass on the new connection.
+
+- Short isolated packaged resolver/relay/HLS checks for Jujutsu Kaisen Season2 episode1: Anikoto sub and HiAnime sub decode video, pause, resume, seek to90seconds and advance at1.5x without observed fatal video/HLS errors. Startup about4.5/4.2seconds in these single runs. HiAnime returned381 valid WebVTT cues; Anikoto returned no separate caption track. These are short muted automated checks, not speaker/listening, long-session or physical TV picture acceptance. Evidence outputs/AniDeck-resume-checks-2026-11-03.json and matching logs.
+- User confirmed TV, Kitsu and desktop are available. Computer-use inspection confirms installed About label preview-31a22df. Physical TV browser reached the receiver on the new network; installed app reports TV connected and ready. An already-watched episode was handed off, with receiver reporting23:55 duration and first-play gesture required. Waiting for the user to press Play on the TV and confirm actual moving picture/sound; do not mark those passed yet.
+- Next: finish TV picture/sound, PC pause/resume/seek and same-tab refresh recovery, then Kitsu sign-in and reviewed local-list import. User participates in real-device/account steps; do not fabricate watched progress or perform unattended account/list/message writes. Gio and physical Mac remain deferred. LAN address and pairing code are omitted from source documentation.
+- Preserve readme-preview.html and Desktop/anitrack. No release/tag/deployment/migration or installed-app replacement.
+
 ## 31 October — Random pick service-failure recovery
 
 Current installer/portable: **preview-31a22df**, runtime source **31a22df**, **588 tests pass**. Final package audit, full isolated native smoke/checks, ZIP integrity and installer/portable runtime equality pass.
