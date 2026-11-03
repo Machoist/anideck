@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 3 November — watchlist editor visual refresh and clean decimal score field
+
+Current installer/portable: **preview-a09f7db**, runtime source **a09f7db**. **594 tests pass**. Final package audit, native visual run and separate live-readiness smoke pass; installer/portable runtime equality, source byte-match and ZIP integrity verified.
+
+- Refined the shared list editor with a title-led header and tracker badge, consistent status chips, coordinated progress/score cards, shared score icon, clearer actions and lavender focus treatment. Numeric rating uses a larger clean field; remove native number spinners while preserving typing, keyboard stepping, minimum/maximum/step and provider validation. AniList format-aware score grid remains intact; no new tracker writes or scoring conversion changes.
+- Added isolated native Kitsu decimal coverage:8.5 prefill,0.5 step, spinner-free textfield appearance, tracker badge, field containment and actual400px viewport fit. Corrected narrow fixed-width overflow found by the first visual check. Desktop and narrow captures reviewed. Existing AniList score-only save/clear, keyboard, integer-format and account guards still pass. Synthetic entries only; no real account/list edits during redesign verification.
+- Expanded visual mode now has a90-second outer harness deadline; normal fresh-profile checks retain45seconds. The prior combined runs reached that outer timeout, rather than a failing editor assertion. Every assertion remains; complete visual and separate online-readiness runs pass. Harness-only deadline change does not alter the packaged runtime.
+- Evidence: work/editor-refresh-tests.log, editor-refined-final-visual-complete.log, editor-refined-final-readiness.log; outputs/editor-refined-final/AniDeck-kitsu-editor.png and AniDeck-kitsu-editor-narrow.png. Installed app was not replaced. TV/Gio/physicalMac remain deferred; Kitsu new-title import stays verified; score/progress-only live acceptance, second-device recovery and private Jellyfin remain pending.
+
 ## 3 November — Kitsu new-title import accepted and independently verified
 
 - User connected Kitsu and explicitly approved both reviewed local entries. On the next inspection the app already showed2 imported,0 failed; the agent did not submit a duplicate import. Reopened the review for fresh readback:0 new,0 optional updates,2 already listed,0 need attention, with both episode counts matching the device list. Apply is disabled; two local titles remain saved.
