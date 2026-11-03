@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Readable } = require('node:stream');
+const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const secret = () => crypto.randomBytes(24).toString('hex');
 const addresses = () => [...new Set(Object.values(os.networkInterfaces()).flat().filter(x => x && x.family === 'IPv4' && !x.internal).map(x => x.address))];
@@ -31,9 +31,10 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
  let addressCache=[],addressAt=-Infinity;
  const localAddresses=()=>{if(now()-addressAt>=5000){addressCache=addresses();addressAt=now();}return addressCache;};
  const clearAssets=()=>{for(const controller of transfers)controller.abort();transfers.clear();assets.clear();assetIndex.clear();};
- const publicScreen=s=>({name:s.name, connected:current===s.token, online:now()-s.seen<15000, playback:s.playback});
+ const contact=s=>Math.max(s.seen,s.mediaSeen||0);
+ const publicScreen=s=>({name:s.name, connected:current===s.token, online:now()-contact(s)<15000, playback:s.playback});
  const status=()=>({pairing,running:!!server?.listening, port:server?.address()?.port||port, urls:server?.listening?localAddresses().map(a=>`http://${a}:${server.address().port}`):[], screen:current&&screens.has(current)?publicScreen(screens.get(current)):null});
- const cleanup=()=>{if(pairing&&now()>pairingUntil)setPairing(false);const active=screens.get(current);if(active&&now()-active.seen>=15000)disconnect();for(const [t,s] of screens)if(now()-s.seen>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
+ const cleanup=()=>{if(pairing&&now()>pairingUntil)setPairing(false);const active=screens.get(current);if(active&&now()-contact(active)>=15000)disconnect();for(const [t,s] of screens)if(now()-contact(s)>120000){screens.delete(t);if(t===current){current=null;clearAssets();}}};
  const register=(url,token,headers={})=>{
   if(!/^https?:$/.test(new URL(url).protocol))throw new Error('Unsupported media address');
   const indexKey=token+'\0'+url;let id=assetIndex.get(indexKey);
@@ -43,6 +44,8 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
  async function media(req,res,url){
   const a=assets.get(url.pathname.slice(7)),token=url.searchParams.get('token');
   if(!a||token!==a.token||token!==current)return json(res,403,{error:'Cast session ended'});
+  const touch=()=>{const screen=screens.get(token);if(current===token&&assets.get(url.pathname.slice(7))===a&&screen)screen.mediaSeen=now();};
+  touch();cleanup();
   const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),20000);
   transfers.add(controller);
   res.on('close',()=>controller.abort());
@@ -50,31 +53,31 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
    const headers={...a.headers};if(req.headers.range)headers.Range=req.headers.range;
    const upstream=await fetchUpstream(a.url,{headers,signal:controller.signal,method:req.method==='HEAD'?'HEAD':'GET'});
    if(!upstream.ok){res.writeHead(upstream.status);res.end();return;}
-   clearTimeout(timeout);
+   clearTimeout(timeout);touch();
    const type=/\.vtt(?:$|\?)/i.test(a.url)?'text/vtt':upstream.headers.get('content-type')||'application/octet-stream';
    const playlist=/mpegurl/i.test(type)||/\.m3u8(?:$|\?)/i.test(a.url);
    if(playlist&&req.method!=='HEAD'){
     let chunks=[],size=0;
-    for await(const chunk of upstream.body){size+=chunk.length;if(size>2*1024*1024)throw new Error('Playlist too large');chunks.push(Buffer.from(chunk));}
+    for await(const chunk of upstream.body){touch();size+=chunk.length;if(size>2*1024*1024)throw new Error('Playlist too large');chunks.push(Buffer.from(chunk));}
     const rewritten=rewritePlaylist(Buffer.concat(chunks).toString(),upstream.url||a.url,u=>register(u,a.token,a.headers));
     res.writeHead(200,{'Content-Type':'application/vnd.apple.mpegurl','Cache-Control':'no-store'});res.end(rewritten);
    }else{
     const out={'Content-Type':type,'Cache-Control':'no-store'};
     for(const key of ['content-length','content-range','accept-ranges']){const value=upstream.headers.get(key);if(value)out[key]=value;}
     res.writeHead(upstream.status,out);
-    if(req.method==='HEAD')res.end();else await pipeline(Readable.fromWeb(upstream.body),res,{signal:controller.signal});
+    if(req.method==='HEAD')res.end();else await pipeline(Readable.fromWeb(upstream.body),new Transform({transform(chunk,encoding,done){touch();done(null,chunk);}}),res,{signal:controller.signal});
    }
   }catch(error){if(!res.headersSent)json(res,502,{error:'Could not fetch this video. Try resolving the episode again.'});else res.destroy();}
   finally{clearTimeout(timeout);transfers.delete(controller);}
  }
  async function handle(req,res){
-  cleanup();
   const allowed=new Set(['127.0.0.1','localhost',...localAddresses()]);
   const authority=new URL(`http://${req.headers.host}`);
   if(!allowed.has(authority.hostname))return json(res,403,{error:'Invalid host'});
   if(req.headers.origin&&req.headers.origin!==authority.origin)return json(res,403,{error:'Invalid origin'});
   const url=new URL(req.url,authority);
   if(url.pathname.startsWith('/media/')&&['GET','HEAD'].includes(req.method))return media(req,res,url);
+  cleanup();
   if(req.method==='GET'&&['/','/receiver.js','/receiver.css','/hls.min.js','/wordmark.svg','/mark.svg'].includes(url.pathname)){
    const name=url.pathname==='/'?'receiver.html':url.pathname.slice(1);
    const file=['wordmark.svg','mark.svg'].includes(name)?path.join(__dirname,'../brand',name):name==='hls.min.js'?path.join(__dirname,'../vendor/hls.min.js'):path.join(__dirname,name);
@@ -128,7 +131,7 @@ function createCasting({ port=47632, host='0.0.0.0', fetchUpstream=global.fetch,
   disconnect();current=screen.token;screen.code=null;notify(current);return status();
  }
  function load({url,title='',at=0,isHLS=true,headers={},subtitles=[]}){
-  const screen=screens.get(current);if(!screen||now()-screen.seen>15000)throw new Error('Connect your TV receiver before casting.');
+  const screen=screens.get(current);if(!screen||now()-contact(screen)>15000)throw new Error('Connect your TV receiver before casting.');
   clearAssets();
   const safeHeaders={};for(const [key,value]of Object.entries(headers))if(/^(referer|origin|user-agent|authorization|cookie)$/i.test(key))safeHeaders[key]=String(value);
   const id=secret();screen.playback={};

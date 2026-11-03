@@ -112,3 +112,24 @@ test('remote commands notify the receiver immediately without waiting for its st
  for(const [action,value] of [['pause'],['seek',120],['play']]){cast.command(action,value);assert.match(new TextDecoder().decode((await read()).value),/data:/);}
  cast.disconnect();assert.match(new TextDecoder().decode((await read()).value),/data:/);assert.equal(cast.status().screen,null);
 });
+
+
+test('authenticated media traffic keeps a TV paired when control polling pauses',async t=>{
+ let time=1000;const {cast,request,base}=await setup(t,{now:()=>time,fetchUpstream:async()=>new Response('segment',{headers:{'content-type':'video/mp2t'}})});
+ const receiver=(await request('/hello',{})).body;cast.connect(receiver.code);cast.load({url:'https://video.example/segment.ts'});
+ const state=(await request('/state',undefined,receiver.token)).body;
+ for(let i=0;i<8;i++){time+=10000;assert.equal(await(await fetch(base+state.media.url)).text(),'segment');assert.equal(cast.status().screen.connected,true);}
+ time+=10000;assert.equal((await fetch(base+state.media.url.replace(receiver.token,'wrong'))).status,403);
+ time+=5001;assert.equal(cast.status().screen,null,'invalid tokens must not renew the lease');
+ assert.equal((await fetch(base+state.media.url)).status,403,'expired media cannot revive an unpaired receiver');
+});
+
+test('a long media response renews the lease as bytes arrive without control requests',async t=>{
+ let time=1000,feed;const stream=new ReadableStream({start(controller){feed=controller;controller.enqueue(new TextEncoder().encode('first'));}});
+ const {cast,request,base}=await setup(t,{now:()=>time,fetchUpstream:async()=>new Response(stream,{headers:{'content-type':'video/mp4'}})});
+ const receiver=(await request('/hello',{})).body;cast.connect(receiver.code);cast.load({url:'https://video.example/movie.mp4',isHLS:false});
+ const state=(await request('/state',undefined,receiver.token)).body,response=await fetch(base+state.media.url),reader=response.body.getReader();
+ await reader.read();
+ for(let i=0;i<5;i++){time+=10000;feed.enqueue(new TextEncoder().encode('more'));await reader.read();assert.equal(cast.status().screen.connected,true);}
+ feed.close();await reader.read();time+=15001;assert.equal(cast.status().screen,null);
+});

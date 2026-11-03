@@ -22,10 +22,10 @@ test('unused TV code disappears when pairing closes and returns with a new code 
 
 test('quickly closing and reopening pairing replaces the code even when the TV misses the closed state',async t=>{const f=await fixture(t);f.cast.disconnect();await f.tick();const previous=f.nodes.code.textContent;f.cast.setPairing(false);f.cast.setPairing(true);await f.tick();assert.notEqual(f.nodes.code.textContent,previous);f.cast.connect(f.nodes.code.textContent);await f.tick();assert.equal(f.cast.status().screen.connected,true);});
 
-test('receiver reloads the same command revision after a transient connection loss at its last reported position',async t=>{
+test('receiver preserves the same media and advancing position through a transient connection loss',async t=>{
  const f=await fixture(t);f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false,at:17});await f.tick();f.video.currentTime=240;await f.tick();
- f.offline(true);await f.tick();assert.equal(f.receiver.getMedia(),null);assert.equal(f.video.paused,true);
- f.offline(false);await f.tick();assert(f.receiver.getMedia(),'The unchanged revision must still restore unloaded media');assert.equal(f.video.currentTime,240);assert.equal(f.video.paused,false);
+ const media=f.receiver.getMedia(),plays=f.plays;f.offline(true);await f.tick();assert.equal(f.receiver.getMedia(),media);assert.equal(f.video.paused,false);f.video.currentTime=243;
+ f.offline(false);await f.tick();assert.equal(f.receiver.getMedia(),media);assert.equal(f.video.currentTime,243);assert.equal(f.video.paused,false);assert.equal(f.plays,plays);assert.equal(f.cast.status().screen.playback.time,243);
 });
 test('recovery and a reloaded receiver preserve a paused episode without calling play',async t=>{
  const f=await fixture(t);f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false});await f.tick();f.video.currentTime=150;f.video.pause();await f.tick();const before=f.plays;
@@ -73,3 +73,5 @@ test('disconnect aborts an already-open media transfer and revokes its proxy URL
  let timer;try{await Promise.race([ended,new Promise((_,reject)=>timer=setTimeout(()=>reject(Error('Upstream transfer stayed open')),1500))]);}finally{clearTimeout(timer);await reader.cancel().catch(()=>{});}
  assert.equal((await fetch(base+state.media.url)).status,403);
 });
+
+test('refresh during a temporary network failure retains the paired session for retry',async t=>{const f=await fixture(t);f.cast.load({url:'https://fixture.invalid/video.mp4',isHLS:false});await f.tick();f.video.currentTime=125;await f.tick();const id=f.receiver.getMedia().id;f.offline(true);await f.reload();assert.equal(f.receiver.getMedia(),null);f.offline(false);await f.tick();assert.equal(f.receiver.getMedia().id,id);assert.equal(f.video.currentTime,125);assert.equal(f.nodes.code.hidden,true);});
