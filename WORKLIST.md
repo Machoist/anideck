@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 3 November — rating copy and editor alignment cleanup
+
+Current installer/portable: **preview-ca242d7**, runtime source **ca242d7**. **596 tests pass**. Final package audit, native visual and separate readiness checks pass; source byte-match, installer/portable equality and ZIP integrity verified.
+
+- Keep the shared slider and minus/plus score stepping. Remove the visible Half/Whole-point steps line and repeated numeric score beneath it; retain only scale endpoints. Keep score announcements available to assistive technology without reserving visible space. Native reaction/star explanatory captions remain where needed.
+- Replace floating Remove text with a compact outlined Remove from list button, aligned with Save and the panel inset. Reset its old negative margin. Remove a legacy20px header bottom margin that stacked with the dialog gap above List status; status now sits at the normal section spacing.
+- Desktop/narrow screenshots reviewed. Native assertions verify numeric score control behavior, clean two-label scale, hidden duplicate caption, bounded status gap, aligned action-button tops and400px containment. Existing596 tests pass; no real account/list writes. Evidence work/editor-spacing-tests.log, editor-spacing-final-visual.log, outputs/editor-spacing-final/AniDeck-kitsu-editor-narrow.png. Source/installer saved; installed app unchanged. Deferred physical acceptance scope unchanged.
+
 ## 3 November — shared AniList/Kitsu rating design
 
 Current installer/portable: **preview-7237dd0**, runtime source **7237dd0**. **596 tests pass**. Package audit, complete isolated native visual checks and separate public-readiness smoke pass; source byte-match, installer/portable equality and ZIP integrity verified.
