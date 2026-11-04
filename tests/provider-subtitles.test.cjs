@@ -10,3 +10,12 @@ test('PC selects English provider captions and fetches them using their required
  f.ctx.App.settings.subLang='off';f.player.prepareRemoteSubtitles([{url:'https://cdn.test/en.vtt',language:'en'}]);assert.equal(f.player.subMode,'off');
 });
 test('a caption download from the previous episode cannot attach to the next episode',async()=>{const f=fixture();let finish;f.ctx.window.native.request=()=>new Promise(resolve=>finish=resolve);f.player.prepareRemoteSubtitles([{url:'https://cdn.test/en.vtt'}]);const pending=f.player.attachTextSub();f.player.loadSeq++;finish({ok:true,text:'WEBVTT'});await pending;assert.equal(f.tracks.length,0);});
+
+test('embed configuration captions are discovered without DOM tracks or a JW instance',()=>{
+ const result=vm.runInNewContext('('+discoverSubtitleTracks.toString()+')()',{URL,location:{href:'https://embed.test/player'},document:{querySelectorAll:()=>[]},window:{tracks:[null,'bad',{file:'/arabic.vtt',label:'Arabic',kind:'captions'},{file:'https://subs.test/english.vtt',label:'English',kind:'captions',default:true},{file:'https://subs.test/thumb.vtt',kind:'thumbnails'},{file:'javascript:alert(1)',kind:'captions'}]}});
+ assert.equal(result.length,2);assert.equal(result[1].label,'English');assert.equal(result[1].default,true);assert.equal(result[1].url,'https://subs.test/english.vtt');
+});
+
+test('caption language preference uses labels when providers omit language codes, independent of tracker',async()=>{
+ for(const account of ['AniList','Kitsu','Local']){const f=fixture();f.ctx.Tracker={name:account};f.player.prepareRemoteSubtitles([{url:'https://subs.test/ar.vtt',label:'Arabic'},{url:'https://subs.test/en.vtt',label:'English',language:'und'}]);assert.equal(f.player.remoteSubIndex,1);await f.player.attachTextSub();assert.equal(f.tracks[0].label,'English');URL.revokeObjectURL(f.player.subtitleBlob);}
+});

@@ -43,3 +43,7 @@ test('unlisted playback is refused and the player drawer contains only listed ep
 
 
 test('same-title TV and movie checks cannot share cached availability',async()=>{let calls=0;const c=catalog(async p=>{calls++;return {provider:p.provider,episodes:p.mediaFormat==='MOVIE'?[1]:[1,2,3]}}),p={provider:'anikoto',title:'Same title',seasonNumber:1,audio:'sub'};assert.equal((await c.load({...p,mediaFormat:'TV'})).episodes.length,3);assert.equal((await c.load({...p,mediaFormat:'MOVIE'})).episodes.length,1);assert.equal(calls,2);});
+
+test('playback carries the season identity used by its availability check',async()=>{
+ const begin=app.indexOf(' async playRemoteEpisode('),end=app.indexOf('  async requestAnime(',begin);let opened,request;const ctx={RemoteEpisodes:{load:async p=>{request=p;return {status:'ready',episodes:[1]};}},remotePlaybackProvider:()=> 'anikoto',seasonNumberIn:()=>2,document:{getElementById:()=>null},Player:{open:c=>opened=c},lastServerError:null};const play=vm.runInNewContext('({'+app.slice(begin,end)+'}).playRemoteEpisode',ctx);await play.call({settings:{}},{title:'Season Two',episodeNum:1,kitsuId:'fixture',total:12});assert.equal(request.seasonNumber,2);assert.equal(opened.episode.ParentIndexNumber,2);assert.equal(opened.season.IndexNumber,2);
+});

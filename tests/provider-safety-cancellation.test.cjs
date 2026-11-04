@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const source=fs.readFileSync(path.join(__dirname,'../src/streamResolver.js'),'utf8');
 function resolver(fetch){
  class Window { constructor(){this.dead=false} isDestroyed(){return this.dead} destroy(){this.dead=true} }
- const ctx={require:()=>({BrowserWindow:Window,net:{fetch},app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders(){}}}}}),module:{exports:{}},process,console,URL,Map,Set,AbortController,AbortSignal};
+ const ctx={require:()=>({BrowserWindow:Window,net:{fetch},app:{isReady:()=>true},session:{defaultSession:{webRequest:{onBeforeSendHeaders(){}}}}}),module:{exports:{}},process,console,URL,Map,Set,AbortController,AbortSignal,setTimeout,clearTimeout};
  vm.runInNewContext(source,ctx);return new ctx.module.exports();
 }
 test('unsupported providers cannot silently use another provider',async()=>{
@@ -28,4 +28,7 @@ test('cancellation aborts an in-flight fetch without trying another mirror or br
  const pending=r.resolve({provider:'anikoto',title:'Example',episodeNum:1,audio:'sub'});
  const rejected=assert.rejects(pending,/cancelled/);r.cancelPending();await rejected;
  assert.equal(fetches,1);assert.equal(r.activeTasks.size,0);
+});
+test('a stalled playback resolution reaches its overall deadline and destroys worker windows',async()=>{
+ let deadline;const ctx={require:()=>({}),module:{exports:{}},process,console,Map,Set,URL,AbortController,setTimeout:(fn,ms)=>{deadline={fn,ms};return 1;},clearTimeout(){}};vm.runInNewContext(source,ctx);const r=new ctx.module.exports();let destroyed=false;r.resolveUncached=async function(){this.windows.add({isDestroyed:()=>false,destroy(){destroyed=true;}});return new Promise(()=>{});};const pending=r.runResolution({title:'Fixture'});assert.equal(deadline.ms,25000);deadline.fn();await assert.rejects(pending,/took too long/);assert.equal(destroyed,true);assert.equal(r.activeTasks.size,0);
 });

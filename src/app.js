@@ -60,6 +60,10 @@ function renderWatchOnMenu(srv, allowLocal = true) {
   </div>`;
 }
 
+function titleAudioPicker(mode,action,series){
+ return `<div class="chip-wrap title-audio-picker"><button class="title-audio-trigger" data-act="toggleMenu" aria-label="Audio version: ${mode==='dub'?'Dubbed':'Subtitled'}"><span class="title-audio-mark" aria-hidden="true">${mode==='dub'?'D':'S'}</span><span><small>AUDIO</small><b>${mode==='dub'?'Dubbed':'Subtitled'}</b></span>${icon('caret','fill')}</button><div class="chip-menu title-audio-menu" hidden><div class="watch-on-header">Choose audio</div>${[['sub','Subtitled','Original audio with subtitles'],['dub','Dubbed','Dubbed audio, when available']].map(([value,label,description])=>`<button class="${mode===value?'on':''}" data-act="${action}" data-mode="${value}" data-series="${esc(series)}" aria-pressed="${mode===value}"><span><b>${label}</b><small>${description}</small></span>${mode===value?icon('tick'):''}</button>`).join('')}</div></div>`;
+}
+
 function renderServerErrorBanner() {
   if (!lastServerError) return '<div id="srv-err-slot"></div>';
   return `<div id="srv-err-slot"><div class="srv-error-banner">
@@ -1660,12 +1664,13 @@ const App = {
     if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
     if(listing.status!=='ready')return toast('Couldn’t check this server. Open Episodes & Details to try another server.','bad');
     if(!listing.episodes.includes(episodeNum))return toast('This episode wasn’t found on '+shortServerName(provider)+'. Try another server.');
+    const playbackSeason=seasonNumberIn(title)||1;
     const fakeEp = { Id: `remote-${kitsuId}-${episodeNum}`, Name: movie ? title : `Episode ${episodeNum}`,
-      Type: movie ? 'Movie' : 'Episode', IndexNumber: episodeNum, ParentIndexNumber: 1, SeriesName: title };
+      Type: movie ? 'Movie' : 'Episode', IndexNumber: episodeNum, ParentIndexNumber: playbackSeason, SeriesName: title };
     const total = movie ? 1 : Number(knownMatch?.episodes) || Number(totalHint) || 0;
     const remoteEpisodes = movie ? [fakeEp] : listing.episodes.filter(n=>!total||n<=total).map(n=>({...fakeEp,Id:`remote-${kitsuId}-${n}`,Name:`Episode ${n}`,IndexNumber:n}));
     return Player.open({ episode: fakeEp, series: { Id: `kitsu-${kitsuId}`, Name: title },
-      season: { Id: 's1', IndexNumber: 1 }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases, mediaFormat:mediaFormat||(movie?'MOVIE':null), episodes: total || null },
+      season: { Id: 's'+playbackSeason, IndexNumber: playbackSeason }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases, mediaFormat:mediaFormat||(movie?'MOVIE':null), episodes: total || null },
       provider, audio, remoteOnly: true, movie }, () => { if (['anime','home'].includes(this.view)) this.refresh(); }); // progress may have moved
   },
   async requestAnime(kitsuId) {
@@ -4026,8 +4031,7 @@ const Views = {
     const actionBar = `<div class="ep-actionbar">
         <span class="server-pill" title="Playback from your private library">${getServerLabel('jellyfin',true)}</span>
         ${wrongShow}
-        <span class="spacer"></span>
-        <div class="seg" role="group" aria-label="Audio">${[['sub', 'Sub'], ['dub', 'Dub']].map(([v, l]) => `<button class="${audioMode === v ? 'on' : ''}" data-act="subDub" data-mode="${v}" data-series="${esc(id)}" title="${v === 'sub' ? 'Japanese audio with subtitles' : 'English audio'}">${l}</button>`).join('')}</div>
+        ${titleAudioPicker(audioMode,'subDub',id)}
       </div>`;
     const tip = App.settings.hideEpTip ? '' : `<div class="ep-tip">${icon('info')}<span>Right-click an episode for more, or Ctrl+click to select several</span><button class="link-btn" data-act="hideEpTip" data-tip="Got it" aria-label="Got it">${icon('close')}</button></div>`;
     const episodesTab = `${actionBar}${tip}${epSortLink()}
@@ -4271,8 +4275,7 @@ const Views = {
       + (Requests.enabled() && !inLib && !requested ? `<button data-act="request" data-id="${esc(a.id)}">Request it for the library</button>` : '');
     const actionBar = `<div class="ep-actionbar">
         <div class="chip-wrap"><button class="server-pill" data-act="toggleMenu" title="Where episodes play from">${getServerLabel(remServer, false)}<span class="caret">▾</span></button>${renderWatchOnMenu(remServer, false)}</div>
-        <span class="spacer"></span>
-        <div class="seg" role="group" aria-label="Audio">${[['sub', 'Sub'], ['dub', 'Dub']].map(([v, l]) => `<button class="${audioMode === v ? 'on' : ''}" data-act="remoteSubDub" data-mode="${v}" data-series="${esc(a.id)}" title="${v === 'sub' ? 'Japanese audio with subtitles' : 'English audio'}">${l}</button>`).join('')}</div>
+        ${titleAudioPicker(audioMode,'remoteSubDub',a.id)}
       </div>`;
     const tabs = [['episodes', 'Episodes'], ['discussion', 'Discussion'], ['friends', 'Friends']];
     const premiere = al?.next?.episode === 1 ? al.next.at : 0;

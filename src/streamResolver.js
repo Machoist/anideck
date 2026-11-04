@@ -123,7 +123,7 @@ class StreamResolver {
     worker.windows = new Set();
     const task = { controller, worker };
     this.activeTasks.add(task);
-    const deadline=params.catalogOnly?setTimeout(()=>controller.abort(new Error('Episode listing timed out')),5500):null;
+    const deadline=setTimeout(()=>controller.abort(new Error(params.catalogOnly?'Episode listing timed out':'This server took too long to prepare the episode. Try another server.')),params.catalogOnly?5500:25000);
     let abortListener;
     const cancelled = new Promise((_, reject) => {
       abortListener = () => reject(controller.signal.reason);
@@ -241,7 +241,6 @@ class StreamResolver {
       callback({cancel:false,requestHeaders:details.requestHeaders});
     });
     const completeStream=async stream=>{
-      if(providerId==='aniwatch')return stream;
       let subtitles=[];
       for(let attempt=0;attempt<4;attempt++){
         this.signal?.throwIfAborted();const frames=wc.mainFrame?.framesInSubtree||[wc];

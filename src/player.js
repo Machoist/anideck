@@ -322,7 +322,7 @@ const Player = {
       this.sourceCancel=cancel;
       timer=setTimeout(()=>finish(new Error('Video initialization timed out. Try another server.')),20000);
       if(isHLS&&window.Hls&&Hls.isSupported()){
-        const hls=this.hls=new Hls({maxBufferLength:90,maxMaxBufferLength:120,maxBufferSize:120*1000*1000,backBufferLength:120,startPosition:startAt>5?startAt:-1,startFragPrefetch:true,maxStarvationDelay:2,startLevel:-1,capLevelToPlayerSize:true});
+        const hls=this.hls=new Hls({maxBufferLength:30,maxMaxBufferLength:60,maxBufferSize:60*1000*1000,backBufferLength:60,startPosition:startAt>5?startAt:-1,startFragPrefetch:true,maxStarvationDelay:2,startLevel:0,capLevelToPlayerSize:true});
         let retries=0;
         hls.on(Hls.Events.MANIFEST_PARSED,()=>seq===this.loadSeq?finish():cancel());
         hls.on(Hls.Events.ERROR,(_event,data)=>{
@@ -495,7 +495,7 @@ const Player = {
   prepareRemoteSubtitles(tracks){
     this.remoteSubtitles=tracks.filter(t=>{try{return /^https?:$/.test(new URL(t.url||t.file).protocol);}catch{return false;}}).slice(0,20).map(t=>({...t,url:t.url||t.file}));
     const lang=App.settings.subLang||'eng',normal=s=>String(s||'').toLowerCase().replace(/^eng(?:lish)?$/,'en').replace(/^jpn$/,'ja');
-    this.remoteSubIndex=lang==='off'?-1:this.remoteSubtitles.findIndex(t=>normal(t.language)===normal(lang));
+    this.remoteSubIndex=lang==='off'?-1:this.remoteSubtitles.findIndex(t=>(normal(t.language)===normal(lang)||normal(t.label)===normal(lang)));
     if(lang!=='off'&&this.remoteSubIndex<0)this.remoteSubIndex=Math.max(0,this.remoteSubtitles.findIndex(t=>t.default));
     if(!this.remoteSubtitles.length)this.remoteSubIndex=-1;
     this.subMode=this.remoteSubIndex>=0?'text':'off';
