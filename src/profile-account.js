@@ -1,6 +1,25 @@
 /* AniDeck identity is separate from the active watchlist tracker. */
 'use strict';
 const AniAccount={
+ async verifyProviderAndSignIn(provider,{active=()=>true}={}){
+  const svc=provider==='anilist'?AniList:provider==='kitsu'?Kitsu:null;
+  if(!svc?.loggedIn()||!svc.token||!Number.isSafeInteger(Number(svc.userId))||Number(svc.userId)<1)throw Error('Connect '+(provider==='anilist'?'AniList':'Kitsu')+' first.');
+  if(this.signingIn)throw Error('A sign-in is already in progress. Try again when it finishes.');
+  const original=Cloud.ident(),id=provider+':'+svc.userId,token=svc.token;
+  this.signingIn=true;try{
+   if(!active())throw Error('Sign-in cancelled.');
+   const data=await httpUncached(Cloud.base()+'/v1/session',{method:'POST',json:{provider,token},timeout:12000});
+   if(!data.session||!data.me?.handle)throw Error('No AniDeck profile was found for this '+(provider==='anilist'?'AniList':'Kitsu')+' account.');
+   if(!active())throw Error('Sign-in cancelled.');
+   if(Cloud.ident()!==original||svc.token!==token||provider+':'+svc.userId!==id||!svc.loggedIn())throw Error('The account changed. Open sign-in again.');
+   Cloud.identity=id;Cloud.session=data.session;Cloud.who=id;Cloud.me=data.me;Cloud.publishedAt=0;
+   await window.native.set('anideckSocialOwner',id);
+   await window.native.setSecret('anideckCloud',{who:id,session:data.session});
+   Friends.stop();Object.assign(Friends,{snapshot:null,me:null,meWho:null,rows:[],messages:[],cursor:null,social:{friends:[],incoming:[],outgoing:[]}});
+   App.profileCache=null;App.myCard=null;App.myCardWho=null;App.updateWho?.();
+   return data.me;
+  }finally{this.signingIn=false;}
+ },
  async verifyAndSignIn(raw,{active=()=>true}={}){
   const token=raw.trim();if(!/^adk_[a-f0-9]{64}$/.test(token))throw Error('Enter the complete AniDeck key, starting with adk_.');
   if(this.signingIn)throw Error('A sign-in is already in progress. Try again when it finishes.');
@@ -25,8 +44,11 @@ const AniAccount={
  async access(){
   let me;try{me=await Cloud.loadMe();}catch(error){return toast(error.data?.error||error.message,'bad');}
   const local=Cloud.provider()==='anideck'&&Cloud.ident()==='anideck:'+LocalTracker.userId;
-  App.modal(`<section class="ani-account-panel"><header class="dk-head"><div><span class="ad-eyebrow">YOUR ACCOUNT · YOUR DEVICES</span><h2>Sign-in & recovery</h2></div><button class="icon-btn" id="ani-access-close" aria-label="Close">${icon('close')}</button></header><p>${me?'Signed in as <b>@'+esc(me.handle)+'</b>.':'Create a profile to keep your circle on AniDeck.'}</p><p>${local?'Your handle is public. Your key proves this profile belongs to you, like a password. Anyone with it can sign in to your profile. Keep a private backup; we cannot recover a lost key.':'This profile uses '+esc(Cloud.provider()==='anilist'?'AniList':'Kitsu')+' to verify ownership. Sign in with that same provider on another device.'}</p>${local&&me?`<label class="dk-label" for="ani-access-key">Private AniDeck key</label><input id="ani-access-key" type="password" readonly value="${esc(LocalTracker.token)}"><div class="row gap"><button class="btn ghost" id="ani-access-show">Show key</button><button class="btn ghost" id="ani-access-copy">Copy key</button></div>`:''}<p class="dk-help">The profile, friends and messages are stored by AniDeck. Your local watchlist stays on this device; it is not a cloud backup.</p><footer class="dk-foot"><button class="btn ghost" id="ani-access-login">Sign in with another key</button><button class="btn primary" id="ani-access-done">Done</button></footer></section>`,'dk-modal');
-  $('#ani-access-close').onclick=$('#ani-access-done').onclick=()=>App.closeModal();$('#ani-access-login').onclick=()=>this.signIn();if(local&&me){$('#ani-access-show').onclick=()=>{const field=$('#ani-access-key');field.type=field.type==='password'?'text':'password';$('#ani-access-show').textContent=field.type==='password'?'Show key':'Hide key';};$('#ani-access-copy').onclick=()=>navigator.clipboard.writeText(LocalTracker.token).then(()=>toast('Private key copied')).catch(()=>toast('Could not copy the key','bad'));}
+  App.modal(`<section class="ani-account-panel"><header class="dk-head"><div><span class="ad-eyebrow">YOUR ACCOUNT · YOUR DEVICES</span><h2>Sign-in & recovery</h2></div><button class="icon-btn" id="ani-access-close" aria-label="Close">${icon('close')}</button></header><p>${me?'Signed in as <b>@'+esc(me.handle)+'</b>.':'Create a profile to keep your circle on AniDeck.'}</p><p>${!me?'Sign in with the method used to create your existing profile: a private AniDeck key or the same tracker account.':local?'Your handle is public. Your key proves this profile belongs to you, like a password. Anyone with it can sign in to your profile. Keep a private backup; we cannot recover a lost key.':'This profile uses '+esc(Cloud.provider()==='anilist'?'AniList':'Kitsu')+' to verify ownership. Sign in with that same provider on another device.'}</p>${local&&me?`<label class="dk-label" for="ani-access-key">Private AniDeck key</label><input id="ani-access-key" type="password" readonly value="${esc(LocalTracker.token)}"><div class="row gap"><button class="btn ghost" id="ani-access-show">Show key</button><button class="btn ghost" id="ani-access-copy">Copy key</button></div>`:''}<p class="dk-help">The profile, friends and messages are stored by AniDeck. Your local watchlist stays on this device; it is not a cloud backup.</p><footer class="dk-foot"><button class="btn ghost" id="ani-access-login">Sign in with another key</button><button class="btn primary" id="ani-access-done">Done</button></footer></section>`,'dk-modal');
+  const panel=$('#ani-access-done').closest('.ani-account-panel');
+  const providers=[['anilist',AniList,'AniList'],['kitsu',Kitsu,'Kitsu']].filter(([provider,svc])=>svc.loggedIn()&&Cloud.ident()!==provider+':'+svc.userId);
+  if(providers.length){const section=document.createElement('section');section.className='ani-provider-recovery';section.innerHTML='<h3>Recover an existing profile</h3><p>Use a connected tracker to restore the AniDeck profile created with that account. This changes your AniDeck profile here; your watchlists stay separate.</p><div class="row gap">'+providers.map(([provider,,label])=>`<button type="button" class="btn ghost" data-recover-provider="${provider}">Recover ${label} profile</button>`).join('')+'</div><p class="error" role="alert" hidden></p>';panel.querySelector('.dk-foot').before(section);section.onclick=async event=>{const button=event.target.closest('[data-recover-provider]');if(!button||this.signingIn)return;const error=section.querySelector('[role=alert]');error.hidden=true;section.querySelectorAll('button').forEach(b=>b.disabled=true);try{const profile=await this.verifyProviderAndSignIn(button.dataset.recoverProvider,{active:()=>panel.isConnected});if(!panel.isConnected)return;App.closeModal();App.refresh();toast('Signed in as @'+profile.handle);}catch(e){if(panel.isConnected){error.textContent=e.data?.error||e.message;error.hidden=false;}}finally{if(panel.isConnected)section.querySelectorAll('button').forEach(b=>b.disabled=false);}};}
+  $('#ani-access-close').onclick=$('#ani-access-done').onclick=()=>{if(!this.signingIn)App.closeModal();};$('#ani-access-login').onclick=()=>{if(!this.signingIn)this.signIn();};if(local&&me){$('#ani-access-show').onclick=()=>{const field=$('#ani-access-key');field.type=field.type==='password'?'text':'password';$('#ani-access-show').textContent=field.type==='password'?'Show key':'Hide key';};$('#ani-access-copy').onclick=()=>navigator.clipboard.writeText(LocalTracker.token).then(()=>toast('Private key copied')).catch(()=>toast('Could not copy the key','bad'));}
  },
  async picture(file,{banner=false}={}){
   if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('Choose a PNG, JPEG or WebP up to 8 MB.');

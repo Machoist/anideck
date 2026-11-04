@@ -1747,7 +1747,7 @@ function trackerRows() {
 
 function accountProfileCard(){
   const me=Cloud.who===Cloud.ident()?Cloud.me:null;
-  return `<section class="acct-access-card" aria-label="AniDeck account access"><span class="acct-access-icon">${icon('signin')}</span><div><span class="ad-eyebrow">ANIDECK ACCOUNT</span><h4>${me?'Signed in as @'+esc(me.handle):'Your account, across devices'}</h4><p>Manage sign-in and your private recovery key. Your local watchlist stays on this device.</p></div><button class="btn ghost" data-act="localRecovery">Sign-in & recovery ${icon('chev')}</button></section>`;
+  return `<section class="acct-access-card" aria-label="AniDeck account access"><span class="acct-access-icon">${icon('signin')}</span><div><span class="ad-eyebrow">ANIDECK ACCOUNT</span><h4>${me?'Signed in as @'+esc(me.handle):'Your account, across devices'}</h4><p>Manage account access and recovery. Your local watchlist stays on this device.</p></div><button class="btn ghost" data-act="localRecovery">Sign-in & recovery ${icon('chev')}</button></section>`;
 }
 
 function accountRows() {

@@ -23,3 +23,14 @@ test('successful key sign-in clears old account cards, conversations and publish
  const f=fixture();Object.assign(f.ctx.App,{myCard:{name:'old'},myCardWho:'old'});Object.assign(f.ctx.Friends,{rows:[1],messages:[1],me:{handle:'old'},meWho:'old',cursor:'old'});f.cloud.publishedAt=Date.now();
  await f.api.verifyAndSignIn('adk_'+'5'.repeat(64));assert.equal(f.ctx.App.myCard,null);assert.equal(f.ctx.App.myCardWho,null);assert.equal(f.ctx.Friends.rows.length,0);assert.equal(f.ctx.Friends.messages.length,0);assert.equal(f.ctx.Friends.me,null);assert.equal(f.cloud.publishedAt,0);
 });
+function providerFixture(){const f=fixture();f.ctx.AniList={loggedIn:()=>true,userId:42,token:'provider-fixture'};f.ctx.Kitsu={loggedIn:()=>false};f.ctx.window.native.set=async(key,value)=>f.mutations.push([key,value]);return f;}
+test('explicit provider recovery restores the existing profile without changing device credentials or entries',async()=>{
+ const f=providerFixture();f.ctx.httpUncached=async(url,options)=>{assert(url.endsWith('/v1/session'));assert.deepEqual(JSON.parse(JSON.stringify(options.json)),{provider:'anilist',token:'provider-fixture'});return {session:'verified-provider-session',me:{handle:'existing'}};};
+ await f.api.verifyProviderAndSignIn('anilist');assert.equal(f.cloud.identity,'anilist:42');assert.equal(f.cloud.me.handle,'existing');assert.equal(f.cloud.session,'verified-provider-session');assert.equal(f.local.token,'old-key');assert.deepEqual(f.local.coll,[{title:'kept'}]);assert(!f.mutations.includes('recover'));assert.deepEqual(f.mutations[0],['anideckSocialOwner','anilist:42']);
+});
+test('unknown, cancelled, failed and stale provider recovery leave selected identity untouched',async()=>{
+ for(const mode of ['unknown','cancelled','offline','switched','tokenChanged','providerChanged']){const f=providerFixture();f.ctx.httpUncached=async()=>{if(mode==='offline')throw Error('offline');if(mode==='switched')f.cloud.identity='anideck:other';if(mode==='tokenChanged')f.ctx.AniList.token='changed';if(mode==='providerChanged')f.ctx.AniList.userId=99;return {session:'verified',me:mode==='unknown'?null:{handle:'existing'}};};let calls=0;await assert.rejects(f.api.verifyProviderAndSignIn('anilist',{active:()=>mode!=='cancelled'||++calls===1}));assert.equal(f.local.token,'old-key');assert.equal(f.cloud.me.handle,'old');assert.equal(f.mutations.length,0);}
+});
+test('provider recovery requires a connected supported account and serializes with key recovery',async()=>{
+ const f=providerFixture();await assert.rejects(f.api.verifyProviderAndSignIn('other'));await assert.rejects(f.api.verifyProviderAndSignIn('kitsu'));let finish;f.ctx.httpUncached=()=>new Promise(r=>finish=r);const pending=f.api.verifyProviderAndSignIn('anilist');await assert.rejects(f.api.verifyAndSignIn('adk_'+'1'.repeat(64)),/already in progress/);finish({session:'verified',me:{handle:'existing'}});await pending;assert.equal(f.api.signingIn,false);
+});
