@@ -1,5 +1,12 @@
 # AniDeck worklist
 
+## 4 November — Kitsu progress-only import live verified
+
+- User authorized a temporary episode2 -> 3 -> 2 test. Through the installed app, advanced one separate local entry to3, reviewed exactly one optional progress update, explicitly selected it and applied it to Kitsu. Import completed with1 updated,0 failed.
+- Independent unauthenticated public Kitsu readback confirmed progress3 with Watching status and6.5/10 rating preserved. Restored destination progress2 through the normal editor, verified it directly, then restored the separate local entry to2 with its original unrated score/Watching status. Other local title remains episode1. Restored Kitsu as the active list.
+- Mark live Kitsu progress-only import and destination score/status preservation verified. Exact title evidence stays local in outputs/AniDeck-kitsu-progress-imported-2026-11-04.json and AniDeck-kitsu-progress-restored-2026-11-04.json. No runtime edits or rebuild; previous600-test/package checks remain applicable, not rerun for this documentation-only update.
+- Next: cross-device account recovery and private Jellyfin acceptance when available. Score clearing remains unverified live. TV/Gio/physicalMac remain deferred.
+
 ## 4 November — Kitsu fractional score edit verified
 
 - User reported saving a fractional personal score through AniDeck. Independent unauthenticated Kitsu API readback confirms the exact title now has the expected6.5/10-equivalent value; Watching status and episode2 remain unchanged from the previously verified import. Exact title/value evidence stays local in outputs/AniDeck-kitsu-score-live-2026-11-04.json rather than account-specific source records.
