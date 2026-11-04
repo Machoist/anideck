@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 4 November — provider profile recovery verified in an isolated installation
+
+Current test installer/portable: **preview-6173f7a**, runtime source **6173f7a**. **603 tests pass**. Package audit, complete native visual smoke checks and separate readiness check pass. Installer/portable app.asar equality, ZIP integrity and changed-source byte matching verified.
+
+- Live acceptance exposed a guest-first onboarding gap: connecting a tracker preserves the local social owner, so an existing provider-owned profile had no explicit recovery action. Add Recover AniList/Kitsu profile in Sign-in & recovery when a different connected provider can verify ownership. Verify the provider before changing identity; preserve local lists/key and guard cancellations, account changes, errors and concurrent key sign-in. Clear old profile/social caches only after success. Provider-owned accounts do not expose a separate private key; key-owned recovery remains available.
+- User signed into their existing AniList account directly in an isolated same-PC installation. The first backend verification returned a temporary error without adopting an identity; retry recovered the existing profile. Visually confirmed banner, avatar, introduction, four favorites and circle, then closed and relaunched the isolated app and confirmed the same signed-in profile/content persisted. No duplicate profile, list edits or messages were created. Normal installed app/storage were not replaced or modified by the test harness.
+- Evidence: 18 focused profile-account checks and 603 full-suite tests pass. Live test uses an isolated packaged copy with the two changed renderer files matching the new package; only its storage path/initial visibility differ. This verifies AniList recovery and restart on this PC, not physical second-device/Mac acceptance, live Kitsu recovery or live key recovery. Temporary backend failure was not represented as a backend fix.
+- Next: private Jellyfin acceptance when available; score clearing remains unverified live. Samsung TV retest, Gio delivery and physical Mac remain deferred. Keep the user's existing tracker/list choices intact. Local evidence: outputs/AniDeck-recovery-acceptance-2026-11-04.json; work/provider-recovery-focused.log, provider-recovery-all-tests.log, provider-recovery-visual.log and provider-recovery-readiness.log.
+
 ## 4 November — Kitsu progress-only import live verified
 
 - User authorized a temporary episode2 -> 3 -> 2 test. Through the installed app, advanced one separate local entry to3, reviewed exactly one optional progress update, explicitly selected it and applied it to Kitsu. Import completed with1 updated,0 failed.
