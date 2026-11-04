@@ -1,5 +1,12 @@
 # AniDeck worklist
 
+## 4 November — requested experience/playback backlog
+
+- Added [experience and playback roadmap](docs/UX-PLAYBACK-ROADMAP.md) with acceptance criteria and implementation starting points for artwork quality/cache retention, cold-start scrolling and drag momentum, optional parallax/snappy momentum, page/tab transitions, gutter-contained shimmer, pause/auto-hide stability, subtitle font import/dialog branding, separate filler indicator/hide preferences and opt-in Discord Rich Presence.
+- Prioritize measured cold/warm loading and input responsiveness, then player controls/subtitle customization, filler and Discord. Preserve reduced-motion behavior and native wheel input; new animation must not repeat the reported first-boot staggering. Existing private Jellyfin acceptance remains pending; TV/Gio/physical Mac remain deferred.
+- Reviewed NuvioCodeineXO README as a reference, not verified implementation. Added engine feasibility research separately from UI work: AniDeck does not depend on TorrServer, so its advertised engine migration is not a direct fix for our source matching/availability. Added installer isolation and keep/remove-data uninstall design; preserve legacy data compatibility and current manual GitHub release updates.
+- Planning/documentation only; no runtime changes, dependency additions, installs, backend migration or new test/build claims. Latest runtime remains preview-6173f7a with the previously verified603 tests.
+
 ## 4 November — provider profile recovery verified in an isolated installation
 
 Current test installer/portable: **preview-6173f7a**, runtime source **6173f7a**. **603 tests pass**. Package audit, complete native visual smoke checks and separate readiness check pass. Installer/portable app.asar equality, ZIP integrity and changed-source byte matching verified.

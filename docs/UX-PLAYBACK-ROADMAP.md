@@ -1,0 +1,60 @@
+# AniDeck experience and playback backlog
+
+Requested 4 November 2026. These are planned tasks, not implemented features or verified fixes. Keep existing deferred acceptance work visible in WORKLIST.md.
+
+## Recommended order
+
+### 1. Loading, artwork and scrolling
+
+- [ ] **Artwork quality and retention:** measure first-launch versus warm-launch image/network/decode costs; retain validated title logos, posters and backdrops across restarts with bounded disk usage, freshness/revalidation and explicit cache clearing. Use exact provider IDs and adequate image dimensions for displayed size/DPI. Keep private Jellyfin artwork scoped to its server/account, and exclude credentials from cache diagnostics. Verify cold/warm starts, offline reuse, changed artwork and eviction.
+- [ ] **Responsive scrolling and momentum:** profile first-boot Home, show rows, title pages, middle-mouse scrolling and horizontal drag. Eliminate main-thread stalls, layout shifts and competing scroll animations before adding effects. Preserve Chromium wheel behavior and immediate input cancellation. Evaluate drag momentum and momentum in snappy navigation separately; they must not delay normal wheel/middle-mouse input. Aura/background parallax is optional, motion-reduced and performance-gated.
+- [ ] **Fluid page/tab transitions:** short, consistent motion without delaying navigation, rebuilding unchanged heroes, flashing fallback titles or replaying expensive loads. Keep focus, scroll restoration and reduced-motion behavior correct.
+- [ ] **Contained loading shimmer:** clip poster shimmer and animated pseudo-elements to their own card frames and row/gutter viewports; check horizontal drag, hover expansion, narrow windows and first-load placeholders.
+
+Acceptance: compare repeatable cold/warm traces and input/frame timing, not only screenshots. No promise of instant upstream responses. Existing title-logo and thumbnail identity rules remain intact.
+
+### 2. Player behavior and subtitle font customization
+
+- [ ] **Pause overlay and controls:** explicit states for playing, paused, seeking, buffering, ended, menus/drawers and casting. Paused controls remain visible; active controls/menu/focus are not hidden by stale idle timers. Resume auto-hide only when appropriate. Test mouse, keyboard, fullscreen, source changes and reopening playback.
+- [ ] **Subtitle font import:** first establish whether custom font import is present; add or complete a bounded local font picker if needed, with the AniDeck app icon/parent window, supported formats and size guidance, validation, preview, persistence and removal. A canceled picker leaves settings unchanged. Do not describe this as only an icon fix if the import feature is missing.
+
+Acceptance: native UI checks plus behavioral timing coverage; imported font persists across restart and affects subtitle rendering without interrupting playback.
+
+### 3. Filler indicators and filtering
+
+- [ ] Separate settings for **Show filler indicators** and **Hide filler episodes**. Default preserves episode visibility; never silently enable skipping.
+- [ ] Identify a reliable, usable metadata source and map by exact series/season/episode identity, including split cours, absolute numbering, specials and mixed canon. Unknown is unknown, never assumed filler.
+- [ ] Distinguish canon/mixed/filler visually and accessibly. Hiding pure filler must not renumber episodes, change tracker totals/progress, or remove access to the full list. Treat auto-skip as a separate future preference, not implied by hiding.
+
+Acceptance: fixtures for mapping ambiguity and missing data plus real title checks across available providers. Filtering must behave independently of AniList/Kitsu/local connection.
+
+### 4. Discord Rich Presence
+
+- [ ] Implement desktop Discord RPC with an explicit user-controlled opt-in; existing Discord notification webhooks are a different feature.
+- [ ] Show accurate title/episode and playing/paused state, with suitable artwork where supported. Clear presence on stop, sign-out, app exit, opt-out and connection loss; handle Discord absent/restarted without playback errors.
+- [ ] Keep private Jellyfin library activity out of presence by default; never send keys, provider URLs/tokens or private server addresses. Choose useful privacy controls for title and episode visibility.
+- [ ] Record Discord application registration/configuration needed for real acceptance; use a mock transport for unattended tests and explicit consent for a real public activity check.
+
+### 5. Desktop packaging and updates
+
+- [ ] Audit development/test/release profile isolation and installer/shortcut ownership. Preserve AniDeck's compatibility app ID and legacy AniShelf profile migration; renaming folders would risk orphaning existing settings/keys. Keep tests isolated from the installed profile.
+- [ ] Design uninstall **Keep my data** / **Remove my data** choice with retention as default. Explain that lists, settings and saved account access are affected; removal is limited to verified AniDeck-owned data. Test with disposable profiles only.
+- [ ] Retain the existing stable-release notification and exact GitHub release-page/manual installation flow. Check version/channel correctness and update messaging. An automatic downloader/installer is a separate product decision, not authorized by reference to another app's updater.
+
+## NuvioCodeineXO reference and engine research
+
+Reference reviewed 4 November 2026: [repository README](https://github.com/codeineXO/NuvioCodeineXO/blob/main/README.md). Its README advertises NuvioEngine-only streaming, persistent torrent caching, HTTP buffering/audio routing/resume improvements, dedicated fork data directories, an uninstall retention prompt and a fork-specific GitHub updater. These are upstream claims; this review did not execute or verify that app or its engine.
+
+- [ ] **Engine feasibility research:** identify actual backend interfaces, runtime/package footprint, platform support, maintenance and integration effort before considering adoption. AniDeck's current resolver/HTTP/HLS/relay pipeline does not rely on TorrServer, so removing that dependency is not an AniDeck fix. Torrent storage and HTTP artwork caching are separate systems.
+- [ ] Evaluate bounded configurable cache size/location, disk-full handling, cleanup and exact-file resume, stream startup/seek timing, audio routing, subtitle support and TV relay compatibility using controlled media. Determine whether measured improvements can be made in the existing pipeline first.
+- [ ] Produce a concrete proposal before adding an engine or torrent dependency. No backend replacement, installer execution, code copying or automatic updates are part of this backlog update.
+
+## Current starting points
+
+- `src/player.js`: pause/wake and 2.8-second idle timer, stream startup, subtitles, menus/drawer and playback lifecycle.
+- `src/api.js`, `src/app.js`, `src/home-queue.css`: metadata/artwork lookups and title/queue rendering; existing response caches are not proof of persistent artwork retention.
+- `src/smooth-wheel.js`, `src/nav-motion.css`, `src/styles.css`: native wheel policy, motion and shimmer. Diagnose earlier first-boot staggering before introducing momentum/parallax.
+- `main.js`, `preload.js`, `package.json`: native dialogs/IPC, profile selection, NSIS packaging and application identity.
+- `src/release-check.cjs`, `src/release-notifications.js`: existing manual stable-release flow.
+
+Runtime remains preview-6173f7a. This document does not change the existing 603-test result or claim a new test run.
