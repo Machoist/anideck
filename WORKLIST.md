@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 3 November — title-accented server selector
+
+Current installer/portable: **preview-d097759**, runtime source **d097759**. **600 tests pass**. Final package audit, complete isolated native visuals and separate readiness check pass; installer/portable equality and ZIP integrity verified.
+
+- Server selector inherits existing title-scoped accent variables for tinted background/border, source icon, caret, hover/focus, menu border/header, selected server and radio indicator. Replace its fixed gray/lavender styling only within episode action bars; normal accent fallback remains when a title has no artwork color. No route, provider, playback or account changes.
+- Native fixture switches the same source control between warm and cool title colors; verifies background/selection change and selected text/radio match the title accent. Wait for the actual150ms transition before comparison. Desktop menu screenshot reviewed; existing narrow source/audio fit checks pass. Evidence work/server-tint-tests.log, server-accent-final-visual.log, outputs/server-accent-final/AniDeck-server-title-tint.png. Readiness log includes harmless GPU teardown warnings after successful smoke completion.
+- Saved source/worklist and local build artifacts. Installed app unchanged; prior subtitle/source limitations and deferred physical checks remain recorded above/below.
+
 ## 3 November — provider captions, audio selector and bounded startup
 
 Current installer/portable: **preview-ec1aa93**, runtime source **ec1aa93**. **600 tests pass**. Final package audit, full isolated native visuals and separate readiness checks pass. Installer/portable equality, ZIP integrity and source/runtime byte-match verified.
