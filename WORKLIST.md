@@ -1,5 +1,11 @@
 # AniDeck worklist
 
+## 4 November — Kitsu fractional score edit verified
+
+- User reported saving a fractional personal score through AniDeck. Independent unauthenticated Kitsu API readback confirms the exact title now has the expected6.5/10-equivalent value; Watching status and episode2 remain unchanged from the previously verified import. Exact title/value evidence stays local in outputs/AniDeck-kitsu-score-live-2026-11-04.json rather than account-specific source records.
+- Mark live Kitsu fractional score save/readback and status/progress preservation verified. The user chose this rating; leave it intact rather than applying the earlier proposed temporary-test restoration. Agent performed read-only verification, with no account/list mutations. This does not mark clearing scores, whole-account format changes or progress-only imports live-tested.
+- Next active acceptance: newer-local-progress import/readback, then cross-device account recovery and private Jellyfin when available. TV/Gio/physicalMac remain deferred. Runtime remains preview-d097759; no code changes or rebuild. Previous600-test and native package verification still apply.
+
 ## 3 November — title-accented server selector
 
 Current installer/portable: **preview-d097759**, runtime source **d097759**. **600 tests pass**. Final package audit, complete isolated native visuals and separate readiness check pass; installer/portable equality and ZIP integrity verified.
