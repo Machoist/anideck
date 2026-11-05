@@ -1,6 +1,6 @@
 # AniDeck experience and playback backlog
 
-Requested 4 November 2026. These are planned tasks, not implemented features or verified fixes. Keep existing deferred acceptance work visible in WORKLIST.md.
+Requested 4 November 2026. Items marked complete have scoped verification below; unchecked items remain planned work. Keep existing deferred acceptance work visible in WORKLIST.md.
 
 ## Recommended order
 
@@ -17,10 +17,10 @@ Acceptance: compare repeatable cold/warm traces and input/frame timing, not only
 
 ### 2. Player behavior and subtitle font customization
 
-Desktop control-state fixes shipped in preview-080d7ee with unit and real generated-video/native rendering checks; physical TV/remote acceptance remains deferred. Font import remains a separate pending feature.
+Desktop control-state fixes shipped in preview-080d7ee with unit and real generated-video/native rendering checks; physical TV/remote acceptance remains deferred. Local subtitle font import ships in preview-a6f9eeb, with real Chromium decode/preview/player styling, two-process restart persistence and default removal verified in an isolated fixture. Native file selection is simulated; physical picker appearance remains manual acceptance.
 
 - [x] **Pause overlay and controls:** explicit states for playing, paused, seeking, buffering, ended, menus/drawers and casting. Paused controls remain visible; active controls/menu/focus are not hidden by stale idle timers. Resume auto-hide only when appropriate. Test mouse, keyboard, fullscreen, source changes and reopening playback.
-- [ ] **Subtitle font import:** first establish whether custom font import is present; add or complete a bounded local font picker if needed, with the AniDeck app icon/parent window, supported formats and size guidance, validation, preview, persistence and removal. A canceled picker leaves settings unchanged. Do not describe this as only an icon fix if the import feature is missing.
+- [x] **Subtitle font import:** one device-local TTF/OTF/WOFF/WOFF2 font,4 MB limit, native parented AniDeck chooser, format/signature plus Chromium decode validation, shared preview/player styling, persistence and removal. Cancel/save failure preserves the current font. Desktop text subtitles only; burned-in text and TV appearance remain unchanged.
 
 Acceptance: native UI checks plus behavioral timing coverage; imported font persists across restart and affects subtitle rendering without interrupting playback.
 

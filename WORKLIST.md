@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 4 November — local subtitle font customization
+
+Current test installer/portable: **preview-a6f9eeb**, runtime source **a6f9eeb**. **638 tests pass**. Package audit, complete isolated native visuals, separate readiness and two-process packaged font check pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Added Settings > Subtitles font import/replace, live preview and Use default controls. Show supported TTF/OTF/WOFF/WOFF2 formats and4 MB limit. Native chooser is parented to the main AniDeck window (which owns the app icon) with AniDeck title and format filters; the renderer receives a safe filename/bytes, not a filesystem path. Keep one bounded font record separately in the device profile, outside settings/account data. Validate size/type/signature and Chromium font decoding before saving; atomic replacement preserves the previous record on save failure. Cancel preserves the active font. Restore default removes only that font record. Boot hydration is asynchronous and does not gate catalog/account startup.
+- Custom family affects desktop text-subtitle overlays, including top-positioned lines, and the same preview across tracker/server connections. It cannot restyle subtitles baked into video and is not transmitted to TV receivers. Changing fonts does not reload or pause video.
+- Eight new behavioral tests cover storage/restart/removal, invalid/oversized files, picker parent/filter/cancel, selected-file reading, decode/save failures, hydration/concurrent clicks and corrupt-record recovery. Full638-test suite passes. Initial restricted-sandbox run denied a temporary-file rename; normal-permission suite passed without weakening tests.
+- scripts/native-subtitle-font.cjs loads actual packaged settings template/styles/renderer and native font store, under the real content-security policy, with a selected Windows system font in an isolated fixture. Actual Chromium FontFace decoded; player/preview families and glyph widths changed; generated video stayed playing; second process restored font and removal cleared disk/style. Wide/narrow screenshots reviewed at outputs/subtitle-font-native/settings{,-narrow}.png. File selection is simulated through the real picker helper; physical OS picker appearance/icon acceptance is not claimed. No imported font bytes are committed or packaged.
+- Complete existing packaged visual suite and separate generated-profile/readiness checks pass. Installed profile/accounts unchanged; no release/backend publication. Next: fluid page/tab transitions and contained loading shimmer audit, then filler metadata/indicators. Normal-profile cold-Home acceptance/private Jellyfin pending; TV/Gio/physical Mac deferred.
+
 ## 4 November — player episode drawer pop-out
 
 Current test installer/portable: **preview-cd40c7f**, runtime source **cd40c7f**. **630 tests pass**. Package audit, complete isolated native visuals, separate readiness and packaged drawer motion check pass. Installer/portable app.asar equality and ZIP integrity verified.
