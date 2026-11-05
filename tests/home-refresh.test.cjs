@@ -28,6 +28,9 @@ test('cached queue artwork changes do not reset the selected show',()=>{
 test('a late featured carousel does not rebind the unchanged queue hero',async()=>{
  const f=fixture(),hero=f.add('hero','same'),featured=f.add('featured','empty','carousel');f.next.get('slot:featured').querySelector=selector=>selector==='#carousel'?{}:null;f.batch.homeMarkup=new Map([['slot:hero','same'],['slot:featured','empty']]);await f.helper.refresh(f.batch);assert.equal(f.live.get('slot:hero'),hero);assert.notEqual(f.live.get('slot:featured'),featured);assert.equal(f.calls.options.hero,false);assert.equal(f.calls.options.carousel,true);
 });
+test('hydrated Spotlight artwork/logos do not replace an unchanged set of candidates',()=>{
+ const f=fixture(),a=f.node('featured','cold markup'),b=f.node('featured','warm logo and artwork markup');let id='1';a.querySelector=()=>({querySelectorAll:()=>[{dataset:{kid:'1',lib:''}}]});b.querySelector=()=>({querySelectorAll:()=>[{dataset:{kid:id,lib:''}}]});assert.equal(f.helper.signature(a),f.helper.signature(b));id='2';assert.notEqual(f.helper.signature(a),f.helper.signature(b));
+});
 test('a newly filled slot above the viewport preserves the current visual anchor',async()=>{
  const f=fixture(),late=f.add('late','empty','filled'),stable=f.add('stable','same');late.top=-100;late.bottom=-10;let base=120;stable.getBoundingClientRect=()=>({top:base-f.root.scrollTop,bottom:base+200-f.root.scrollTop});late.replaceWith=el=>{f.live.set('slot:late',el);base+=100;};f.batch.homeMarkup=new Map([['slot:late','empty'],['slot:stable','same']]);await f.helper.refresh(f.batch);assert.equal(f.root.scrollTop,200);assert.equal(stable.getBoundingClientRect().top,20);
 });

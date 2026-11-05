@@ -2532,18 +2532,21 @@ function carouselArtworkScore(image, box, dpr = 1) {
 function heroSlide(sl, i) {
   if (sl.kind === 'anime') {
     const a = sl.a, lib = App.libIndex?.find(a);
+    const saved=typeof SpotlightArt==='undefined'?null:SpotlightArt.get(a.id,lib?.Id||''),al=AniList.detailsCache?.[a.id]?.value;
+    const heading=logoHeading(a.title,titleArtworkId(a.id,al),al?.englishTitle||a.title);
     const meta = [a.rating ? `★ ${a.rating}%` : '', a.subtype, a.year, a.episodes ? `${a.episodes} eps` : ''].filter(Boolean).join(' · ');
     return `<div class="slide ${i ? '' : 'on'}" data-kid="${esc(a.id)}" data-lib="${esc(lib?.Id || '')}" data-poster="${esc(a.poster || '')}">
-      <div class="slide-bg"><img class="slide-img" alt="" data-srcs="${esc(JSON.stringify(sl.srcs || []))}" data-fan="${esc(JSON.stringify(sl.fan || null))}"></div>
-      <div class="slide-text"><h1>${esc(a.title)}</h1><div class="slide-meta">${esc(meta)}</div><p>${esc(a.synopsis)}</p>
+      <div class="slide-bg"><img class="slide-img" alt="" ${saved?`src="${esc(saved.image.u)}" data-best="${esc(saved.image.u)}"`:''} data-srcs="${esc(JSON.stringify(sl.srcs || []))}" data-fan="${esc(JSON.stringify(sl.fan || null))}"></div>
+      <div class="slide-text">${heading}<div class="slide-meta">${esc(meta)}</div><p>${esc(a.synopsis)}</p>
         <div class="row gap">
           ${lib ? `<button class="btn primary" data-act="series" data-id="${esc(lib.Id)}">▶ Watch now</button>` : Requests.enabled() ? `<button class="btn primary" data-act="request" data-id="${esc(a.id)}">＋ Request</button>` : ''}
           <button class="btn ghost glass" data-act="anime" data-id="${esc(a.id)}" data-titles="${esc(JSON.stringify(a.titles))}">Details</button>
         </div></div></div>`;
   }
   const x = sl.x;
+  const saved=typeof SpotlightArt==='undefined'?null:SpotlightArt.get('',x.SeriesId||x.Id||'');
   return `<div class="slide ${i ? '' : 'on'}" data-lib="${esc(x.SeriesId || x.Id || '')}">
-    <div class="slide-bg"><img class="slide-img" alt="" data-srcs="${esc(JSON.stringify(sl.srcs || []))}"></div>
+    <div class="slide-bg"><img class="slide-img" alt="" ${saved?`src="${esc(saved.image.u)}" data-best="${esc(saved.image.u)}"`:''} data-srcs="${esc(JSON.stringify(sl.srcs || []))}"></div>
     <div class="slide-text"><h1>${esc(x.Name)}</h1><div class="slide-meta">${esc([x.ProductionYear, x.Type === 'Movie' ? 'Movie' : 'Series', (x.Genres || []).slice(0, 3).join(' · ')].filter(Boolean).join(' · '))}</div>
       <p>${esc(x.Overview || '')}</p>
       <div class="row gap"><button class="btn primary" data-act="series" data-id="${esc(x.Id)}">▶ Watch now</button></div></div></div>`;
@@ -3793,7 +3796,8 @@ const Views = {
     if(options&&!options.carousel)return;
     const car = $('#carousel');
     if (!car) return;
-    const stale=()=>App.stale(rid)||car.isConnected===false;
+    const owner=typeof SpotlightArt==='undefined'?null:SpotlightArt.scope();
+    const stale=()=>App.stale(rid)||car.isConnected===false||(owner!==null&&owner!==SpotlightArt.scope());
     // Each slide's art, in order of preference: AniList banner, ani.zip (TheTVDB) fanart, Kitsu cover, Trakt fanart,
     // your library's backdrop. The first that's sharp enough for the carousel at this size wins (like title pages);
     // a slide with nothing reasonably sharp is dropped. Anime slides also switch to AniList's title and info.
@@ -3807,16 +3811,22 @@ const Views = {
     });
     const loadBest = async (slide) => {
       const img=slide.querySelector('.slide-img'),fan=JSON.parse(img.dataset.fan||'null');
+      const heading=slide.querySelector('.slide-text h1'),knownId=heading?.dataset?.logoId;
+      if(knownId&&!heading.querySelector('.hero-logo'))showLogo(heading,knownId,0,heading.dataset.englishTitle||'');
       const alP=slide.dataset.kid?AniList.details(slide.dataset.kid).catch(()=>null):Promise.resolve(null);
-      alP.then(al=>{if(!al||stale()||!slide.isConnected)return;if(al.cover)slide.dataset.poster=al.cover;const heading=slide.querySelector('.slide-text h1');if(!heading.querySelector('.hero-logo'))heading.textContent=al.title||heading.textContent;slide.querySelector('.slide-meta').textContent=[al.score?'★ '+al.score+'%':'',al.format,al.year,al.episodes?al.episodes+' eps':'',...(al.genres||[]).slice(0,2)].filter(Boolean).join(' · ');showLogo(heading,al.id,seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}).catch(()=>{});
+      alP.then(al=>{if(!al||stale()||!slide.isConnected)return;if(al.cover)slide.dataset.poster=al.cover;if(!heading.querySelector('.hero-logo'))heading.textContent=al.title||heading.textContent;slide.querySelector('.slide-meta').textContent=[al.score?'★ '+al.score+'%':'',al.format,al.year,al.episodes?al.episodes+' eps':'',...(al.genres||[]).slice(0,2)].filter(Boolean).join(' · ');if(!heading.querySelector('.hero-logo')&&String(al.id)!==String(knownId))showLogo(heading,al.id,seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}).catch(()=>{});
+      const saved=typeof SpotlightArt==='undefined'?null:SpotlightArt.get(slide.dataset.kid,slide.dataset.lib);
+      if(saved&&carouselArtworkScore(saved.image,box,dpr)>=.65){img.dataset.best=saved.image.u;return carouselArtworkScore(saved.image,box,dpr);}
       const known=JSON.parse(img.dataset.srcs||'[]');
       const groups=[()=>known,async()=>[(await alP)?.banner],async()=>[(await AniZip.get((await alP)?.id))?.fanart],async()=>typeof kitsuCover==='function'?[await kitsuCover({kitsuId:slide.dataset.kid||null})]:[],async()=>typeof HDArt==='undefined'?[]:(await HDArt.backdrops({seriesId:slide.dataset.lib||null,alId:(await alP)?.id})).slice(0,2),async()=>fan?.[0]?Trakt.fanartFor(fan[0],fan[1]):[]];
       const best=await firstUsableArtwork(groups,measure,image=>carouselArtworkScore(image,box,dpr));
-      if(stale()||!slide.isConnected)return 0;if(best)img.dataset.best=best.u;return carouselArtworkScore(best,box,dpr);
+      if(stale()||!slide.isConnected)return 0;if(best){img.dataset.best=best.u;if(typeof SpotlightArt!=='undefined')SpotlightArt.remember(slide.dataset.kid,slide.dataset.lib,best);}return carouselArtworkScore(best,box,dpr);
     };
-    car.classList.add('loading-art');
     const pendingSlides=[...car.querySelectorAll('.slide')],scores=new Array(pendingSlides.length).fill(0);
     let artCursor=0,firstPainted=false;
+    const warm=pendingSlides.find(slide=>{const img=slide.querySelector('.slide-img');return !!(img.src&&img.dataset.best);});
+    if(warm){pendingSlides.forEach(slide=>slide.classList.toggle('on',slide===warm));firstPainted=true;car.classList.remove('loading-art');}else car.classList.add('loading-art');
+    pendingSlides.forEach(slide=>{const image=slide.querySelector('.slide-img');image.onerror=()=>{if(stale())return;if(typeof SpotlightArt!=='undefined')SpotlightArt.forget(slide.dataset.kid,slide.dataset.lib);if(typeof ArtworkImages!=='undefined')ArtworkImages.forget(image.src);delete image.dataset.best;};});
     car.querySelector('.car-nav').hidden=true;
     const loadWorker=async()=>{
       while(artCursor<pendingSlides.length){
@@ -3843,12 +3853,13 @@ const Views = {
     const dotsBox = car.querySelector('.car-dots');
     const slides = [...car.querySelectorAll('.slide')];
     if (!slides.length) { car.remove(); return; }
+    const initial=Math.max(0,slides.findIndex(slide=>slide.classList.contains('on')));
     // Dots, with the current slide as a pill that fills up until the next one (pauses while you hover).
     dotsBox.innerHTML = slides.map((sl, j) => {
       const name = sl.querySelector('.slide-text h1')?.textContent?.trim() || `Slide ${j + 1}`;
-      return `<button class="car-dot ${j ? '' : 'on'}" data-dot="${j}" aria-label="${esc(name)}" title="${esc(name)}"><i></i></button>`;
+      return `<button class="car-dot ${j===initial ? 'on' : ''}" data-dot="${j}" aria-label="${esc(name)}" title="${esc(name)}"><i></i></button>`;
     }).join('');
-    slides.forEach((sl, j) => sl.classList.toggle('on', j === 0));
+    slides.forEach((sl, j) => sl.classList.toggle('on', j === initial));
     car.querySelector('.car-nav').hidden = slides.length < 2;
     car.classList.remove('loading-art');
     const dots = [...car.querySelectorAll('.car-dot')];
@@ -3856,26 +3867,29 @@ const Views = {
     // player is open, and while the carousel is scrolled out of view, so you never come back to it halfway through a show.
     const SLIDE_MS = spotlightDuration();
     car.style.setProperty('--slide-ms', `${SLIDE_MS}ms`);
-    let i = 0, visible = true, hovering = false;
+    let i = initial, visible = true, hovering = false, timer=null, observer=null;
+    const stop=()=>{clearInterval(timer);if(App.carouselTimer===timer)App.carouselTimer=null;observer?.disconnect();};
     const paused = () => hovering || !visible || document.hidden || !$('#player').hidden;
     const go = (n) => {
+      if(stale()){stop();return;}
       i = (n + slides.length) % slides.length;
       slides.forEach((s, j) => s.classList.toggle('on', j === i));
       dots.forEach((d, j) => { d.classList.remove('on'); if (j === i) { void d.offsetWidth; d.classList.add('on'); } }); // restart the fill
     };
-    const tick = () => { if (!paused()) go(i + 1); };
-    const restart = () => { clearInterval(App.carouselTimer); App.carouselTimer = setInterval(tick, SLIDE_MS); car.classList.toggle('paused', paused()); };
+    const tick = () => { if(stale()){stop();return;}if (!paused()) go(i + 1); };
+    const restart = () => { if(stale()){stop();return;}clearInterval(timer); timer=App.carouselTimer=setInterval(tick, SLIDE_MS); car.classList.toggle('paused', paused()); };
     car.querySelectorAll('[data-car]').forEach((b) => { b.onclick = () => { go(i + Number(b.dataset.car)); restart(); }; });
     dots.forEach((d) => { d.onclick = () => { go(Number(d.dataset.dot)); restart(); }; });
-    car.onmouseenter = () => { hovering = true; car.classList.add('paused'); clearInterval(App.carouselTimer); };
-    car.onmouseleave = () => { hovering = false; go(i); restart(); };
-    new IntersectionObserver(([e]) => {
+    car.onmouseenter = () => { if(stale()){stop();return;}hovering = true; car.classList.add('paused'); clearInterval(timer); };
+    car.onmouseleave = () => { if(stale()){stop();return;}hovering = false; go(i); restart(); };
+    observer=new IntersectionObserver(([e]) => {
+      if(stale()){stop();return;}
       const was = visible;
       visible = e.isIntersecting;
       if (visible && !was && !hovering) { go(i); restart(); } // back in view: this slide gets its full time again
       else car.classList.toggle('paused', paused());
-    }, { threshold: 0.35 }).observe(car);
-    go(0);
+    }, { threshold: 0.35 });observer.observe(car);
+    go(initial);
     restart();
   },
 
@@ -5176,7 +5190,7 @@ const Views = {
     const appearance=cards.findIndex(card=>card.querySelector('h3')?.textContent==='Appearance');
     const requested=App.params.section;const selected=typeof requested==='string'?cards.findIndex(card=>card.querySelector('h3')?.textContent===requested):requested;
     show(Number.isInteger(selected)&&selected>=0&&selected<cards.length?selected:Math.max(0,appearance));
-    const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!(await Promise.all([TitleArtwork.clear(),ArtworkImages.clear()])).every(Boolean))throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();toast('Saved artwork cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
+    const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!(await Promise.all([TitleArtwork.clear(),ArtworkImages.clear()])).every(Boolean))throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();if(typeof SpotlightArt!=='undefined')SpotlightArt.clear();toast('Saved artwork cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
     if(typeof SubtitleFont!=='undefined')SubtitleFont.bind();

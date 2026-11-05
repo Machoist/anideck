@@ -1,7 +1,7 @@
 /* Delayed Home reads update their own slots; they are not a new navigation. */
 const HomeRefresh={
   parts(root){const parts=new Map();for(const el of root.querySelectorAll('[data-home-slot]')){const key='slot:'+el.dataset.homeSlot;if(parts.has(key))throw Error('Duplicate Home slot');parts.set(key,el);}return parts;},
-  signature(el){const queue=el.dataset.homeSlot==='hero'&&el.querySelector('#yn');if(queue){try{return JSON.stringify(JSON.parse(queue.dataset.queue).map(({thumb,resolvedBackdrop,...item})=>item));}catch{}}return el.outerHTML;},
+  signature(el){const queue=el.dataset.homeSlot==='hero'&&el.querySelector('#yn');if(queue){try{return JSON.stringify(JSON.parse(queue.dataset.queue).map(({thumb,resolvedBackdrop,...item})=>item));}catch{}}const carousel=el.querySelector('#carousel');if(carousel?.querySelectorAll)return 'spotlight:'+JSON.stringify([...carousel.querySelectorAll('.slide')].map(slide=>[slide.dataset.kid||'',slide.dataset.lib||'']));return el.outerHTML;},
   rect(el){if(el.firstElementChild&&el.lastElementChild){const first=el.firstElementChild.getBoundingClientRect(),last=el.lastElementChild.getBoundingClientRect();return {top:first.top,bottom:last.bottom};}return el.getBoundingClientRect();},
   snapshot(html){const template=document.createElement('template');template.innerHTML=html;return this.parts(template.content);},
   record(batch,html){batch.homeMarkup=new Map([...this.snapshot(html)].map(([key,el])=>[key,this.signature(el)]));},
