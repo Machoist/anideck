@@ -875,7 +875,7 @@ const App = {
       if(quiet){clearTimeout(this.viewInTimer);main.classList.remove('view-in');}
       this.renderQuiet = quiet; // quiet refreshes don't replay the card animations
       main.innerHTML = html;
-      if(view==='home'&&typeof HomeReads!=='undefined')HomeReads.markPaint(id);
+      if(view==='home'&&typeof HomeReads!=='undefined')HomeReads.markPaint(id,html);
       this.mountPageShortcuts(main);
       if(view==='home'&&this.homeBrand){
         const anchor=document.createElement('div');anchor.className='home-brand-anchor';
@@ -3665,8 +3665,8 @@ function firstUsableArtwork(groups,measure,score,deadlineMs=2200){
 const HomeReads={active:null,budgetMs:600,
  scope(){return queueScope()+':'+(typeof Cloud==='undefined'?'':Cloud.ident());},
  begin(rid){let b=this.active;if(!b||b.nextRid!==rid||b.scope!==this.scope())b={scope:this.scope(),rid,values:new Map(),pending:new Map(),deferred:new Set(),failed:new Set(),timer:null,nextRid:null,painted:false,dirty:false};b.rid=rid;b.nextRid=null;this.active=b;return b;},
- markPaint(rid){const b=this.active;if(b?.rid!==rid)return;b.painted=true;if(b.dirty)this.schedule(b);},
- schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;if(Date.now()<(App.scrollUntil||0)){this.schedule(b);return;}b.dirty=false;b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});},120);},
+ markPaint(rid,html){const b=this.active;if(b?.rid!==rid)return;if(typeof HomeRefresh!=='undefined'&&html)HomeRefresh.record(b,html);b.painted=true;if(b.dirty)this.schedule(b);},
+ schedule(b){b.dirty=true;clearTimeout(b.timer);b.timer=setTimeout(()=>{if(this.active!==b||App.view!=='home'||App.stale(b.rid)||b.scope!==this.scope()||!b.painted)return;if(Date.now()<(App.scrollUntil||0)||b.updating){this.schedule(b);return;}b.dirty=false;if(typeof HomeRefresh!=='undefined')Promise.resolve(HomeRefresh.refresh(b)).catch(()=>{});else{b.nextRid=App.renderId+1;Promise.resolve(App.refresh()).catch(()=>{});}},120);},
  async read(b,key,loader,fallback=[]){if(b.values.has(key))return b.values.get(key);if(b.pending.has(key)){b.deferred.add(key);return fallback;}
  const job=Promise.resolve().then(loader).catch(()=>{b.failed.add(key);return fallback;}).then(value=>{b.values.set(key,value);b.pending.delete(key);if(b.deferred.delete(key))this.schedule(b);return value;});b.pending.set(key,job);let timer;try{return await Promise.race([job,new Promise(resolve=>{timer=setTimeout(()=>{b.deferred.add(key);resolve(fallback);},this.budgetMs);})]);}finally{clearTimeout(timer);}
  }
@@ -3739,7 +3739,7 @@ const Views = {
     if(batch.pending.has('watching')||batch.failed.has('watching')||batch.pending.has(verificationKey))queueFailed=true;
     const queueItems = heroFirst ? buildQueue(resume, up, queueWatchingVerified, airingForQueue) : [];
     for (const it of queueItems) { const u = QueueArt.get(it); if (u) { it.resolvedBackdrop = u; it.thumb = u; } } // last time's banner, straight away
-    let html = heroFirst ? yourNextHero(queueItems, queueFailed) : carouselHtml;
+    let html = `<div class="home-slot" data-home-slot="hero">${heroFirst ? yourNextHero(queueItems, queueFailed) : carouselHtml}</div>`;
     html += '<div class="page home-rows">';
     const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
     const today = mineThisWeek.filter((x) => x.at >= +dayStart && x.at < +dayStart + 86400000).sort((a, b) => a.at - b.at);
@@ -3772,17 +3772,19 @@ const Views = {
     };
     genreIds.forEach((g, i) => { rows[g] = () => rail(g.slice(2), shows(genreLists[i]), { more: ['browse', { src: 'anime', f: { genre: g.slice(2) } }] }); });
     let lowerShelves=false;
-    for(const id of sections){if(id==='mosaic'||id==='trending')lowerShelves=true;const row=rows[id]?.()||'';html+=lowerShelves?homeShelf(row,id):row;}
+    for(const id of sections){if(id==='mosaic'||id==='trending')lowerShelves=true;const row=rows[id]?.()||'';html+=`<div class="home-slot" data-home-slot="${esc(id)}">${lowerShelves?homeShelf(row,id):row}</div>`;}
     return html + '</div>';
   },
-  async homeAfter(_p, rid) {
+  async homeAfter(_p, rid, options) {
     QueueRecovery.schedule(rid);
     // Each part on its own, so one failing can't leave the rest (Trending's art, the carousel…) undone.
-    for (const step of [() => bindYourNext(rid), () => bindWeek(), () => enhanceMosaic(rid).catch((e) => console.warn('Trending:', e.message))]) {
+    for (const step of [!options||options.hero?() => bindYourNext(rid):null, !options||options.week?() => bindWeek():null, !options||options.mosaic?() => enhanceMosaic(rid).catch((e) => console.warn('Trending:', e.message)):null].filter(Boolean)) {
       try { step(); } catch (e) { console.warn('Home:', e.message); }
     }
+    if(options&&!options.carousel)return;
     const car = $('#carousel');
     if (!car) return;
+    const stale=()=>App.stale(rid)||car.isConnected===false;
     // Each slide's art, in order of preference: AniList banner, ani.zip (TheTVDB) fanart, Kitsu cover, Trakt fanart,
     // your library's backdrop. The first that's sharp enough for the carousel at this size wins (like title pages);
     // a slide with nothing reasonably sharp is dropped. Anime slides also switch to AniList's title and info.
@@ -3797,11 +3799,11 @@ const Views = {
     const loadBest = async (slide) => {
       const img=slide.querySelector('.slide-img'),fan=JSON.parse(img.dataset.fan||'null');
       const alP=slide.dataset.kid?AniList.details(slide.dataset.kid).catch(()=>null):Promise.resolve(null);
-      alP.then(al=>{if(!al||App.stale(rid)||!slide.isConnected)return;if(al.cover)slide.dataset.poster=al.cover;const heading=slide.querySelector('.slide-text h1');if(!heading.querySelector('.hero-logo'))heading.textContent=al.title||heading.textContent;slide.querySelector('.slide-meta').textContent=[al.score?'★ '+al.score+'%':'',al.format,al.year,al.episodes?al.episodes+' eps':'',...(al.genres||[]).slice(0,2)].filter(Boolean).join(' · ');showLogo(heading,al.id,seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}).catch(()=>{});
+      alP.then(al=>{if(!al||stale()||!slide.isConnected)return;if(al.cover)slide.dataset.poster=al.cover;const heading=slide.querySelector('.slide-text h1');if(!heading.querySelector('.hero-logo'))heading.textContent=al.title||heading.textContent;slide.querySelector('.slide-meta').textContent=[al.score?'★ '+al.score+'%':'',al.format,al.year,al.episodes?al.episodes+' eps':'',...(al.genres||[]).slice(0,2)].filter(Boolean).join(' · ');showLogo(heading,al.id,seasonNumberIn(al.title||''),al.englishTitle||al.title||'');}).catch(()=>{});
       const known=JSON.parse(img.dataset.srcs||'[]');
       const groups=[()=>known,async()=>[(await alP)?.banner],async()=>[(await AniZip.get((await alP)?.id))?.fanart],async()=>typeof kitsuCover==='function'?[await kitsuCover({kitsuId:slide.dataset.kid||null})]:[],async()=>typeof HDArt==='undefined'?[]:(await HDArt.backdrops({seriesId:slide.dataset.lib||null,alId:(await alP)?.id})).slice(0,2),async()=>fan?.[0]?Trakt.fanartFor(fan[0],fan[1]):[]];
       const best=await firstUsableArtwork(groups,measure,image=>carouselArtworkScore(image,box,dpr));
-      if(App.stale(rid)||!slide.isConnected)return 0;if(best)img.dataset.best=best.u;return carouselArtworkScore(best,box,dpr);
+      if(stale()||!slide.isConnected)return 0;if(best)img.dataset.best=best.u;return carouselArtworkScore(best,box,dpr);
     };
     car.classList.add('loading-art');
     const pendingSlides=[...car.querySelectorAll('.slide')],scores=new Array(pendingSlides.length).fill(0);
@@ -3809,10 +3811,10 @@ const Views = {
     car.querySelector('.car-nav').hidden=true;
     const loadWorker=async()=>{
       while(artCursor<pendingSlides.length){
-        if(App.stale(rid))return;
+        if(stale())return;
         const index=artCursor++,slide=pendingSlides[index];
         scores[index]=await loadBest(slide);
-        if(App.stale(rid))return;
+        if(stale())return;
         if(!firstPainted&&scores[index]>=.65){
           firstPainted=true;const image=slide.querySelector('.slide-img');image.src=image.dataset.best;
           pendingSlides.forEach(s=>s.classList.toggle('on',s===slide));car.classList.remove('loading-art');
@@ -3820,7 +3822,7 @@ const Views = {
       }
     };
     await Promise.all(Array.from({length:Math.min(3,pendingSlides.length)},loadWorker));
-    if (App.stale(rid)) return;
+    if (stale()) return;
     // Sharp art only, unless that leaves fewer than three slides: then slightly softer landscape art may fill in, so a
     // wide window never empties the Spotlight.
     const floor = scores.filter((x) => x >= 0.65).length >= 3 ? 0.65 : 0.5;
