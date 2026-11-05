@@ -8,7 +8,7 @@ const TrackingRecovery={job:null,timer:null,clock:null,lastKey:'',automaticAttem
  paint(){const job=this.job;if(!this.valid(job)){this.clear();return;}const seconds=Math.max(0,Math.ceil(((job.error.retryAt||0)-Date.now())/1000));for(const b of this.buttons()){b.disabled=!!job.busy||seconds>0;b.textContent=job.busy?'Checking your list…':seconds>0?(this.automaticAttempts<1?'Checking again in ':'Try again in ')+seconds+'s':'Retry list lookup';}},
  bind(rid,id){
   const error=App.remoteEpisodeSnapshot?.values?.[2]?.error;
-  if(!error){this.clear();return;}
+  if(!error||error.pending){this.clear();return;}
   const service=Tracker.svc,scope=this.scope(service),key=rid+':'+id+':'+scope;
   if(this.job?.key===key&&this.job.error===error){this.paint();return;}
   this.clear();if(this.lastKey!==key){this.lastKey=key;this.automaticAttempts=0;}

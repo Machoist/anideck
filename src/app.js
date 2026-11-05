@@ -901,6 +901,7 @@ const App = {
         this.viewInTimer = setTimeout(() => main.classList.remove('view-in'), 240);
       }
       if (Views[view + 'After']) Views[view + 'After'](params, id,{retainedTitle:!!retainedTitle});
+      if(view==='anime'&&typeof TitleReads!=='undefined')TitleReads.mounted(id);
       requestAnimationFrame(() => updateRailArrows(main));
       setTimeout(() => updateRailArrows(main), 600); // after images settle
     }).catch((e) => {
@@ -2485,6 +2486,7 @@ async function trackingEntryState(id,options) {
   catch(error){return {entry:null,error};}
 }
 function progressCard({ editable, kitsuId, total, title, label, num, of, pct, note = '', error = null, recovery = false }) {
+  if(error?.pending)return '<div class="side-card prog-card" role="status"><div class="prog-head"><span class="side-status">Checking your list…</span></div><p class="small muted">Your saved progress will appear here.</p></div>';
   if(error)return `<div class="side-card prog-card" role="status"><div class="prog-head"><span class="side-status">${error.status===429?'List check paused':'List entry unavailable'}</span></div><p class="small muted">${esc(error.status===429?'AniList is busy. Your saved list has not been changed.':error.message||'Could not check your saved progress.')}</p><button class="btn ghost sm" ${recovery?'data-list-retry data-act="retryListEntry"':'data-act="retry"'}>Retry list lookup</button></div>`;
   return `<div class="side-card prog-card ${editable ? 'editable' : ''}" ${editable ? `data-act="editEntry" data-kitsu="${esc(kitsuId)}" data-total="${esc(total || '')}" data-title="${esc(title)}" data-watched="${num}"` : ''}>
     <div class="prog-head">${editable ? icon('bookmark', 'fill st-ico') : ''}<span class="side-status">${esc(label)}</span><b class="prog-num">${num} / ${esc(of || '?')}</b>${editable ? `<span class="pencil" title="Edit">${icon('pencil')}</span>` : ''}</div>
@@ -4215,9 +4217,9 @@ const Views = {
   // Title page for a show that isn't in your Jellyfin library: same layout as library show pages,
   // with AniList art and episodes streamed from the chosen server. Episode names/thumbnails fill in from Kitsu.
   async anime({ id, tab = 'episodes', range, snapshot }, rid) {
-    const values = snapshot || await Promise.all([
+    const values = snapshot || (typeof TitleReads!=='undefined'?await TitleReads.read(id,rid):await Promise.all([
       Kitsu.animeFull(id).catch(() => Kitsu.anime(id)), Requests.has(id), trackingEntryState(id), AniList.details(id).catch(() => null),
-    ]);
+    ]));
     if (App.stale(rid)) return '';
     const [a, requested, entryState, al]=values;
     App.remoteEpisodeSnapshot={id,range,values};
@@ -4331,7 +4333,7 @@ const Views = {
             ${genres.length ? `<div class="genre-chips">${genres.map((g) => `<button class="genre" data-act="browseGenre" data-genre="${esc(g)}" data-src="anime">${esc(g)}</button>`).join('')}</div>` : ''}
             <div class="row gap hero-actions">
               ${playBtn}
-              ${entryError ? '<button class="btn ghost" data-list-retry data-act="retryListEntry">Retry list lookup</button>' : editable ? statusPicker(a.id, entry?.status, entry?.reconsuming) : '<button class="btn ghost" data-act="goAccount">Sign in to track</button>'}
+              ${entryError?.pending ? '<button class="btn ghost" disabled aria-busy="true">Checking your list…</button>' : entryError ? '<button class="btn ghost" data-list-retry data-act="retryListEntry">Retry list lookup</button>' : editable ? statusPicker(a.id, entry?.status, entry?.reconsuming) : '<button class="btn ghost" data-act="goAccount">Sign in to track</button>'}
               ${!inLib && requested ? '<button class="status-btn" disabled>✓ Requested</button>' : ''}
               <div class="chip-wrap"><button class="icon-btn more-btn" data-act="toggleMenu" title="More">${icon('more')}</button><div class="chip-menu right" hidden>${menu}</div></div>
             </div>
@@ -4353,7 +4355,7 @@ const Views = {
         </section>
       </div>`;
   },
-  async animeAfter({ id, tab = 'episodes' }, rid,{retainedTitle=false}={}) {
+  async animeAfter({ id, tab = 'episodes' }, rid,{retainedTitle=false,metadataOnly=false}={}) {
     if(typeof TrackingRecovery!=='undefined')TrackingRecovery.bind(rid,id);
     checkRemoteEpisodes(rid); // Start independently of optional artwork/related-title enrichment.
     if(!retainedTitle||$('#title-story')?.dataset.storyReady!=='true')enrichTitleStory(rid).catch(()=>{});
@@ -4363,7 +4365,7 @@ const Views = {
     if (soon) { clearInterval(App.soonTimer); App.soonTimer = setInterval(() => { if (!soon.isConnected) return clearInterval(App.soonTimer); soon.textContent = countdownText(Number(soon.dataset.clock)); }, 1000); }
     if(!retainedTitle||!$('.detail-hero .hero-logo'))showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
     if ($('#related-box')&&(!retainedTitle||$('#related-box').dataset.relatedReady!=='true')) fillRelated(rid);
-    if ($('#show-social')) return fillSocial(tab, rid);
+    if ($('#show-social')) return metadataOnly?undefined:fillSocial(tab, rid);
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;

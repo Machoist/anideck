@@ -12,15 +12,20 @@ function variantKey(title,format){
  return titleKey(value);
 }
 function laterPart(title){const part=String(title||'').match(/(?:part|cour)\s*(\d+)/i)||String(title||'').match(/\s(\d+)$/);return !!part&&Number(part[1])>1;}
+function declaredSeason(title){const m=String(title||'').match(/^(.*?)\s*(?:(\d+)(?:st|nd|rd|th)\s+season|(?:season|series)\s*(\d+)|\s(\d+))$/i);return m&&m[1].trim()?{base:titleKey(m[1].trim()),number:Number(m[2]||m[3]||m[4])}:null;}
 function chooseTitle(items,title,season,aliases=[],mediaFormat,episodeCount,{identity=x=>x.url,label="Provider"}={}){
  const format=formatKey(mediaFormat);if(format)items=items.filter(x=>!x.format||formatKey(x.format)===format);
- const names=[title,...aliases],matching=t=>items.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&titleKey(v)===titleKey(t)));
+ const names=[title,...aliases],requested=declaredSeason(title),bases=new Set(names.map(v=>declaredSeason(v)?.base||titleKey(v))),wanted=requested?.number||season;
+ // Some catalogs reuse the English title for every season. A same-franchise explicit alternate season is stronger evidence.
+ items=items.filter(x=>![x.title,x.jp,x.alt].some(v=>{const declared=declaredSeason(v);return declared&&bases.has(declared.base)&&declared.number!==wanted;}));
+ const matching=t=>items.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&titleKey(v)===titleKey(t)));
  const unique=rows=>[...new Map(rows.map(x=>[identity(x),x])).values()];
  const named=seasonNamed(title),safeNames=names.filter(v=>!named||season<=1||seasonNamed(v)||/\s\d+$/.test(v));
  let hits=season>1&&!named?matching(title+' Season '+season):[],seasonal=named||hits.length>0;
  if(!hits.length)hits=matching(title);
  if(!hits.length)hits=safeNames.slice(1).flatMap(matching);
  let matches=unique(hits);
+ if(matches.length>1&&requested){const exact=matches.filter(x=>[x.title,x.jp,x.alt].some(v=>v&&variantKey(v,format)===variantKey(title,format)));if(exact.length===1)matches=exact;}
  if(matches.length>1)throw Error(label+' returned ambiguous title matches');
  if(matches.length===1)return {...matches[0],seasonal:seasonal||[matches[0].title,matches[0].jp,matches[0].alt].some(seasonNamed)};
  // Only equivalent complete names; never fuzzy franchise/substring or first-result selection.
