@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 4 November — missing Tokyo Revengers season synopsis
+
+Current test build: **preview-909e38e**, runtime source **909e38e**. **610 tests pass**. Package audit, isolated native readiness and actual packaged About-section rendering pass; installer/portable equality and ZIP integrity verified.
+
+- Reproduced missing metadata for exact AniList178083/Kitsu48960/MAL59088: public ani.zip mapping agrees; Kitsu and Tenrai both return only a sequel relationship, and the public Jikan request timed out. The existing non-fabricated unavailable state was accurate for those catalogs, but a source-backed arc overview exists.
+- Added a reviewed, paraphrased ORICON season overview to a separate exact-ID supplements catalog, with a visible source link. Used only when current AniList/Kitsu descriptions are blank/stubs and MAL mapping is verified; a conflicting AniList season cannot receive it. Real primary/alternate plots keep precedence. No title-name guessing, prequel-story borrowing or runtime news scraping. Source: https://www.oricon-group.com/news/8178/ (reviewed4 November2026).
+- Added two regression tests for AniList/Kitsu paths, no redundant fallback-service requests, real plot precedence and wrong/unmapped identities. Focused24 tests pass; full610 tests pass. Isolated Electron rendered the actual packaged titleStoryMarkup/enrichTitleStory with source credit and no placeholder/overflow; screenshot reviewed at outputs/tokyo-synopsis-native/Tokyo-Revengers-synopsis.png. Native readiness uses a generated signed-out profile; no live account mutations or installed-app replacement.
+- Scope: the new reviewed entry fixes this season. Other titles without genuine catalog plots still need source-backed metadata; do not claim universal coverage. Artwork retention remains included. Continue poster/banner cache and first-boot performance work next; private Jellyfin pending, TV/Gio/physical Mac deferred.
+
 ## 4 November — retained title logos, first performance increment
 
 Current test installer/portable: **preview-f11d526**, runtime source **f11d526**. **608 tests pass**. Package audit, full isolated native visuals and separate readiness check pass. Installer/portable app.asar equality and ZIP integrity verified.
