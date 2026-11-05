@@ -28,8 +28,18 @@ test('TVDB logo index accepts only clearlogo assets belonging to the exact mappe
 test('Random public seed contains only verified popular titles with content metadata and expires after ten minutes',async()=>{
  const {Kitsu,AniList}=fixture();AniList.gql=async()=>({byId:{media:[{id:1,type:'ANIME',format:'TV'}]}});
  const good=row(1);good.attributes.popularityRank=5;good.relationships.categories={data:[{id:'cat'}]};
- await Kitsu.discoveryData({data:[good],included:[mapping('m1','anilist/anime',1),{id:'cat',type:'categories',attributes:{title:'Action'}}]});
+ await Kitsu.discoveryData({data:[good],included:[mapping('m1','anilist/anime',1),{id:'cat',type:'categories',attributes:{title:'Action'}}]},true);
  assert.equal(Kitsu.recentDiscovery().length,1);assert.equal(Kitsu.recentDiscovery()[0].genres[0],'Action');Kitsu.discoveryPool.get('1').at-=600001;assert.equal(Kitsu.recentDiscovery().length,0);
  AniList.gql=async()=>{throw Error('Rate limited');};const bad=row(2);bad.attributes.popularityRank=2;bad.relationships.categories={data:[]};await assert.rejects(Kitsu.discoveryData({data:[bad],included:[mapping('m2','anilist/anime',2)]}));assert.equal(Kitsu.discoveryPool.size,0);
  Kitsu.rememberDiscovery([row(3)],[]);assert.equal(Kitsu.discoveryPool.size,0);
+});
+
+test('search results and filtered browse pages cannot contaminate the general Random seed',async()=>{
+ const {Kitsu,AniList}=fixture();AniList.gql=async()=>({byId:{media:[{id:1,type:'ANIME',format:'TV'},{id:2,type:'ANIME',format:'TV'}]}});
+ const payload=id=>{const anime=row(id);anime.attributes.popularityRank=id;anime.relationships.categories={data:[]};return {data:[anime],included:[mapping('m'+id,'anilist/anime',id)]};};
+ Kitsu.call=async url=>url.includes('filter%5Btext%5D')?payload(1):payload(2);
+ await Kitsu.searchWithGenres('Generated franchise');assert.equal(Kitsu.recentDiscovery().length,0);
+ await Kitsu.browse({sort:'popular',status:'current'});assert.equal(Kitsu.recentDiscovery().length,0);
+ await Kitsu.browse({sort:'popular'});assert.deepEqual(Array.from(Kitsu.recentDiscovery(),x=>x.id),['2']);
+ await Kitsu.searchWithGenres('Generated franchise');assert.deepEqual(Array.from(Kitsu.recentDiscovery(),x=>x.id),['2']);
 });

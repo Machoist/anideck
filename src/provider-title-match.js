@@ -19,10 +19,19 @@ function identityCandidates(items,title,aliases,format){
  const names=[title,...aliases],keys=new Set(names.map(arcKey));
  return [...new Map(items.filter(x=>(!formatKey(format)||formatKey(x.format)===formatKey(format))&&[x.title,x.jp,x.alt].some(v=>v&&keys.has(arcKey(v))&&names.some(t=>arcKey(t)===arcKey(v)&&titleKey(t)!==titleKey(v)))).map(x=>[x.url,x])).values()];
 }
+function sameSynopsis(a,b){
+ const left=norm(a),right=norm(b);if(left.length<160||right.length<160)return false;
+ if(right.startsWith(left.slice(0,160)))return true;
+ const size=Math.min(320,left.length,right.length);if(size<240||left.slice(0,12)!==right.slice(0,12))return false;
+ // Bounded edit distance tolerates small transliteration differences, not rewritten plot summaries.
+ let row=Array.from({length:size+1},(_,i)=>i);
+ for(let i=1;i<=size;i++){const next=[i];for(let j=1;j<=size;j++)next[j]=Math.min(row[j]+1,next[j-1]+1,row[j-1]+(left[i-1]===right[j-1]?0:1));row=next;}
+ return row[size]<=Math.floor(size*.05);
+}
 function verifiedIdentity(actual,request){
  const year=Number(request.catalogYear),count=Number(request.episodeCount),description=norm(request.catalogSynopsis);
  const alternate=(request.titleAliases||[]).some(name=>norm(name).length>=16&&(actual.titles||[]).some(value=>titleKey(value)===titleKey(name)));
- const story=description.length>=160&&norm(actual.synopsis).startsWith(description.slice(0,160));
+ const story=sameSynopsis(description,actual.synopsis);
  return year>=1900&&year<=2200&&count>0&&count<=3000&&(alternate||story)&&actual.year===year&&actual.episodes===count&&formatKey(actual.format)===formatKey(request.mediaFormat)&&!!formatKey(request.mediaFormat);
 }
 function declaredSeason(title){const m=String(title||'').match(/^(.*?)\s*(?:(\d+)(?:st|nd|rd|th)\s+season|(?:season|series)\s*(\d+)|\s(\d+))$/i);return m&&m[1].trim()?{base:titleKey(m[1].trim()),number:Number(m[2]||m[3]||m[4])}:null;}
@@ -57,4 +66,4 @@ function chooseTitle(items,title,season,aliases=[],mediaFormat,episodeCount,{ide
 
 function aliases(request,title){return [...new Set((Array.isArray(request.titleAliases)?request.titleAliases:[]).filter(v=>typeof v==='string'&&v.trim()&&v.length<=200&&v!==title))].slice(0,8);}
 function boundEpisodes(listed,match,count,label){if(!match.combinedFirst)return listed;if(listed.length<=count||!Array.from({length:count},(_,i)=>i+1).every(n=>listed.some(e=>e.number===n)))throw Error(label+' combined listing has incomplete first-part boundaries');return listed.filter(e=>e.number<=count);}
-module.exports={norm,titleKey,formatKey,chooseTitle,aliases,boundEpisodes,identityCandidates,verifiedIdentity};
+module.exports={norm,titleKey,formatKey,chooseTitle,aliases,boundEpisodes,identityCandidates,verifiedIdentity,sameSynopsis};

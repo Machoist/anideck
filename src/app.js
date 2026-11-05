@@ -5,7 +5,7 @@ function remotePlaybackProvider(server = activeStreamingServer) { return server 
 const RemoteEpisodes = {
   cache:new Map(),pending:new Map(),timeoutMs:6000,
   read(p){return window.native.streamEpisodes(p);},
-  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[],p.mediaFormat||'',p.episodeCount||0,p.catalogYear||null,String(p.catalogSynopsis||'').slice(0,220)]);},
+  key(p){return JSON.stringify([p.provider,p.title,p.seasonNumber,p.audio,p.titleAliases||[],p.mediaFormat||'',p.episodeCount||0,p.catalogYear||null,String(p.catalogSynopsis||'').slice(0,220),p.catalogKitsuId||null,p.catalogAniListId||null]);},
   peek(p){const hit=this.cache.get(this.key(p));return hit&&hit.until>Date.now()?hit.state:null;},
   clear(p){this.cache.delete(this.key(p));},
   failure(error){const detail=String(error?.message||'');let reason='unavailable',message='This server couldn’t return its episode list. Try again or choose another server.';if(/ambiguous|exact season|different title/i.test(detail)){reason='matching';message='This server lists multiple versions of the title. AniDeck couldn’t safely choose the right one.';}else if(/timed out|timeout/i.test(detail)){reason='timeout';message='This server took too long to respond. Try again or choose another server.';}else if(/429|rate.limit/i.test(detail)){reason='busy';message='This server is receiving too many requests. Wait a moment before trying again.';}else if(/invalid response|metadata unavailable|episode list unavailable|incomplete/i.test(detail)){reason='incomplete';message='This server returned incomplete episode information. Try again or choose another server.';}return {status:'error',episodes:[],reason,message};},
@@ -1669,18 +1669,21 @@ const App = {
     const knownMatch = String(this.showCtx?.match?.id) === String(kitsuId) ? this.showCtx.match : null;
     const movie = knownMatch?.movie === true || movieHint;
     if (movie) episodeNum = 1;
-    const identity={catalogYear:knownMatch?.catalogYear||catalogYear,catalogSynopsis:knownMatch?.catalogSynopsis||catalogSynopsis};
-    const listing=await RemoteEpisodes.load({provider,title,...identity,mediaFormat:knownMatch?.mediaFormat||mediaFormat||(movie?'MOVIE':null),titleAliases:knownMatch?.titleAliases||titleAliases,seasonNumber:seasonNumberIn(title)||1,episodeCount:Number(knownMatch?.episodes)||Number(totalHint)||null,audio});
+    const publicMeta=!knownMatch&&typeof AniList!=='undefined'?await AniList.details(kitsuId).catch(()=>null):null;
+    if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
+    const resolvedFormat=knownMatch?.mediaFormat||publicMeta?.format||mediaFormat||(movie?'MOVIE':null),resolvedAliases=[...new Set([...(knownMatch?.titleAliases||titleAliases),...(publicMeta?.titles||[])])].slice(0,8);
+    const identity={catalogYear:knownMatch?.catalogYear||publicMeta?.year||catalogYear,catalogSynopsis:knownMatch?.catalogSynopsis||publicMeta?.synopsis||catalogSynopsis,catalogKitsuId:knownMatch?.catalogKitsuId||(/^[1-9][0-9]*$/.test(String(kitsuId))?String(kitsuId):null),catalogAniListId:knownMatch?.catalogAniListId||publicMeta?.id||(String(kitsuId).startsWith('al:')?String(kitsuId).slice(3):null)};
+    const listing=await RemoteEpisodes.load({provider,title,...identity,mediaFormat:resolvedFormat,titleAliases:resolvedAliases,seasonNumber:seasonNumberIn(title)||1,episodeCount:Number(knownMatch?.episodes)||Number(publicMeta?.episodes)||Number(totalHint)||null,audio});
     if(this.renderId!==renderId||remotePlaybackProvider()!==provider||(typeof Tracker!=='undefined'&&(Tracker.svc!==service||service?.userId!==user)))return;
     if(listing.status!=='ready')return toast('Couldn’t check this server. Open Episodes & Details to try another server.','bad');
     if(!listing.episodes.includes(episodeNum))return toast('This episode wasn’t found on '+shortServerName(provider)+'. Try another server.');
     const playbackSeason=seasonNumberIn(title)||1;
     const fakeEp = { Id: `remote-${kitsuId}-${episodeNum}`, Name: movie ? title : `Episode ${episodeNum}`,
       Type: movie ? 'Movie' : 'Episode', IndexNumber: episodeNum, ParentIndexNumber: playbackSeason, SeriesName: title };
-    const total = movie ? 1 : Number(knownMatch?.episodes) || Number(totalHint) || 0;
+    const total = movie ? 1 : Number(knownMatch?.episodes) || Number(publicMeta?.episodes) || Number(totalHint) || 0;
     const remoteEpisodes = movie ? [fakeEp] : listing.episodes.filter(n=>!total||n<=total).map(n=>({...fakeEp,Id:`remote-${kitsuId}-${n}`,Name:`Episode ${n}`,IndexNumber:n}));
     return Player.open({ episode: fakeEp, series: { Id: `kitsu-${kitsuId}`, Name: title },
-      season: { Id: 's'+playbackSeason, IndexNumber: playbackSeason }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases, ...identity, mediaFormat:mediaFormat||(movie?'MOVIE':null), episodes: total || null },
+      season: { Id: 's'+playbackSeason, IndexNumber: playbackSeason }, episodes: remoteEpisodes, match: knownMatch || { id: kitsuId, title, titleAliases:resolvedAliases, ...identity, mediaFormat:resolvedFormat, episodes: total || null },
       provider, audio, remoteOnly: true, movie }, () => { if (['anime','home'].includes(this.view)) this.refresh(); }); // progress may have moved
   },
   async requestAnime(kitsuId) {
@@ -4226,7 +4229,7 @@ const Views = {
     const [a, requested, entryState, al]=values;
     App.remoteEpisodeSnapshot={id,range,values};
     const {entry,error:entryError}=entryState;
-    App.showCtx = { id: null, n: 1, match: { id: a.id, title: a.title, catalogYear:a.year||al?.year||null,catalogSynopsis:String(al?.synopsis||a.synopsis||'').slice(0,4000),mediaFormat:a.subtype||al?.format||'', titleAliases:[...new Set([...(a.titles||[]),a.canonical,...(al?.titles||[])].filter(v=>v&&v!==a.title))].slice(0,8), url: a.url, episodes: a.episodes, movie: String(a.subtype || al?.format || '').toLowerCase() === 'movie' } };
+    App.showCtx = { id: null, n: 1, match: { id: a.id, title: a.title, catalogKitsuId:/^[1-9][0-9]*$/.test(String(a.id))?String(a.id):null,catalogAniListId:al?.id||(String(id).startsWith('al:')?String(id).slice(3):null),catalogYear:a.year||al?.year||null,catalogSynopsis:String(al?.synopsis||a.synopsis||'').slice(0,4000),mediaFormat:al?.format||a.subtype||'', titleAliases:[...new Set([...(a.titles||[]),a.canonical,...(al?.titles||[])].filter(v=>v&&v!==a.title))].slice(0,8), url: a.url, episodes: al?.episodes||a.episodes, movie: String(al?.format||a.subtype||'').toLowerCase() === 'movie' } };
     const inLib = App.libIndex?.find(a);
     const remServer = remotePlaybackProvider();
     const audioMode = App.settings.showAudio?.[a.id] || (App.settings.audioLang === 'eng' ? 'dub' : 'sub');
@@ -4235,7 +4238,7 @@ const Views = {
     const aired = al?.next ? al.next.episode - 1 : null;
     // Not out yet (AniList says "not yet released", or episode 1 is the next to air): no episode list at all.
     const notOut = /not.?yet|upcoming|unreleased|tba/i.test(String(al?.status || a.status || '')) || al?.next?.episode === 1;
-    const episodeRequest={provider:remServer,title:a.title,catalogYear:App.showCtx.match.catalogYear,catalogSynopsis:App.showCtx.match.catalogSynopsis,mediaFormat:App.showCtx.match.mediaFormat,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,episodeCount:Number(total)||null,audio:audioMode};
+    const episodeRequest={provider:remServer,title:a.title,catalogKitsuId:App.showCtx.match.catalogKitsuId,catalogAniListId:App.showCtx.match.catalogAniListId,catalogYear:App.showCtx.match.catalogYear,catalogSynopsis:App.showCtx.match.catalogSynopsis,mediaFormat:App.showCtx.match.mediaFormat,titleAliases:App.showCtx.match.titleAliases,seasonNumber:seasonNumberIn(a.title)||1,episodeCount:Number(total)||null,audio:audioMode};
     const availability=notOut?{status:'ready',episodes:[]}:RemoteEpisodes.peek(episodeRequest);
     App.remoteEpisodeRequest=episodeRequest;
     const available=notOut?[]:(availability?.episodes||[]).filter(n=>aired==null||n<=aired);

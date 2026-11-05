@@ -528,6 +528,27 @@ function createWindow() {
             return {actualBridge:RemoteEpisodes.read.toString().includes('streamEpisodes'),fullAliases:request.titleAliases.includes('Haikyuu 4'),boundary:request.episodeCount===13,numbers:result.episodes.join(',')===Array.from({length:13},(_,i)=>i+1).join(','),cards:document.querySelectorAll('.ep-list .ep').length===13};
           })()`);console.log('AniDeck renderer IPC catalog contract:',JSON.stringify({...contract,publicRoutes:catalogContractCalls}));if(Object.values(contract).some(v=>!v)||catalogContractCalls!==3)throw Error('Renderer to IPC catalog contract failed');
         }finally{net.fetch=contractFetch;contractProvider.cache.clear();}
+        const splitFetch=net.fetch,splitProvider=require('./src/anikoto'),splitCatalog=require('./src/catalog-parts.cjs');
+        try{
+          splitProvider.cache.clear();splitCatalog.cache.clear();
+          net.fetch=async(url,options)=>{const u=new URL(url);let body;
+            if(u.host==='kitsu.io'&&u.pathname.startsWith('/api/edge/anime/')){
+              if(u.pathname.endsWith('/media-relationships'))body={data:[{attributes:{role:'sequel'},relationships:{destination:{data:{type:'anime',id:'20'}}}}]};
+              else{const id=u.pathname.endsWith('/10')?'10':'20',number=id==='10'?2:3;body={data:{id,type:'anime',attributes:{canonicalTitle:'Generated: Journey Part '+number,titles:{en:'Generated: Journey Part '+number},subtype:'TV',startDate:'2022-09-01',episodeCount:id==='10'?2:3},relationships:{mappings:{data:id==='10'?[{id:'m10'}]:[]}}},included:id==='10'?[{id:'m10',type:'mappings',attributes:{externalSite:'anilist/anime',externalId:'99'}}]:[]};}
+            }else if(u.origin===splitProvider.BASE){
+              if(u.pathname==='/filter')body=[2,3].map(n=>'<div class="inner"><div class="ani poster"><i class="right">ONA</i></div><a href="'+splitProvider.BASE+'/watch/batch-'+n+'">Generated Part 8: Journey Part '+n+'</a></div>').join('');
+              else if(u.pathname.startsWith('/watch/')){const n=Number(u.pathname.slice(-1));body='<div class="watch-wrap" data-id="'+n+'" data-url="'+splitProvider.BASE+'/watch/batch-'+n+'"><div class="info"><h1 class="title">Generated Part 8: Journey Part '+n+'</h1><div class="bmeta"><div class="meta"><div>Type: <span>ONA</span></div><div>Premiered: <span>2022</span></div><div>Episodes: <span>'+(n===2?2:3)+'</span></div></div></div></div></div>';}
+              else if(u.pathname.startsWith('/ajax/episode/list/')){const n=Number(u.pathname.slice(-1));body={status:200,result:Array.from({length:n===2?2:3},(_,i)=>'<a data-num="'+(i+1)+'" data-id="'+(n*100+i+1)+'" data-ids="opaque" data-sub="1" data-dub="1"></a>').join('')};}
+              else throw Error('Unexpected split catalog route');
+            }else return splitFetch(url,options);
+            return {ok:true,status:200,text:async()=>typeof body==='string'?body:JSON.stringify(body)};
+          };
+          const split=await win.webContents.executeJavaScript(`(async()=>{
+            const prior=App.remoteEpisodeSnapshot,a={id:'10',title:'Generated: Journey Part 2',titles:['Generated: Journey Part 2'],subtype:'TV',episodes:2,year:2022,synopsis:''},al={id:99,title:a.title,titles:a.titles,format:'ONA',episodes:5,year:2022,status:'finished'},values=[a,false,{entry:null,error:null},al];
+            try{document.querySelector('#main').innerHTML=await Views.anime({id:'10',snapshot:values},App.renderId);const request=App.remoteEpisodeRequest;RemoteEpisodes.clear(request);const result=await RemoteEpisodes.load(request);document.querySelector('#main').innerHTML=await Views.anime({id:'10',snapshot:values},App.renderId);return {formatAuthority:request.mediaFormat==='ONA',exactIds:request.catalogKitsuId==='10'&&request.catalogAniListId===99,numbers:result.episodes.join(',')==='1,2,3,4,5',cards:document.querySelectorAll('.ep-list .ep').length===5};}
+            finally{RemoteEpisodes.clear(App.remoteEpisodeRequest);document.querySelector('#main').innerHTML=await Views.anime({id:prior.id,snapshot:prior.values},App.renderId);}
+          })()`);console.log('AniDeck split catalog contract:',JSON.stringify(split));if(Object.values(split).some(value=>!value))throw Error('Split catalog renderer/IPC contract failed');
+        }finally{net.fetch=splitFetch;splitProvider.cache.clear();splitCatalog.cache.clear();}
         const recoveryStart=await win.webContents.executeJavaScript(`(async()=>{
           globalThis.listRecoveryBackup={entry:Tracker.entry,save:Tracker.saveEntry};globalThis.listRecoveryReads=0;globalThis.listRecoveryWrites=0;
           Tracker.entry=async(_id,options)=>{if(!options?.fresh)throw Error('Recovery must read fresh');listRecoveryReads++;return {status:'current',progress:7,rating:8};};Tracker.saveEntry=async()=>{listRecoveryWrites++;throw Error('No writes allowed in a recovery check');};
@@ -879,7 +900,7 @@ ipcMain.handle('stream:resolve', async (_e, source, episodeData) => {
 ipcMain.handle('cancelStreamResolution', () => { streamResolver.cancelPending(); return true; });
 
 // Used by window.native.resolveStream (show page + in-player server switcher). Errors reach the renderer.
-ipcMain.handle('stream:episodes', async (_e, params) => streamResolver.runResolution({provider:params?.provider,title:params?.title,catalogYear:params?.catalogYear,catalogSynopsis:typeof params?.catalogSynopsis==='string'?params.catalogSynopsis.slice(0,4000):'',titleAliases:params?.titleAliases,mediaFormat:params?.mediaFormat,episodeCount:params?.episodeCount,audio:params?.audio,seasonNumber:params?.seasonNumber,catalogOnly:true}));
+ipcMain.handle('stream:episodes', async (_e, params) => streamResolver.runResolution({provider:params?.provider,title:params?.title,catalogKitsuId:params?.catalogKitsuId,catalogAniListId:params?.catalogAniListId,catalogYear:params?.catalogYear,catalogSynopsis:typeof params?.catalogSynopsis==='string'?params.catalogSynopsis.slice(0,4000):'',titleAliases:params?.titleAliases,mediaFormat:params?.mediaFormat,episodeCount:params?.episodeCount,audio:params?.audio,seasonNumber:params?.seasonNumber,catalogOnly:true}));
 ipcMain.handle('resolveStream', async (_e, params) => {
   try { return await streamResolver.resolve(params); }
   catch (err) { if(err.name!=='AbortError')console.error('[Main IPC] resolveStream error:', err); throw err; }

@@ -412,7 +412,7 @@ const Kitsu = {
     for(const row of rows){const rank=Number(row.attributes?.popularityRank);if(!Number.isInteger(rank)||rank<1||rank>500||!Array.isArray(row.relationships?.categories?.data))continue;const anime={...this.toAnime(row),genres:(row.relationships?.categories?.data||[]).map(c=>cats.get(String(c.id))).filter(Boolean)};this.discoveryPool.set(String(row.id),{at:Date.now(),anime});}
     while(this.discoveryPool.size>300)this.discoveryPool.delete(this.discoveryPool.keys().next().value);
   },
-  async discoveryData(response){
+  async discoveryData(response,seedRandom=false){
     if(!ANIME_ONLY)return response.data||[];
     let rows=(response.data||[]).filter(d=>String(d.attributes?.subtype||'').toLowerCase()!=='music');
     const missing=rows.filter(d=>!d.relationships?.mappings?.data);
@@ -422,7 +422,7 @@ const Kitsu = {
       rows=rows.map(d=>exact.has(String(d.id))?{...d,relationships:{...d.relationships,mappings:exact.get(String(d.id)).relationships?.mappings}}:d);
       response={...response,included:[...(response.included||[]),...(extra.included||[])]};
     }
-    const eligible=await CatalogEligibility.filter(rows,response.included||[]);this.rememberDiscovery(eligible,response.included||[]);return eligible;
+    const eligible=await CatalogEligibility.filter(rows,response.included||[]);if(seedRandom)this.rememberDiscovery(eligible,response.included||[]);return eligible;
   },
   async search(text, limit = 20) {
     const r = await this.call(`/edge/anime${qs({ 'filter[text]': text, 'page[limit]': limit, include: 'mappings' })}`);
@@ -511,7 +511,7 @@ const Kitsu = {
       include: 'categories,mappings', 'fields[categories]': 'title', // genres, so "Hide NSFW shows" can drop ecchi
     })}`);
     const cats = Object.fromEntries((r.included || []).filter((x) => x.type === 'categories').map((x) => [x.id, x.attributes?.title]));
-    return { items: (await this.discoveryData(r)).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) })), total: r.meta?.count ?? null };
+    return { items: (await this.discoveryData(r,sort==='popular'&&!genre&&!year&&!season&&!format&&!status)).map((d) => ({ ...this.toAnime(d), genres: (d.relationships?.categories?.data || []).map((c) => cats[c.id]).filter(Boolean) })), total: r.meta?.count ?? null };
   },
   // A random anime from the most popular ~2000 (safe-for-work ratings only).
   async random() {
