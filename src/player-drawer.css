@@ -1,5 +1,8 @@
 /* Episode browser: independent title and tools rows, with a content-sized body. */
 .p-drawer{top:70px;right:18px;bottom:auto;width:min(450px,calc(100% - 36px));height:auto;max-height:calc(100% - 96px);border-radius:18px;background:rgba(20,18,28,.97)!important;backdrop-filter:blur(18px);box-shadow:0 18px 60px #0007;overflow:hidden}
+/* Pop from the panel's top corner; animate composited properties, not its layout. */
+.player .p-drawer{transform-origin:top right;transform:translate3d(0,-10px,0) scale(.94);opacity:0;visibility:hidden;pointer-events:none;transition:transform .18s cubic-bezier(.4,0,.7,.2),opacity .14s ease,visibility 0s linear .18s}
+.player .p-drawer.open{transform:translate3d(0,0,0) scale(1);opacity:1;visibility:visible;pointer-events:auto;transition:transform .28s cubic-bezier(.16,1.22,.3,1),opacity .16s ease,visibility 0s}
 .p-drawer-head{display:flex;align-items:flex-start;gap:16px;padding:20px 18px 16px;border-bottom:1px solid var(--line)}
 .p-drawer-head #p-drawer-title{display:grid;gap:8px;min-width:0;flex:1;margin:0;white-space:normal}
 .p-drawer-head #p-drawer-close{flex:0 0 32px;width:32px;height:32px;padding:7px;border-radius:9px}
