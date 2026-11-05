@@ -21,8 +21,11 @@ async function paintRemoteEpisodes(rid=App.renderId,snapshot=App.remoteEpisodeSn
  const provider=remotePlaybackProvider(),html=await Views.anime({id:snapshot.id,tab:'episodes',range:snapshot.range,snapshot:snapshot.values},rid);
  if(App.stale(rid)||remotePlaybackProvider()!==provider)return;
  const fragment=document.createElement('template');fragment.innerHTML=html;
- const root=document.querySelector('#main'),panel=root?.querySelector('.detail-main'),nav=panel?.querySelector('.title-sections');
- const retained=typeof TitlePanels!=='undefined'&&nav&&TitlePanels.commit({root,panel,nav},html);
+ let retained=false;
+ if(typeof TitlePanels!=='undefined'){
+  const root=document.querySelector('#main'),panel=root?.querySelector('.detail-main'),nav=panel?.querySelector('.title-sections');
+  retained=!!nav&&TitlePanels.commit({root,panel,nav},html);
+ }
  for(const selector of retained?['.hero-actions']:['.detail-main','.hero-actions']){const current=document.querySelector(selector),next=fragment.content.querySelector(selector);if(current&&next)current.replaceWith(next);}
  Promise.resolve(Views.animeAfter({id:snapshot.id},rid,{retainedTitle:true})).catch(error=>console.warn('Episode details:',error.message));
 }
