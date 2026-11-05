@@ -87,6 +87,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 const DEFAULT_SETTINGS = {
   audioLang: 'jpn', subLang: 'eng', autoNext: true, autoSkip: false,
+  showFillerIndicators: true, hideFiller: false,
   autoTrack: true, threshold: 0.85, maxBitrate: 40_000_000,
   speed: 1, fit: 'contain', skipLen: 85, seekStep: 10,
   libraryModes: {}, // libraryId -> 'anime' | 'none' | 'auto'
@@ -4373,6 +4374,7 @@ const Views = {
     if ($('#show-social')) return metadataOnly?undefined:fillSocial(tab, rid);
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
+    if(typeof FillerEpisodes!=='undefined')FillerEpisodes.mount({id,al:App.showAl,kitsuTotal:App.remoteEpisodeSnapshot?.values?.[0]?.episodes,total:App.showCtx?.match?.episodes},rid).catch(()=>{});
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;
     let eps=[],zip=null,settled=0;
     const apply=()=>{if(App.stale(rid))return;
@@ -5146,6 +5148,8 @@ const Views = {
         <div class="set-row"><div><div>Streaming quality cap</div><div class="desc">Lower this if playback buffers away from home.</div></div>
           <select data-set="maxBitrate">${opt([[40000000, 'Original (best)'], [20000000, 'High (20 Mbps)'], [10000000, '1080p (10 Mbps)'], [6000000, '720p (6 Mbps)'], [3000000, '480p (3 Mbps)']], s.maxBitrate)}</select></div>
         <div class="set-row"><div>Auto-play next episode</div>${sw('autoNext')}</div>
+        <div class="set-row"><div><div>Show filler indicators</div><div class="desc">Label explicitly marked filler and recap episodes. Unclassified episodes stay unmarked.</div></div>${sw('showFillerIndicators')}</div>
+        <div class="set-row"><div><div>Hide filler episodes</div><div class="desc">Hide marked filler in title episode lists. Show all remains available; numbering, progress and Play Next stay unchanged.</div></div>${sw('hideFiller')}</div>
         <div class="set-row"><div><div>Default speed</div></div><select data-set="speed">${opt([[0.75, '0.75×'], [1, 'Normal'], [1.25, '1.25×'], [1.5, '1.5×'], [2, '2×']], s.speed)}</select></div>
         <div class="set-row"><div><div>Default picture</div><div class="desc">Fit shows the whole picture, Fill crops to the screen, Stretch fills it.</div></div><select data-set="fit">${opt([['contain', 'Fit'], ['cover', 'Fill'], ['fill', 'Stretch']], s.fit)}</select></div>
         <div class="set-row"><div><div>Skip button length</div><div class="desc">The “+85s” button in the player (handy for openings).</div></div><select data-set="skipLen">${opt([[30, '30s'], [60, '60s'], [85, '85s'], [90, '90s'], [120, '2 min']], s.skipLen)}</select></div>

@@ -1,6 +1,6 @@
 # Filler metadata audit — 5 November 2026
 
-This is a source/mapping audit and implementation specification. No filler labels, hiding, automatic skipping or production metadata provider were enabled by this increment.
+Initial audit and implementation specification, followed by the 5 November implementation note below.
 
 ## Existing boundaries
 
@@ -29,3 +29,13 @@ Fetch in the background with concurrent-request deduplication, bounded caching, 
 Add independent preferences: **Show filler indicators** and **Hide filler episodes**. Hiding defaults off. Use accessible labels and a source affordance; retain mixed/unknown episodes. Hiding pure filler affects only presentation, preserves original numbers and list totals, and offers a visible way to show hidden episodes. It must not alter watch progress, completion, automatic next-episode behavior or tracker writes. Player auto-skip is separate work.
 
 Next implementation increment: neutral classification/parser and mapping fixtures first, followed by the background adapter and two real UI preferences once the source path has live acceptance. Cover split cours/absolute offsets, specials, conflicting IDs, duplicate classifications, null/false flags, pagination,429/timeouts, title/account changes, all-hidden results and restoration of the full list. Use the same results with AniList, Kitsu and local tracking.
+
+## 5 November implementation
+
+`src/filler.js` now adds optional Jikan episode annotations to remote anime title lists, with independent Playback preferences. Only explicit `filler:true` without recap hides a row; `recap:true` gets a distinct label. False, null, conflicting flags and conflicting duplicate rows remain unknown. Each marked badge links to the exact MAL episode source. No third-party dataset is bundled.
+
+Exact AniZip AniList/MAL/Kitsu correspondence, or exact Kitsu external MAL mapping, precedes lookup. Conflicting identities and different Kitsu/canonical combined counts reject enrichment; no implicit absolute-number offsets are used. Split/combined entries with unproven offsets remain unclassified. Jellyfin library pages are not integrated.
+
+Reads are background-only, page/range bounded (100 episodes per Jikan page, at most two relevant pages), deduplicated, serialized at least 1.1 seconds apart, cached up to 100 pages for six hours, with a shared 60-second failure cooldown. No tracker identity, tokens or account data are sent. Labels/hiding affect DOM presentation only; actual availability, Play Next and all progress writes retain their existing episode lists and numbers.
+
+Verification includes generated parser/mapping/cache/outage tests and actual Chromium DOM checks for labels, hide/show all, all-hidden recovery, stale navigation and unavailable-source visibility at wide/narrow sizes. Public Jikan requests through PowerShell/curl and the web tool did not succeed from this connection (DNS/connection timeout); live annotations are **not** claimed verified. Keep source availability acceptance open. No automatic skipping or researched canon/mixed classifications are implemented.
