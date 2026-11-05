@@ -228,7 +228,7 @@ const App = {
     HoverPreview.bind();
     if (this.settings.gamepad !== false) TV.startGamepad();
     if (this.settings.startFullscreen || this.settings.tvMode) window.native.setFullscreen?.(true);
-    const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init(), typeof TitleArtwork!=='undefined'?TitleArtwork.load(titleLogoCache):Promise.resolve()]);
+    const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init(), typeof TitleArtwork!=='undefined'?TitleArtwork.load(titleLogoCache):Promise.resolve(),typeof ArtworkImages!=='undefined'?ArtworkImages.load():Promise.resolve()]);
     if(typeof Matcher!=='undefined'&&Matcher.initScope)await Matcher.initScope().catch(()=>{});
     preconnectImageHosts();
     await LocalTracker.init();
@@ -2243,7 +2243,7 @@ const STATUS_LABELS = { current: 'Watching', planned: 'Planning', completed: 'Co
 
 // Covers fade in once fully loaded instead of being drawn half-downloaded (styles.css: img:not(.ready)).
 // load/error don't bubble, so listen in the capture phase for every <img> on the page.
-for (const ev of ['load', 'error']) document.addEventListener(ev, (e) => { if (e.target?.tagName === 'IMG') e.target.classList.add('ready'); }, true);
+for (const ev of ['load', 'error']) document.addEventListener(ev, (e) => { if (e.target?.tagName === 'IMG') {e.target.classList.add('ready');if(ev==='error'&&typeof ArtworkImages!=='undefined')ArtworkImages.forget(e.target.currentSrc||e.target.src);} }, true);
 // Warm up connections to where covers come from, so the first images don't wait on DNS + TLS.
 function preconnectImageHosts() {
   for (const url of ['https://media.kitsu.app', 'https://s4.anilist.co', Jellyfin.server]) {
@@ -2386,7 +2386,7 @@ async function upgradeBackdrop(rid) {
   // Let the poster and episode thumbnails load first; this is a nice-to-have.
   await new Promise((res) => (window.requestIdleCallback ? requestIdleCallback(res, { timeout: 1500 }) : setTimeout(res, 400)));
   if (App.stale(rid)) return;
-  const measure = (u) => new Promise((res) => {
+  const measure = (u) => typeof ArtworkImages!=='undefined'?ArtworkImages.measure(u,6000):new Promise((res) => {
     const i = new Image(), t = setTimeout(() => res(null), 6000);
     i.onload = () => { clearTimeout(t); res({ u, w: i.naturalWidth, h: i.naturalHeight }); };
     i.onerror = () => { clearTimeout(t); res(null); };
@@ -2987,7 +2987,7 @@ function bindYourNext(rid) {
   const sec=$('#yn');if(!sec)return;
   const queue=JSON.parse(sec.dataset.queue||'[]');let selected=0,generation=0,hovering=false,visible=true,artPending=false;
   const stale=version=>App.stale(rid)||!sec.isConnected||version!==generation;
-  const measure=u=>new Promise(resolve=>{const image=new Image(),timer=setTimeout(()=>resolve(null),5000);image.onload=()=>{clearTimeout(timer);resolve({u,w:image.naturalWidth,h:image.naturalHeight});};image.onerror=()=>{clearTimeout(timer);resolve(null);};image.src=u;});
+  const measure=u=>typeof ArtworkImages!=='undefined'?ArtworkImages.measure(u,5000):new Promise(resolve=>{const image=new Image(),timer=setTimeout(()=>resolve(null),5000);image.onload=()=>{clearTimeout(timer);resolve({u,w:image.naturalWidth,h:image.naturalHeight});};image.onerror=()=>{clearTimeout(timer);resolve(null);};image.src=u;});
   // The sharpest landscape art for a queue item (library backdrop, TheTVDB fanart, AniList banner, then Trakt), found once
   // per show and kept on the item, so switching to it later is instant.
   const details=it=>it.detailsP||(it.detailsP=Promise.resolve().then(()=>{const key=it.kid||it.kitsu||(it.alId?'al:'+it.alId:null);return key?AniList.details(key):null;}).catch(()=>null));
@@ -3659,7 +3659,7 @@ function scheduleTimelineSkeleton() {
 
 function firstUsableArtwork(groups,measure,score,deadlineMs=2200){
  return new Promise(resolve=>{let remaining=groups.length,best=null,bestScore=0,done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);resolve(best);};const timer=setTimeout(finish,deadlineMs);
- if(!remaining)return finish();for(const group of groups)Promise.resolve().then(group).then(urls=>Promise.all([...new Set((urls||[]).filter(Boolean))].slice(0,3).map(async url=>{const image=await measure(url);if(done)return;const value=score(image);if(value>bestScore){best=image;bestScore=value;}if(value>=.65)finish();}))).catch(()=>{}).finally(()=>{if(!--remaining)finish();});
+ if(!remaining)return finish();for(const group of groups)Promise.resolve().then(()=>done?[]:group()).then(urls=>done?[]:Promise.all([...new Set((urls||[]).filter(Boolean))].slice(0,3).map(async url=>{if(done)return;const image=await measure(url);if(done)return;const value=score(image);if(value>bestScore){best=image;bestScore=value;}if(value>=.65)finish();}))).catch(()=>{}).finally(()=>{if(!--remaining)finish();});
  });
 }
 const HomeReads={active:null,budgetMs:600,
@@ -3788,7 +3788,7 @@ const Views = {
     // a slide with nothing reasonably sharp is dropped. Anime slides also switch to AniList's title and info.
     const box = car.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
 
-    const measure = (u) => new Promise((res) => {
+    const measure = (u) => typeof ArtworkImages!=='undefined'?ArtworkImages.measure(u,7000):new Promise((res) => {
       const t = new Image(), timer = setTimeout(() => res(null), 7000);
       t.onload = () => { clearTimeout(timer); res({ u, w: t.naturalWidth, h: t.naturalHeight }); };
       t.onerror = () => { clearTimeout(timer); res(null); };
@@ -5053,7 +5053,7 @@ const Views = {
         <div class="row gap"><input type="url" id="lan" aria-label="Jellyfin home network address" placeholder="http://192.168.x.x:8096" value=""><button class="btn" id="lan-save">Save Jellyfin address</button></div>` : ''}</div>
 
       <div class="set-card"><h3>Appearance</h3>
-        <div class="set-row"><div><div>Saved title logos</div><div class="desc">Recently opened titles keep their logos for faster launches. Up to 4 MB, refreshed weekly.</div></div><button class="btn ghost sm" id="clear-title-artwork">Clear saved logos</button></div>
+        <div class="set-row"><div><div>Saved artwork</div><div class="desc">Keep recent logos and artwork details for quicker browsing. Refreshed weekly.</div></div><button class="btn ghost sm" id="clear-title-artwork">Clear saved artwork</button></div>
         <div class="set-row"><div><div>Use AniList artwork</div><div class="desc">Anime in your library show AniList’s covers and banners instead of Jellyfin’s.</div></div>${sw('alArt')}</div>
         <div class="set-row"><div><div>Accent color</div><div class="desc">Used for highlights, buttons and progress bars.</div></div>
           <div class="swatches">${Object.entries(ACCENTS).map(([k, [l, rgb]]) => `<button class="swatch ${(s.accent || 'lavender') === k ? 'on' : ''}" data-accent="${k}" title="${l}" style="--c:rgb(${rgb})"></button>`).join('')}</div></div>
@@ -5163,7 +5163,7 @@ const Views = {
     const appearance=cards.findIndex(card=>card.querySelector('h3')?.textContent==='Appearance');
     const requested=App.params.section;const selected=typeof requested==='string'?cards.findIndex(card=>card.querySelector('h3')?.textContent===requested):requested;
     show(Number.isInteger(selected)&&selected>=0&&selected<cards.length?selected:Math.max(0,appearance));
-    const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!await TitleArtwork.clear())throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();toast('Saved title logos cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
+    const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!(await Promise.all([TitleArtwork.clear(),ArtworkImages.clear()])).every(Boolean))throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();toast('Saved artwork cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
     $('#shuffle-pick').onclick = () => pickShuffleSource();
