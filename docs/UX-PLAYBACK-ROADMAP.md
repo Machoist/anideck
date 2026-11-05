@@ -17,7 +17,9 @@ Acceptance: compare repeatable cold/warm traces and input/frame timing, not only
 
 ### 2. Player behavior and subtitle font customization
 
-- [ ] **Pause overlay and controls:** explicit states for playing, paused, seeking, buffering, ended, menus/drawers and casting. Paused controls remain visible; active controls/menu/focus are not hidden by stale idle timers. Resume auto-hide only when appropriate. Test mouse, keyboard, fullscreen, source changes and reopening playback.
+Desktop control-state fixes shipped in preview-080d7ee with unit and real generated-video/native rendering checks; physical TV/remote acceptance remains deferred. Font import remains a separate pending feature.
+
+- [x] **Pause overlay and controls:** explicit states for playing, paused, seeking, buffering, ended, menus/drawers and casting. Paused controls remain visible; active controls/menu/focus are not hidden by stale idle timers. Resume auto-hide only when appropriate. Test mouse, keyboard, fullscreen, source changes and reopening playback.
 - [ ] **Subtitle font import:** first establish whether custom font import is present; add or complete a bounded local font picker if needed, with the AniDeck app icon/parent window, supported formats and size guidance, validation, preview, persistence and removal. A canceled picker leaves settings unchanged. Do not describe this as only an icon fix if the import feature is missing.
 
 Acceptance: native UI checks plus behavioral timing coverage; imported font persists across restart and affects subtitle rendering without interrupting playback.

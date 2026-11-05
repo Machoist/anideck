@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 4 November — stable player pause/control visibility
+
+Current test installer/portable: **preview-080d7ee**, runtime source **080d7ee**. **630 tests pass**. Package audit, complete isolated native visuals, separate readiness and generated-video player controls check pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Fixed missing idle rearm on play/resume and menu close. Control visibility now checks paused/ended/seeking/error/loading states, open menus/drawer, seek dragging, control-bar hover and keyboard-visible focus. Real play/playing/canplay/pause/seeking/seeked/error/ended events update visibility; focus exit, fullscreen changes and menu actions refresh the deadline. Keep the2.8-second idle delay; no new permanent playback overlay or player redesign.
+- Playback teardown cancels idle callbacks with a generation guard, clears hover/keyboard/drag state and cancels an interrupted seek gesture. Stale timers cannot hide a newer playback session. Hidden control bars no longer intercept pointer input; paused state keeps its overlay visible. Keyboard Tab modality is tracked independently of pointer clicks, with focus-visible support retained.
+- Six new behavior tests cover pause/resume, menu close without mouse movement, buffering/seek/hover/error/ended/cast holds, keyboard versus mouse focus and stale timer/close races. Full630-test suite passes.
+- Packaged actual Player.bind/CSS/native media events checked with a generated muted canvas stream, not a streaming provider or account. At the actual2.8-second timeout, play/resume and menu/focus exit hid controls; pause, open menu and keyboard focus kept opacity1. Hit testing proved invisible bars pass clicks through; close left no idle timer. Offscreen keyboard/focus signals were explicitly dispatched against real focused DOM controls; this is not a physical keyboard/remote acceptance claim. Paused screenshot reviewed: outputs/player-controls-native/paused.png. Evidence work/player-controls-{focused,all-tests,native,visual,readiness}.log and outputs/player-controls-native/result.json; reproducible script scripts/native-player-controls.cjs.
+- Installed app/accounts and upstream playback sources unchanged; no audio/codec/TV retest, backend deployment or release publication. Next implementation: subtitle custom-font import and native picker branding/validation. Normal-profile cold-Home scrolling acceptance remains pending from the prior increment; private Jellyfin pending and TV/Gio/physical Mac deferred.
+
 ## 4 November — scoped Home updates instead of full-page redraws
 
 Current test installer/portable: **preview-a6fca28**, runtime source **a6fca28**. **624 tests pass**. Package audit, complete isolated native visuals, separate readiness and native delayed-response comparison pass. Installer/portable app.asar equality and ZIP integrity verified.
