@@ -6,6 +6,8 @@ Requested 4 November 2026. These are planned tasks, not implemented features or 
 
 ### 1. Loading, artwork and scrolling
 
+Progress: validated logo retention and public image-dimension reuse shipped in preview-e749b8b. Public poster/banner checks are shared and late fallback measurements are suppressed. Whole-app cold-start tracing, managed bitmap retention and broader scrolling acceptance remain pending.
+
 - [ ] **Artwork quality and retention:** measure first-launch versus warm-launch image/network/decode costs; retain validated title logos, posters and backdrops across restarts with bounded disk usage, freshness/revalidation and explicit cache clearing. Use exact provider IDs and adequate image dimensions for displayed size/DPI. Keep private Jellyfin artwork scoped to its server/account, and exclude credentials from cache diagnostics. Verify cold/warm starts, offline reuse, changed artwork and eviction.
 - [ ] **Responsive scrolling and momentum:** profile first-boot Home, show rows, title pages, middle-mouse scrolling and horizontal drag. Eliminate main-thread stalls, layout shifts and competing scroll animations before adding effects. Preserve Chromium wheel behavior and immediate input cancellation. Evaluate drag momentum and momentum in snappy navigation separately; they must not delay normal wheel/middle-mouse input. Aura/background parallax is optional, motion-reduced and performance-gated.
 - [ ] **Fluid page/tab transitions:** short, consistent motion without delaying navigation, rebuilding unchanged heroes, flashing fallback titles or replaying expensive loads. Keep focus, scroll restoration and reduced-motion behavior correct.

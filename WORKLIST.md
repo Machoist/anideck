@@ -1,5 +1,15 @@
 # AniDeck worklist
 
+## 4 November — shared public artwork measurements and less fallback work
+
+Current test installer/portable: **preview-e749b8b**, runtime source **e749b8b**. **617 tests pass**. Package audit, full isolated native visual checks, separate readiness and real two-process artwork probe pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Title backdrop, queue and carousel selectors previously created their own image measurements. Introduce shared concurrent-request deduplication and a separate persisted dimensions record in profile-local IndexedDB. Retain at most256 exact public image URLs/dimensions for seven days; validate dimensions, host, HTTPS URL/length and age; exclude private/authenticated/query URLs. Bootstrap alongside account/logo initialization with the existing200ms optional storage deadline. Preserve original artwork scoring/DPI/quality thresholds and source URLs.
+- Failed/timed-out measurements are retryable and release their image handlers/request; display errors invalidate saved dimensions. Stop deferred fallback groups from beginning additional image checks after a satisfactory backdrop has already won. Already-running image requests are not described as canceled by that winner guard. No new wheel interpolation, momentum or parallax.
+- Appearance now says Saved artwork / Clear saved artwork; clears both logo and dimension records and the in-session logo maps. Native isolated actual clear handler was verified against both records; normal installed data/accounts untouched.
+- Seven new regressions cover sharing/restart, private exclusions, expiry/invalid data, failure, timeout cancellation/retry, display invalidation and late fallback suppression. Full617-test suite passes. Packaged-source real Electron processes measured public poster680x1000 and banner1920x1080 on cold launch (2 image allocations despite duplicate concurrent calls), then reused exact dimensions with0 measurement allocations on restart. Logo discovery/trimming likewise remain0 warm. Sample logo-store hydration29.5ms cold/9.7ms warm; these are fixture timings, not whole-app/FPS benchmarks. Native screenshot reviewed. Evidence work/artwork-dimensions-{all-tests,native,visual,readiness}.log and outputs/artwork-dimensions-native.
+- This retains measurements, not an additional managed bitmap-byte cache; Chromium continues to own the actual poster/banner image cache. Inspected public TVDB assets expose Last-Modified/ETag without Cache-Control, so absence of that header alone was not treated as proof that browser caching was broken. Do not claim all first-boot scroll stalls are fixed. Next: full Home cold-start/render trace and remaining responsive-loading work, then player pause/auto-hide. Private Jellyfin remains pending; TV/Gio/physical Mac deferred.
+
 ## 4 November — missing Tokyo Revengers season synopsis
 
 Current test build: **preview-909e38e**, runtime source **909e38e**. **610 tests pass**. Package audit, isolated native readiness and actual packaged About-section rendering pass; installer/portable equality and ZIP integrity verified.
