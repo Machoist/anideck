@@ -1,6 +1,19 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'../src',name),'utf8');
 const api=vm.runInNewContext(read('synopsis.js')+'\nTitleSynopsis');
+
+test('reviewed Tokyo Revengers season overview fills both tracker paths without waiting for stub-only services',async()=>{
+ let calls=0;const helper=vm.runInNewContext(read('synopsis-supplements.js')+'\n'+read('synopsis.js')+';TitleSynopsis',{Kitsu:{externalIds:async id=>{assert.equal(id,'48960');return {mal:59088};}},http:async()=>{calls++;throw Error('must not request');},setTimeout,clearTimeout});
+ for(const id of ['al:178083','48960']){const result=await helper.resolve(id,'Sequel to Tokyo Revengers: Tenjiku-hen.','',{id:178083,malId:59088});assert.match(result.text,/three powerful factions/);assert.equal(result.source,'ORICON · season overview');assert.equal(result.url,'https://www.oricon-group.com/news/8178/');}
+ assert.equal(calls,0);
+ const plot='A newly supplied catalog synopsis for this exact season.';assert.equal((await helper.resolve('al:178083',plot,'',{id:178083,malId:59088})).text,plot);assert(read('index.html').indexOf('synopsis-supplements.js')<read('index.html').indexOf('synopsis.js'));
+});
+
+test('reviewed overviews do not leak into another AniList season or an unmapped title',async()=>{
+ const helper=vm.runInNewContext(read('synopsis-supplements.js')+'\n'+read('synopsis.js')+';TitleSynopsis',{Kitsu:{externalIds:async()=>({})},http:async()=>({data:{mal_id:59088,synopsis:'Sequel to Example.'}}),setTimeout,clearTimeout});
+ const result=await helper.resolve('al:999','','',{id:999,malId:59088});assert.equal(result.text,'');assert.equal(result.source,'');
+ assert.equal((await helper.resolve('123','','')).text,'');
+});
 test('a season relationship placeholder yields to the same season’s actual plot',()=>{
  const story='Asta and his friends travel into enemy territory to rescue their captains.';
  for(const stub of ['The second season of Black Clover.','Second season of Black Clover. (Source: Catalog)','Sequel to Black Clover.','Season 2 of Black Clover.']){

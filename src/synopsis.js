@@ -45,6 +45,9 @@ const TitleSynopsis = {
     let mal=!alId||String(media?.id)===alId?media?.malId:null;
     try{if(!mal){if(alId)mal=(await this.bounded(AniZip.get(alId),2000))?.malId;else mal=(await this.bounded(Kitsu.externalIds(id),2000))?.mal;}}catch{}
     if(!/^[1-9][0-9]*$/.test(String(mal||'')))return {text,source:'',url:''};
+    // Only use reviewed, exact-season metadata when both catalogs lack a plot.
+    const supplement=typeof SynopsisSupplements!=='undefined'?SynopsisSupplements[String(mal)]:null;
+    if(supplement&&(!alId||String(supplement.anilist)===alId)&&!this.isStub(supplement.text))return {text:this.clean(supplement.text),source:supplement.source,url:supplement.url};
     const key=String(mal),hit=this.cache.get(key);if(hit&&hit.until>Date.now())return hit.value;
     if((this.retry.get(key)||0)>Date.now())return fallback;
     let task=this.pending.get(key);
