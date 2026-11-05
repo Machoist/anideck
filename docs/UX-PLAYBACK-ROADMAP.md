@@ -26,6 +26,8 @@ Acceptance: native UI checks plus behavioral timing coverage; imported font pers
 
 ### 3. Filler indicators and filtering
 
+Source/mapping audit completed5 November: see [findings and implementation contract](FILLER-METADATA-AUDIT.md). Current resolver listings carry episode numbers only. Public candidate sources were inspected; live Jikan episode acceptance and source-reuse terms remain to establish. No filler behavior is enabled yet. Next: neutral parser/mapping fixtures, then the background adapter and independent preferences.
+
 - [ ] Separate settings for **Show filler indicators** and **Hide filler episodes**. Default preserves episode visibility; never silently enable skipping.
 - [ ] Identify a reliable, usable metadata source and map by exact series/season/episode identity, including split cours, absolute numbering, specials and mixed canon. Unknown is unknown, never assumed filler.
 - [ ] Distinguish canon/mixed/filler visually and accessibly. Hiding pure filler must not renumber episodes, change tracker totals/progress, or remove access to the full list. Treat auto-skip as a separate future preference, not implied by hiding.
