@@ -6,7 +6,7 @@ Requested 4 November 2026. These are planned tasks, not implemented features or 
 
 ### 1. Loading, artwork and scrolling
 
-Progress: validated logo retention and public image-dimension reuse shipped in preview-e749b8b. Public poster/banner checks are shared and late fallback measurements are suppressed. Whole-app cold-start tracing, managed bitmap retention and broader scrolling acceptance remain pending.
+Progress: logo retention and shared public artwork measurements are included in preview-a6fca28. Delayed Home data now updates scoped slots instead of rebuilding mounted content; controlled native comparisons verify node, focus, selection and scroll retention. Normal-profile cold-start/scroll acceptance, broader frame tracing and managed bitmap retention remain pending.
 
 - [ ] **Artwork quality and retention:** measure first-launch versus warm-launch image/network/decode costs; retain validated title logos, posters and backdrops across restarts with bounded disk usage, freshness/revalidation and explicit cache clearing. Use exact provider IDs and adequate image dimensions for displayed size/DPI. Keep private Jellyfin artwork scoped to its server/account, and exclude credentials from cache diagnostics. Verify cold/warm starts, offline reuse, changed artwork and eviction.
 - [ ] **Responsive scrolling and momentum:** profile first-boot Home, show rows, title pages, middle-mouse scrolling and horizontal drag. Eliminate main-thread stalls, layout shifts and competing scroll animations before adding effects. Preserve Chromium wheel behavior and immediate input cancellation. Evaluate drag momentum and momentum in snappy navigation separately; they must not delay normal wheel/middle-mouse input. Aura/background parallax is optional, motion-reduced and performance-gated.
@@ -59,4 +59,4 @@ Reference reviewed 4 November 2026: [repository README](https://github.com/codei
 - `main.js`, `preload.js`, `package.json`: native dialogs/IPC, profile selection, NSIS packaging and application identity.
 - `src/release-check.cjs`, `src/release-notifications.js`: existing manual stable-release flow.
 
-Runtime remains preview-6173f7a. This document does not change the existing 603-test result or claim a new test run.
+See WORKLIST.md for the current runtime, completed increments and exact verification results.
