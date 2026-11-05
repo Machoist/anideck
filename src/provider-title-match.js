@@ -12,6 +12,19 @@ function variantKey(title,format){
  return titleKey(value);
 }
 function laterPart(title){const part=String(title||'').match(/(?:part|cour)\s*(\d+)/i)||String(title||'').match(/\s(\d+)$/);return !!part&&Number(part[1])>1;}
+// Discovery only: provider franchise numbering can differ before an explicit named arc.
+// Never remove trailing cour/season qualifiers or accept this key without independent metadata.
+function arcKey(title){return titleKey(clean(title).replace(/\s+part\s+\d+\s*:\s*(?=\S)/i,': '));}
+function identityCandidates(items,title,aliases,format){
+ const names=[title,...aliases],keys=new Set(names.map(arcKey));
+ return [...new Map(items.filter(x=>(!formatKey(format)||formatKey(x.format)===formatKey(format))&&[x.title,x.jp,x.alt].some(v=>v&&keys.has(arcKey(v))&&names.some(t=>arcKey(t)===arcKey(v)&&titleKey(t)!==titleKey(v)))).map(x=>[x.url,x])).values()];
+}
+function verifiedIdentity(actual,request){
+ const year=Number(request.catalogYear),count=Number(request.episodeCount),description=norm(request.catalogSynopsis);
+ const alternate=(request.titleAliases||[]).some(name=>norm(name).length>=16&&(actual.titles||[]).some(value=>titleKey(value)===titleKey(name)));
+ const story=description.length>=160&&norm(actual.synopsis).startsWith(description.slice(0,160));
+ return year>=1900&&year<=2200&&count>0&&count<=3000&&(alternate||story)&&actual.year===year&&actual.episodes===count&&formatKey(actual.format)===formatKey(request.mediaFormat)&&!!formatKey(request.mediaFormat);
+}
 function declaredSeason(title){const m=String(title||'').match(/^(.*?)\s*(?:(\d+)(?:st|nd|rd|th)\s+season|(?:season|series)\s*(\d+)|\s(\d+))$/i);return m&&m[1].trim()?{base:titleKey(m[1].trim()),number:Number(m[2]||m[3]||m[4])}:null;}
 function chooseTitle(items,title,season,aliases=[],mediaFormat,episodeCount,{identity=x=>x.url,label="Provider"}={}){
  const format=formatKey(mediaFormat);if(format)items=items.filter(x=>!x.format||formatKey(x.format)===format);
@@ -44,4 +57,4 @@ function chooseTitle(items,title,season,aliases=[],mediaFormat,episodeCount,{ide
 
 function aliases(request,title){return [...new Set((Array.isArray(request.titleAliases)?request.titleAliases:[]).filter(v=>typeof v==='string'&&v.trim()&&v.length<=200&&v!==title))].slice(0,8);}
 function boundEpisodes(listed,match,count,label){if(!match.combinedFirst)return listed;if(listed.length<=count||!Array.from({length:count},(_,i)=>i+1).every(n=>listed.some(e=>e.number===n)))throw Error(label+' combined listing has incomplete first-part boundaries');return listed.filter(e=>e.number<=count);}
-module.exports={norm,titleKey,formatKey,chooseTitle,aliases,boundEpisodes};
+module.exports={norm,titleKey,formatKey,chooseTitle,aliases,boundEpisodes,identityCandidates,verifiedIdentity};

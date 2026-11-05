@@ -71,3 +71,19 @@ test('full catalog aliases cannot turn a fourth-series-season name into a later 
  assert.deepEqual(await api.metadata(read,title,1,'sub',{seasonNumber:1,mediaFormat:'TV',episodeCount:1,titleAliases:aliases,catalogOnly:true}),{episodes:[1]});
  assert.deepEqual(await api.metadata(read,title+' Part 2',1,'sub',{seasonNumber:1,mediaFormat:'TV',episodeCount:1,titleAliases:aliases,catalogOnly:true}),{episodes:[]});
 });
+
+function identityFixture({year=2014,count=24,format='TV',alternate='The long independent catalog alias',duplicate=false,story='Different provider description'}={}){
+ api.cache.clear();const url=api.BASE+'/watch/arc',url2=api.BASE+'/watch/arc-other',calls=[];
+ return {calls,read:async value=>{calls.push(value);if(value.includes('/filter'))return [url,...duplicate?[url2]:[]].map(u=>`<div class="inner"><div class="ani poster"><i class="right">TV</i></div><a href="${u}" title="Generated Adventure Part 8: Desert Journey">Generated Adventure Part 8: Desert Journey</a></div>`).join('');if(value===url||value===url2)return `<div class="watch-wrap" data-id="${value===url?'91':'92'}" data-url="${value}"><div class="info"><h1 class="title">Generated Adventure Part 8: Desert Journey</h1><div class="names">${alternate}</div><div class="synopsis"><div class="content">${story}</div></div><div class="bmeta"><div class="meta"><div>Type: <span>${format}</span></div><div>Premiered: <span>Spring ${year}</span></div><div>Episodes: <span>${count}</span></div></div></div></div></div>`;if(value.includes('/ajax/episode/list/'))return JSON.stringify({status:200,result:'<a data-num="1" data-id="101" data-ids="a" data-sub="1"></a><a data-num="3" data-id="103" data-ids="c" data-sub="1"></a>'});throw Error('Unexpected '+value);}};
+}
+const identityRequest={catalogOnly:true,seasonNumber:1,mediaFormat:'TV',episodeCount:24,catalogYear:2014,titleAliases:['The long independent catalog alias']};
+test('provider franchise numbering differences require independent page identity and keep actual gaps',async()=>{const f=identityFixture();assert.deepEqual(await api.metadata(f.read,'Generated Adventure: Desert Journey',1,'sub',identityRequest),{episodes:[1,3]});assert.equal(f.calls.filter(v=>v.includes('/watch/')).length,1);assert(!f.calls.some(v=>v.includes('/ajax/server')));});
+test('identity verification rejects wrong year, count, format, unrelated alias and unavailable evidence',async()=>{
+ for(const options of [{year:2015},{count:48},{format:'MOVIE'},{alternate:'An unrelated and sufficiently long alternate name'}]){const f=identityFixture(options);assert.deepEqual(await api.metadata(f.read,'Generated Adventure: Desert Journey',1,'sub',identityRequest),{episodes:[]});assert(!f.calls.some(v=>v.includes('/ajax/episode/list/')));}
+ const f=identityFixture();assert.deepEqual(await api.metadata(f.read,'Generated Adventure: Desert Journey',1,'sub',{...identityRequest,catalogYear:null}),{episodes:[]});
+});
+test('substantial exact synopsis evidence can verify catalog identity when alternate names differ',async()=>{const story='A generated synopsis with enough independent detail to distinguish this arc from other seasons. '.repeat(3),f=identityFixture({alternate:'Another provider name',story});assert.deepEqual(await api.metadata(f.read,'Generated Adventure: Desert Journey',1,'sub',{...identityRequest,catalogSynopsis:story}),{episodes:[1,3]});});
+test('metadata evidence never collapses later cours or chooses between duplicate verified versions',async()=>{
+ const f=identityFixture({duplicate:true});await assert.rejects(api.metadata(f.read,'Generated Adventure: Desert Journey',1,'sub',identityRequest),/ambiguous verified/);
+ api.cache.clear();const later=identityFixture();assert.deepEqual(await api.metadata(later.read,'Generated Adventure: Desert Journey Part 2',1,'sub',identityRequest),{episodes:[]});
+});
