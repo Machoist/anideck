@@ -32,7 +32,7 @@ async function paintRemoteEpisodes(rid=App.renderId,snapshot=App.remoteEpisodeSn
 function checkRemoteEpisodes(rid){
  const request=App.remoteEpisodeRequest,snapshot=App.remoteEpisodeSnapshot;
  if(!request||!document.querySelector('.remote-episode-state')||RemoteEpisodes.peek(request))return Promise.resolve();
- return RemoteEpisodes.load(request).then(()=>{if(!App.stale(rid)&&RemoteEpisodes.key(App.remoteEpisodeRequest)===RemoteEpisodes.key(request))return paintRemoteEpisodes(rid,snapshot);}).catch(error=>console.warn('Episode listing:',error.message));
+ return RemoteEpisodes.load(request).then(()=>{if(!App.stale(rid)&&RemoteEpisodes.key(App.remoteEpisodeRequest)===RemoteEpisodes.key(request)){const latest=App.remoteEpisodeSnapshot;return paintRemoteEpisodes(rid,latest&&String(latest.id)===String(snapshot?.id)?latest:snapshot);}}).catch(error=>console.warn('Episode listing:',error.message));
 }
 let lastServerError = null;
 const EXTERNAL_SERVERS = [
