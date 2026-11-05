@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 5 November — optional filler indicators and reversible filtering
+
+Current test installer/portable: **preview-bb3bf94**, runtime source **bb3bf94**. **676 tests pass**. Package audit, full native visual suite, separate fresh-profile/readiness and packaged filler DOM checks pass. Installer and portable app.asar equality plus ZIP integrity verified.
+
+- Added independent Settings > Playback preferences: Show filler indicators defaults on; Hide filler episodes defaults off. Remote anime title lists annotate explicit filler/recap flags and link each badge to its MAL episode source. Show all restores every hidden row in the current range, including all-hidden recovery. No renumbering, tracker writes, total/progress changes, fabricated availability or automatic skipping. Player Play Next retains the actual complete availability list; player drawer filtering is not included in this increment.
+- Background Jikan lookup uses exact verified AniList/MAL/Kitsu mappings or Kitsu's exact external MAL mapping; conflicting IDs or mismatched aggregate counts remain unknown. No franchise guessing, implicit absolute-number offsets, private Jellyfin lookup or bundled dataset. False/null/conflicting flags do not imply researched canon. Unsupported split entries and canon/mixed classification remain open.
+- Relevant pages only, at most two per range; serialize at least 1.1 seconds apart, deduplicate, retain at most 100 pages for six hours and back off all titles for 60 seconds after service failure. Rendering/playback never waits for annotations; unavailable metadata keeps all episodes visible.
+- Five new tests cover explicit/unknown/conflicting classifications, specials, mapping conflicts, combined totals, numbering/page boundaries, deduplication/cache/global outage retry and private-library exclusions. Actual Chromium DOM tests exercise packaged filler code with generated annotations at wide/narrow sizes: labels, hide/show all, all-hidden recovery, offline visibility and stale-navigation guard. Screenshots reviewed in outputs/filler-packaged-native. Full existing packaged UI suite and signed-out public-service readiness pass; installed profiles/accounts untouched.
+- Live Jikan episode requests through PowerShell/curl timed out and the web tool could not access the endpoint. **Live source annotations remain unverified**; do not present fixture/native UI acceptance as a real title/source check. Other public catalogs responded in readiness. No release/backend publication. User confirmed Stone Ocean returned episodes and attributed the earlier failure to connectivity; no further Stone-specific runtime changes here.
+- Next: live filler source acceptance when reachable; Discord Rich Presence opt-in is the next implementation item. Physical TV/Gio/Mac and private Jellyfin remain deferred.
+
 ## 5 November — Stone Ocean editions, split batches and search-isolated Random
 
 Current test installer/portable: **preview-179827a**, runtime source **179827a**. **671 tests pass**. Final package audit, complete native visuals (including split-catalog renderer/IPC contract), separate readiness and preserved Home binding checks pass. Installer/portable app.asar equality and ZIP integrity verified.
