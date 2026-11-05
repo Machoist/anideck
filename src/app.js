@@ -228,7 +228,7 @@ const App = {
     HoverPreview.bind();
     if (this.settings.gamepad !== false) TV.startGamepad();
     if (this.settings.startFullscreen || this.settings.tvMode) window.native.setFullscreen?.(true);
-    const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init()]);
+    const [, , , signedIn] = await Promise.all([Kitsu.init(), Trakt.init(), AniList.init(), Jellyfin.init(), typeof TitleArtwork!=='undefined'?TitleArtwork.load(titleLogoCache):Promise.resolve()]);
     if(typeof Matcher!=='undefined'&&Matcher.initScope)await Matcher.initScope().catch(()=>{});
     preconnectImageHosts();
     await LocalTracker.init();
@@ -2737,11 +2737,10 @@ function showLogo(h1, alId, season, englishTitle='') {
   if(season>1&&!h1.previousElementSibling?.classList.contains('hero-eyebrow'))h1.insertAdjacentHTML('beforebegin',`<div class="hero-eyebrow">Season ${season}</div>`);
  };
  const cached=titleLogoCache.get(String(alId));
- if(cached&&h1.querySelector?.('.hero-logo')){caption();reveal();return;}
  const attach=logo=>{
   if(!h1.isConnected)return reveal();
   const img=new Image();img.className='hero-logo';img.alt=h1.getAttribute?.('aria-label')||h1.textContent.trim();img.decoding='async';img.style.setProperty('--logo-ar',Math.max(.6,Math.min(8,logo.ratio)).toFixed(3));
-  img.onload=()=>{if(!h1.isConnected)return;titleLogoCache.set(String(alId),logo);if(titleLogoCache.size>128)titleLogoCache.delete(titleLogoCache.keys().next().value);h1.classList.add('has-logo');h1.innerHTML=`<span class="sr-only">${esc(img.alt)}</span>`;h1.prepend(img);caption();reveal();requestAnimationFrame(()=>img.classList.add('ready'));};img.onerror=reveal;img.src=logo.url;
+  img.onload=()=>{if(!h1.isConnected)return;titleLogoCache.set(String(alId),logo);if(typeof TitleArtwork!=='undefined'&&!cached)TitleArtwork.remember(alId,logo);if(titleLogoCache.size>128)titleLogoCache.delete(titleLogoCache.keys().next().value);h1.classList.add('has-logo');h1.innerHTML=`<span class="sr-only">${esc(img.alt)}</span>`;h1.prepend(img);caption();reveal();requestAnimationFrame(()=>img.classList.add('ready'));};img.onerror=()=>{if(cached){titleLogoCache.delete(String(alId));if(typeof TitleArtwork!=='undefined')TitleArtwork.forget(alId);h1.querySelector?.('.hero-logo')?.remove();h1.classList.remove('has-logo');h1.textContent=img.alt;showLogo(h1,alId,season,englishTitle);}else reveal();};img.src=logo.url;
  };
  timer=setTimeout(reveal,1200);if(!alId)return reveal();h1.classList.add('logo-pending');if(cached)return attach(cached);
  AniZip.get(alId).then(async metadata=>{if(!h1.isConnected)return reveal();let logo=await findTitleLogo(metadata);if(!logo&&metadata?.tvdb&&h1.isConnected)logo=await findTitleLogo({logos:await AniZip.clearlogos(metadata.tvdb)});if(!logo||!h1.isConnected)return reveal();attach(logo);}).catch(reveal);
@@ -5054,6 +5053,7 @@ const Views = {
         <div class="row gap"><input type="url" id="lan" aria-label="Jellyfin home network address" placeholder="http://192.168.x.x:8096" value=""><button class="btn" id="lan-save">Save Jellyfin address</button></div>` : ''}</div>
 
       <div class="set-card"><h3>Appearance</h3>
+        <div class="set-row"><div><div>Saved title logos</div><div class="desc">Recently opened titles keep their logos for faster launches. Up to 4 MB, refreshed weekly.</div></div><button class="btn ghost sm" id="clear-title-artwork">Clear saved logos</button></div>
         <div class="set-row"><div><div>Use AniList artwork</div><div class="desc">Anime in your library show AniList’s covers and banners instead of Jellyfin’s.</div></div>${sw('alArt')}</div>
         <div class="set-row"><div><div>Accent color</div><div class="desc">Used for highlights, buttons and progress bars.</div></div>
           <div class="swatches">${Object.entries(ACCENTS).map(([k, [l, rgb]]) => `<button class="swatch ${(s.accent || 'lavender') === k ? 'on' : ''}" data-accent="${k}" title="${l}" style="--c:rgb(${rgb})"></button>`).join('')}</div></div>
@@ -5163,6 +5163,7 @@ const Views = {
     const appearance=cards.findIndex(card=>card.querySelector('h3')?.textContent==='Appearance');
     const requested=App.params.section;const selected=typeof requested==='string'?cards.findIndex(card=>card.querySelector('h3')?.textContent===requested):requested;
     show(Number.isInteger(selected)&&selected>=0&&selected<cards.length?selected:Math.max(0,appearance));
+    const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!await TitleArtwork.clear())throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();toast('Saved title logos cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
     $('#shuffle-pick').onclick = () => pickShuffleSource();
