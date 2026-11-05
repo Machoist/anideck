@@ -812,6 +812,19 @@ ipcMain.handle('file:download', (e, url) => {
   return true;
 });
 
+// Font chooser inherits the main AniDeck window's icon and ownership. No path is exposed to renderer code.
+let subtitleFontBusy=false;
+ipcMain.handle('subtitle:font',async(event,action,font)=>{
+ if(event.sender!==mainWin?.webContents||mainWin.isDestroyed())return {ok:false,error:'Open font settings in the main AniDeck window.'};
+ const {createFontStore,pickFont}=require('./src/subtitle-font-native.cjs'),fonts=createFontStore(dataDir());
+ if(!['get','pick','save','remove'].includes(action))return {ok:false,error:'Unknown font action.'};
+ if(subtitleFontBusy)return {ok:false,error:'A font operation is already in progress.'};
+ subtitleFontBusy=true;
+ try{if(action==='pick')return {ok:true,font:await pickFont(dialog,mainWin)};if(action==='get')return {ok:true,font:await fonts.read()};if(action==='save')return {ok:true,font:await fonts.save(font)};await fonts.remove();return {ok:true};}
+ catch(error){return {ok:false,error:error.code?'The font could not be saved or opened. Try again.':error.message};}
+ finally{subtitleFontBusy=false;}
+});
+
 // Exports are saved only to the location explicitly chosen in the native save dialog.
 ipcMain.handle('artifact:save', async (event, artifact) => {
   try {

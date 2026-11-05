@@ -223,6 +223,7 @@ const App = {
     this.bindUpdates();
     this.settings = { ...DEFAULT_SETTINGS, ...((await window.native.get('settings')) || {}) };
     applyAppearance();
+    if(typeof SubtitleFont!=='undefined')SubtitleFont.init();
     TV.init();
     Prefetch.bind();
     HoverPreview.bind();
@@ -5127,7 +5128,9 @@ const Views = {
         <div class="set-row"><div><div>Size</div></div><select data-set="subSize">${opt([['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Extra large']], s.subSize || 'md')}</select></div>
         <div class="set-row"><div><div>Style</div><div class="desc">Clean outline keeps the picture clear; Dark box is easiest to read on bright scenes.</div></div>
           <select data-set="subStyle">${opt([['outline', 'Clean outline'], ['shadow', 'Soft shadow'], ['box', 'Dark box']], s.subStyle || 'outline')}</select></div>
-        <div class="sub-preview" id="sub-preview"><div class="p-subs"><div class="p-sub"><span>I’ll keep walking, <i>for those who come after.</i></span></div></div></div>
+        ${typeof SubtitleFont!=='undefined'?SubtitleFont.markup():''}
+        <div class="sub-preview" id="sub-preview" aria-label="Subtitle preview"><div class="p-subs"><div class="p-sub"><span>I’ll keep walking, <i>for those who come after.</i></span></div></div></div>
+        <p class="desc">Preview for text subtitles in the desktop player. Subtitles baked into the video keep their original appearance.</p>
       </div>
 
       ${Requests.enabled() ? `<div class="set-card"><h3>Requests</h3>
@@ -5168,6 +5171,7 @@ const Views = {
     const clearArtwork=$('#clear-title-artwork');if(clearArtwork)clearArtwork.onclick=async()=>{clearArtwork.disabled=true;try{if(!(await Promise.all([TitleArtwork.clear(),ArtworkImages.clear()])).every(Boolean))throw Error('Artwork storage is unavailable. Try again.');titleLogoCache.clear();logoCache.clear();toast('Saved artwork cleared');}catch(error){toast(error.message,'bad');}finally{if(clearArtwork.isConnected)clearArtwork.disabled=false;}};
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
+    if(typeof SubtitleFont!=='undefined')SubtitleFont.bind();
     $('#shuffle-pick').onclick = () => pickShuffleSource();
     window.native.get('localServer').then((v) => { if ($('#lan')) $('#lan').value = v || ''; });
     if ($('#lan-save')) $('#lan-save').onclick = async () => {

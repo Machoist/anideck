@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('native', {
   version: () => ipcRenderer.invoke('app:version'),
   systemCheck: () => ipcRenderer.invoke('system:check'),
   saveArtifact: artifact => ipcRenderer.invoke('artifact:save', artifact),
+  subtitleFont: (action, font) => ipcRenderer.invoke('subtitle:font', action, font),
   setFullscreen: (on) => ipcRenderer.invoke('win:fullscreen', on),
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
