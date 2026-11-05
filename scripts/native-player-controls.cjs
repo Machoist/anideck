@@ -1,0 +1,32 @@
+/* Actual Player.bind/media events/CSS with a generated, silent canvas stream. */
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{spawnSync}=require('node:child_process');
+const [binary,appRoot,output]=process.argv.slice(2);if(!binary||!appRoot||!output)throw Error('Usage: node scripts/native-player-controls.cjs electron.exe app-root output');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'anideck-controls-')),root=path.resolve(appRoot),out=path.resolve(output);fs.mkdirSync(out,{recursive:true});
+fs.writeFileSync(path.join(dir,'probe.cjs'),`
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path');app.setPath('userData',path.join(__dirname,'device'));app.setPath('sessionData',path.join(__dirname,'device'));app.commandLine.appendSwitch('autoplay-policy','no-user-gesture-required');
+const root=${JSON.stringify(root)},out=${JSON.stringify(out)};
+app.whenReady().then(async()=>{try{const win=new BrowserWindow({show:false,width:1360,height:860,webPreferences:{offscreen:true,backgroundThrottling:false,contextIsolation:true,nodeIntegration:false}});win.webContents.on('paint',()=>{});win.webContents.setFrameRate(30);
+const html=fs.readFileSync(path.join(root,'src/index.html'),'utf8'),start=html.indexOf('<section id="player"'),end=html.indexOf('<div id="modal"',start);if(start<0||end<0)throw Error('Player markup missing');
+await win.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent('<!doctype html><html><body>'+html.slice(start,end)+'<div id="modal" hidden></div></body></html>'));
+await win.webContents.insertCSS(fs.readFileSync(path.join(root,'src/styles.css'),'utf8')+fs.readFileSync(path.join(root,'src/player-drawer.css'),'utf8'));
+await win.webContents.executeJavaScript('const App={settings:{},markNav(){}};window.native={get:async()=>null,set:async()=>true,cancelStreamResolution:async()=>true,stopMediaRelay:async()=>true};const actionForKey=()=>null;const toast=()=>{};void 0;');
+await win.webContents.executeJavaScript(fs.readFileSync(path.join(root,'src/player.js'),'utf8')+';void 0;');
+win.webContents.on('console-message',(_event,_level,message)=>{if(message==='fixture-paused-capture')win.webContents.capturePage().then(image=>{fs.writeFileSync(path.join(out,'paused.png'),image.toPNG());return win.webContents.executeJavaScript('globalThis.pauseCaptured=true');}).catch(error=>console.error(error));});
+await win.webContents.executeJavaScript('Player.report=()=>{};Player.tick=()=>{};Player.ended=()=>{};Player.bind();Player.el.hidden=false;Player.controlsStopped=false;document.querySelector("#p-show").textContent="AniDeck player controls";document.querySelector("#p-ep").textContent="Generated silent playback fixture";');
+const results=await win.webContents.executeJavaScript('('+async function(){
+const canvas=document.createElement('canvas');canvas.width=960;canvas.height=540;const ctx=canvas.getContext('2d'),draw=()=>{ctx.fillStyle='#242032';ctx.fillRect(0,0,960,540);ctx.fillStyle='#c7b6f0';ctx.font='bold 36px sans-serif';ctx.fillText('Player controls',320,260);};draw();const drawing=setInterval(draw,40),stream=canvas.captureStream(24);Player.video.srcObject=stream;Player.video.muted=true;await Player.video.play();
+const wait=ms=>new Promise(r=>setTimeout(r,ms)),states=[],state=name=>{const top=document.querySelector('.p-top'),value={name,idle:Player.el.classList.contains('idle'),paused:Player.el.classList.contains('paused'),opacity:Number(getComputedStyle(top).opacity),videoPaused:Player.video.paused};states.push(value);return value;},expect=(ok,name)=>{if(!ok)throw Error(name+' '+JSON.stringify(states));};
+await wait(3150);let current=state('playing idle');expect(current.idle&&current.opacity<.05,'playing controls did not hide');
+const controls=document.querySelector('.p-bottom'),rect=controls.getBoundingClientRect(),hit=document.elementFromPoint(rect.left+100,rect.bottom-20);expect(!controls.contains(hit),'invisible controls intercepted pointer input');
+Player.video.pause();await wait(3150);current=state('paused visible');expect(!current.idle&&current.paused&&current.opacity>.95,'paused controls disappeared');console.log('fixture-paused-capture');for(let n=0;n<100&&!globalThis.pauseCaptured;n++)await wait(10);expect(globalThis.pauseCaptured,'pause capture did not finish');
+await Player.video.play();await wait(3150);current=state('resumed idle');expect(current.idle&&current.opacity<.05,'resume did not rearm idle');
+document.querySelector('#p-speed-btn').click();await wait(3150);current=state('menu visible');expect(!current.idle&&!document.querySelector('#p-speed-menu').hidden&&current.opacity>.95,'open menu controls disappeared');
+document.querySelector('#p-speed-btn').click();await wait(3150);current=state('menu closed idle');expect(current.idle&&document.querySelector('#p-speed-menu').hidden,'menu close did not rearm idle');
+const play=document.querySelector('#p-play');Player.el.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));play.focus({preventScroll:true});play.dispatchEvent(new FocusEvent('focusin',{bubbles:true}));expect(document.activeElement===play&&Player.controlsKeyboardFocus,'fixture keyboard focus unavailable');await wait(3150);current=state('keyboard focus visible');expect(!current.idle&&current.opacity>.95,'focused controls disappeared');play.blur();Player.el.dispatchEvent(new FocusEvent('focusout',{bubbles:true}));await wait(3150);current=state('focus left idle');expect(current.idle,'focus exit did not rearm idle');
+Player.close();await wait(300);expect(Player.el.hidden&&Player.idleTimer===null,'closed player left an idle timer');clearInterval(drawing);stream.getTracks().forEach(t=>t.stop());Player.video.srcObject=null;
+return {states,invisibleControlsPassThrough:true,closedTimerCleared:true,generatedMedia:true};
+}.toString()+')()');
+fs.writeFileSync(path.join(out,'result.json'),JSON.stringify(results,null,2));console.log('Native player controls check passed: '+JSON.stringify(results));win.destroy();app.exit(0);
+}catch(error){console.error(error);app.exit(1);}});
+`);
+const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;const result=spawnSync(path.resolve(binary),[path.join(dir,'probe.cjs')],{env,windowsHide:true,encoding:'utf8',timeout:45000});process.stdout.write(result.stdout||'');if(result.status!==0||!result.stdout?.includes('Native player controls check passed')){process.stderr.write(result.stderr||String(result.error));process.exit(1);}

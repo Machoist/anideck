@@ -67,27 +67,30 @@ const Player = {
     v.onclick = () => this.toggle();
     v.ondblclick = () => this.fullscreen();
 
-    v.addEventListener('play', () => { $p('p-play').innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'; this.report('progress'); });
+    v.addEventListener('play', () => { $p('p-play').innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'; this.report('progress'); this.wake(); });
     v.addEventListener('pause', () => { $p('p-play').innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; this.report('progress'); this.wake(); });
-    v.addEventListener('waiting', () => { $p('p-spinner').hidden = false; });
-    v.addEventListener('playing', () => { $p('p-spinner').hidden = true; });
-    v.addEventListener('canplay', () => { $p('p-spinner').hidden = true; });
+    v.addEventListener('waiting', () => { $p('p-spinner').hidden = false; this.wake(); });
+    v.addEventListener('playing', () => { $p('p-spinner').hidden = true; this.wake(); });
+    v.addEventListener('canplay', () => { $p('p-spinner').hidden = true; this.wake(); });
+    for(const event of ['seeking','seeked','error'])v.addEventListener(event,()=>this.wake());
     v.addEventListener('timeupdate', () => this.tick());
     v.addEventListener('progress', () => this.drawBuffer());
-    v.addEventListener('ended', () => this.ended());
+    v.addEventListener('ended', () => {this.wake();this.ended();});
 
     // seek bar
     const seek = $p('p-seek');
     const posFrom = (e) => { const r = seek.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
     let dragging = false;
+    this.cancelControlDrag=()=>{dragging=false;this.controlsScrubbing=false;};
+    window.addEventListener('blur',()=>{this.cancelControlDrag();this.controlsHover=false;this.wake();});
     let seekPreview = 0;
     const previewSeek = (e) => { seekPreview = posFrom(e); $p('p-thumb').style.left = `${seekPreview * 100}%`; $p('p-cur').textContent = fmtTime(seekPreview * this.dur()); };
-    seek.addEventListener('mousedown', (e) => { dragging = true; previewSeek(e); });
+    seek.addEventListener('mousedown', (e) => { dragging = true; this.controlsScrubbing=true; this.wake(); previewSeek(e); });
     window.addEventListener('mousemove', (e) => {
       if (this.el.hidden) return;
       if (dragging) previewSeek(e);
     });
-    window.addEventListener('mouseup', () => { if (dragging) { dragging = false; this.seekTo(seekPreview * this.dur()); } });
+    window.addEventListener('mouseup', () => { if (dragging) { dragging = false; this.controlsScrubbing=false; this.seekTo(seekPreview * this.dur()); this.wake(); } });
     seek.addEventListener('mousemove', (e) => {
       const tip = $p('p-tip'); const f = posFrom(e);
       tip.hidden = false; tip.style.left = `${f * 100}%`; tip.textContent = fmtTime(f * this.dur());
@@ -95,7 +98,13 @@ const Player = {
     seek.addEventListener('mouseleave', () => { $p('p-tip').hidden = true; });
 
     // idle-hide controls
-    this.el.addEventListener('mousemove', () => this.wake());
+    this.el.addEventListener('mousemove', event => {this.controlsHover=!!event.target.closest?.('.p-top,.p-bottom');this.wake();});
+    this.el.addEventListener('mouseleave',()=>{this.controlsHover=false;this.wake();});
+    this.el.addEventListener('pointerdown',()=>{this.controlsKeyboardFocus=false;this.wake();});
+    this.el.addEventListener('click',()=>queueMicrotask(()=>this.wake()),true);
+    this.el.addEventListener('focusin',()=>this.wake());
+    this.el.addEventListener('focusout',()=>queueMicrotask(()=>this.wake()));
+    document.addEventListener('fullscreenchange',()=>this.wake());
     document.addEventListener('click', (e) => {
       if (e.target.closest('.menu')) return;
       this.el.querySelectorAll('.menu').forEach((m) => { m.hidden = true; });
@@ -103,7 +112,9 @@ const Player = {
     });
 
     document.addEventListener('keydown', (e) => {
-      if (this.el.hidden || !$p('modal').hidden || e.target.matches('input, textarea, select')) return;
+      if (this.el.hidden || !$p('modal').hidden) return;
+      if(e.key==='Tab'){this.controlsKeyboardFocus=true;this.wake();}
+      if(e.target.matches('input, textarea, select'))return;
       if (e.key === 'Escape') { if (this.drawerOpen()) this.closeDrawer(); else if (this.el.querySelector('.menu:not([hidden])')) this.el.querySelectorAll('.menu').forEach(m=>m.hidden=true); else if (document.fullscreenElement) document.exitFullscreen(); else this.close(); this.wake(); return; }
       const act = actionForKey(e); // shortcuts are set in Settings → Keyboard
       const step = App.settings.seekStep || 10;
@@ -128,10 +139,20 @@ const Player = {
 
   dur() { return this.casting?.duration || this.duration || this.video.duration || 0; },
 
+  controlsHeld() {
+    const v=this.video,focus=document.activeElement;
+    return this.controlsStopped||this.el.hidden||!!this.casting||!v||v.paused||v.ended||v.seeking||!!v.error||this.controlsScrubbing||this.controlsHover||$p('p-spinner')?.hidden===false||this.menuOpen()||!!(focus&&this.el.contains?.(focus)&&(this.controlsKeyboardFocus||focus.matches?.(':focus-visible')));
+  },
+  resetControls() {
+    clearTimeout(this.idleTimer);this.idleTimer=null;this.controlsSeq=(this.controlsSeq||0)+1;this.cancelControlDrag?.();this.controlsStopped=true;this.controlsKeyboardFocus=false;this.controlsScrubbing=false;this.controlsHover=false;this.el?.classList?.remove('idle','paused');
+  },
   wake() {
+    if(!this.el?.classList)return;
     this.el.classList.remove('idle');
-    clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => { if (!this.video.paused && !this.menuOpen()) this.el.classList.add('idle'); }, 2800);
+    this.el.classList.toggle?.('paused',!!(this.casting?.paused??this.video?.paused));
+    clearTimeout(this.idleTimer);this.idleTimer=null;const seq=this.controlsSeq=(this.controlsSeq||0)+1;
+    if(this.controlsHeld())return;
+    this.idleTimer=setTimeout(()=>{if(seq!==this.controlsSeq)return;this.idleTimer=null;if(!this.controlsHeld())this.el.classList.add('idle');},2800);
   },
 
   async open(ctx, onClose) {
@@ -166,7 +187,7 @@ const Player = {
     this.forceConvert = false;
     this.segments = [];this.segmentDuration=null;this.lastAutoSkip=null;
     this.playSessionId = crypto.randomUUID().replace(/-/g, '');
-    $p('p-spinner').hidden = false;
+    $p('p-spinner').hidden = false;this.controlsStopped=false;this.wake();
     this.updateTitle(episode);
     $p('p-quality-btn').hidden = this.server !== 'jellyfin' || !Jellyfin.connected();
     if ($p('p-quality-btn').hidden) $p('p-quality-menu').hidden=true;
@@ -539,7 +560,7 @@ const Player = {
     if (this.hls) { this.hls.destroy(); this.hls = null; }
     this.video.removeAttribute('src');
     this.playSessionId = crypto.randomUUID().replace(/-/g, '');
-    $p('p-spinner').hidden = false;
+    $p('p-spinner').hidden = false;this.wake();
     try { await this.startStream(at); if (wasPaused) this.video.pause(); }
     catch (e) { toast(`Couldn't switch track: ${e.message}`, 'bad'); }
     this.buildMenus();
@@ -604,7 +625,7 @@ const Player = {
   },
 
   drawerOpen() { return $p('p-drawer').classList.contains('open'); },
-  closeDrawer() { const d = $p('p-drawer');const restoreFocus=d.matches?.(':focus-within'); d.classList.remove('open'); d.inert=true;d.setAttribute?.('aria-hidden','true');$p('p-eps-btn')?.setAttribute('aria-expanded','false');$p('p-drawer-go').blur();if(restoreFocus)$p('p-eps-btn')?.focus({preventScroll:true}); },
+  closeDrawer() { const d = $p('p-drawer');const restoreFocus=d.matches?.(':focus-within'); d.classList.remove('open'); d.inert=true;d.setAttribute?.('aria-hidden','true');$p('p-eps-btn')?.setAttribute('aria-expanded','false');$p('p-drawer-go').blur();if(restoreFocus)$p('p-eps-btn')?.focus({preventScroll:true});this.wake(); },
   toggleDrawer() {
     this.el.querySelectorAll('.menu').forEach(m => { m.hidden = true; });
     if (this.drawerOpen()) return this.closeDrawer();
@@ -726,7 +747,7 @@ const Player = {
     const m = $p(id), was = m.hidden;
     this.el.querySelectorAll('.menu').forEach((x) => { x.hidden = true; });
     m.hidden = !was;
-    if (!m.hidden) { this.closeDrawer(); this.placeMenu(m); this.wake(); }
+    if (!m.hidden) { this.closeDrawer(); this.placeMenu(m); }this.wake();
   },
   menuOpen() { return this.drawerOpen() || !!this.el.querySelector('.menu:not([hidden])'); },
 
@@ -1012,6 +1033,7 @@ const Player = {
   report(kind) { if (this.item) Jellyfin.report(kind, this.reportPayload()); },
 
   teardown() {
+    this.resetControls();
     if (typeof Cast !== 'undefined') Cast.onTeardown();
     this.loadSeq = (this.loadSeq || 0) + 1;
     clearInterval(this.stallTimer);
