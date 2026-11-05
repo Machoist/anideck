@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 4 November — player episode drawer pop-out
+
+Current test installer/portable: **preview-cd40c7f**, runtime source **cd40c7f**. **630 tests pass**. Package audit, complete isolated native visuals, separate readiness and packaged drawer motion check pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Episode drawer now opens from its top-right corner with a short scale/fade and a subtle settling curve (280 ms), then closes in 180 ms. Animate transform/opacity only; preserve drawer layout, immediate open interaction and immediate inert close. Reversible CSS transitions handle rapid toggles without controller timers. App and OS Reduce motion keep immediate state changes.
+- Eleven focused drawer/menu/control tests and the full630-test suite pass. Reproducible scripts/native-player-drawer.cjs executes actual packaged player markup/controller/CSS with six generated episode rows in an isolated profile. Recorded intermediate opening/closing frames, final state, rapid reopen, immediate interaction/inert state, app/OS reduced motion and wide/narrow containment. Screenshots reviewed at outputs/player-drawer-native/{open,narrow}.png; results in result.json. This is generated native UI verification, not live streaming/TV acceptance.
+- Complete existing packaged visual suite and separate fresh-profile/readiness checks pass. No installed-app/account changes or release publication. Subtitle custom-font import/picker branding remains next on the implementation worklist; normal-profile cold-Home acceptance/private Jellyfin pending and TV/Gio/physical Mac deferred.
+
 ## 4 November — stable player pause/control visibility
 
 Current test installer/portable: **preview-080d7ee**, runtime source **080d7ee**. **630 tests pass**. Package audit, complete isolated native visuals, separate readiness and generated-video player controls check pass. Installer/portable app.asar equality and ZIP integrity verified.
