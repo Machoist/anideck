@@ -843,6 +843,7 @@ const App = {
 
   /* ---------------- navigation ---------------- */
   nav(view, params = {}, push = true, quiet = false) {
+    const tabChange=typeof TitlePanels!=='undefined'?TitlePanels.prepare(this.view,this.params,view,params,quiet,$('#main')):null;
     if (push && this.view) this.history.push({ view: this.view, params: this.params, scroll: $('#main').scrollTop });
     this.closeEpMenu();
     if (this.selected.size && (view !== 'show' || params.id !== this.selSeries || String(params.season) !== String(this.params.season))) this.clearSelection();
@@ -875,9 +876,10 @@ const App = {
       main.classList.remove('view-leaving');
       if(quiet){clearTimeout(this.viewInTimer);main.classList.remove('view-in');}
       this.renderQuiet = quiet; // quiet refreshes don't replay the card animations
-      main.innerHTML = html;
+      const retainedTitle=tabChange&&TitlePanels.commit(tabChange,html);
+      if(!retainedTitle)main.innerHTML = html;
       if(view==='home'&&typeof HomeReads!=='undefined')HomeReads.markPaint(id,html);
-      this.mountPageShortcuts(main);
+      if(!retainedTitle)this.mountPageShortcuts(main);
       if(view==='home'&&this.homeBrand){
         const anchor=document.createElement('div');anchor.className='home-brand-anchor';
         main.prepend(anchor);anchor.appendChild(this.homeBrand);this.homeBrand.hidden=false;this.homeBrand.classList.toggle('scrolled-away',quiet&&keepScroll>8);
@@ -888,12 +890,12 @@ const App = {
       if (quiet) main.scrollTop = keepScroll;
       else {
         main.scrollTop = 0;
-        main.classList.remove('view-in'); void main.offsetWidth; // restart the entrance even when re-rendering the same view
+        main.classList.remove('view-in'); // New content animates without forcing a layout read
         main.classList.add('view-in');
         clearTimeout(this.viewInTimer);
-        this.viewInTimer = setTimeout(() => main.classList.remove('view-in'), 1000);
+        this.viewInTimer = setTimeout(() => main.classList.remove('view-in'), 240);
       }
-      if (Views[view + 'After']) Views[view + 'After'](params, id);
+      if (Views[view + 'After']) Views[view + 'After'](params, id,{retainedTitle:!!retainedTitle});
       requestAnimationFrame(() => updateRailArrows(main));
       setTimeout(() => updateRailArrows(main), 600); // after images settle
     }).catch((e) => {
@@ -2710,6 +2712,7 @@ async function enrichTitleStory(rid){
  const result=await TitleSynopsis.resolve(id,primary,alternate,App.showAl);if(App.stale(rid)||!panel.isConnected||panel!==document.getElementById('title-story'))return;
  const text=TitleSynopsis.isStub(result.text)?'A full synopsis is not available for this season yet.':result.text;
  panel.innerHTML=`<h3>About</h3><div class="about-wrap ${text.length>320?'clamped':''}"><p class="about">${esc(text)}</p>${text.length>320?'<button class="about-more" data-act="aboutToggle">Show more</button>':''}</div>${result.source?`<button class="story-source" data-act="link" data-url="${esc(result.url)}">${esc(result.source)} ${icon('external')}</button>`:''}`;
+ panel.dataset.storyReady='true';
 }
 const titleLogoCache=new Map();
 function titleArtworkId(id,details){return details?.id||(String(id||'').startsWith('al:')?Number(String(id).slice(3)):AniList.idCache?.[id])||null;}
@@ -2801,11 +2804,11 @@ function skeleton(view) {
   return `<div class="page">${head}<div class="sk-stack">${linesSkeleton(6, 44)}</div></div>`;
 }
 
-// Titles slide in from the left, sweeping left→right and row by row, whenever a grid, rail or list renders or grows.
+// Visible new cards receive a brief entrance; input cancels it immediately.
 const CARD_SEL = '.grid > *, .rail > *, .ml-rows > *, .sch-list > .sch-card';
 const seenCards = new WeakMap(); // container → keys already animated there ("Load more" redraws shouldn't replay)
 function animateCards(nodes) {
-  if (App.settings.reduceMotion||Date.now()<(App.scrollUntil||0)) return; // AniDeck's own setting; Windows' "Animation effects" doesn't turn these off
+  if (App.settings.reduceMotion||Date.now()<(App.scrollUntil||0)) return; // CSS also respects the OS motion preference
   const rows = new Map();
   for (const el of nodes) {
     if (el.matches('.loading, .empty')) continue;
@@ -2826,7 +2829,7 @@ function animateCards(nodes) {
   }
   [...rows.keys()].sort((a, b) => a - b).forEach((k, row) => {
     rows.get(k).sort((a, b) => a[0] - b[0]).forEach(([, el], col) => {
-      el.style.setProperty('--cd', `${Math.min(col * 40 + row * 70, 650)}ms`);
+      el.style.setProperty('--cd', `${Math.min(col * 12 + row * 20, 80)}ms`);
       el.classList.add('card-in');
       const done = (e) => { if (e.target !== el) return; el.classList.remove('card-in'); el.style.removeProperty('--cd'); el.removeEventListener('animationend', done); };
       el.addEventListener('animationend', done);
@@ -3396,7 +3399,7 @@ async function fillRelated(rid) {
       </button>`;
     });
     list.insertAdjacentHTML('beforeend', cards.join(''));
-    box.hidden = !list.children.length;
+    box.hidden = !list.children.length;box.dataset.relatedReady='true';
   } catch {const box=$('#related-box');if(!App.stale(rid)&&box){const list=box.querySelector('.rel-list');if(list&&!list.children.length){list.innerHTML='<div class="related-unavailable" data-related-state><span>Related titles couldn’t load.</span><button class="btn ghost sm" data-act="retryRelated">'+icon('refresh')+'Try again</button></div>';box.hidden=false;}} }
 
 }
@@ -4074,13 +4077,13 @@ const Views = {
         </section>
       </div>`;
   },
-  showAfter({ tab = 'episodes' }, rid) {
+  showAfter({ tab = 'episodes' }, rid,{retainedTitle=false}={}) {
     App.paintSelection();
-    upgradeBackdrop(rid);
-    enrichTitleStory(rid).catch(()=>{});
-    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, App.showCtx?.n,App.showAl?.englishTitle||App.showAl?.title||'');
+    if(!retainedTitle||!$('.detail-hero .hero-bg-img.on'))upgradeBackdrop(rid);
+    if(!retainedTitle||$('#title-story')?.dataset.storyReady!=='true')enrichTitleStory(rid).catch(()=>{});
+    if(!retainedTitle||!$('.detail-hero .hero-logo'))showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, App.showCtx?.n,App.showAl?.englishTitle||App.showAl?.title||'');
     fillMissingThumbs(rid);
-    if ($('#related-box')) fillRelated(rid);
+    if ($('#related-box')&&(!retainedTitle||$('#related-box').dataset.relatedReady!=='true')) fillRelated(rid);
     if ($('#show-social')) fillSocial(tab, rid);
     const f = $('#go-ep');
     if (f) f.onsubmit = (e) => {
@@ -4331,16 +4334,16 @@ const Views = {
         </section>
       </div>`;
   },
-  async animeAfter({ id, tab = 'episodes' }, rid) {
+  async animeAfter({ id, tab = 'episodes' }, rid,{retainedTitle=false}={}) {
     if(typeof TrackingRecovery!=='undefined')TrackingRecovery.bind(rid,id);
     checkRemoteEpisodes(rid); // Start independently of optional artwork/related-title enrichment.
-    enrichTitleStory(rid).catch(()=>{});
-    upgradeBackdrop(rid);
+    if(!retainedTitle||$('#title-story')?.dataset.storyReady!=='true')enrichTitleStory(rid).catch(()=>{});
+    if(!retainedTitle||!$('.detail-hero .hero-bg-img.on'))upgradeBackdrop(rid);
     if ($('#soon2-stack')) soonPrequels(rid);
     const soon = $('.soon-clock');
     if (soon) { clearInterval(App.soonTimer); App.soonTimer = setInterval(() => { if (!soon.isConnected) return clearInterval(App.soonTimer); soon.textContent = countdownText(Number(soon.dataset.clock)); }, 1000); }
-    showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
-    if ($('#related-box')) fillRelated(rid);
+    if(!retainedTitle||!$('.detail-hero .hero-logo'))showLogo($('.detail-hero .hero-text h1'), App.showAl?.id, seasonNumberIn(App.showAl?.title || ''),App.showAl?.englishTitle||App.showAl?.title||'');
+    if ($('#related-box')&&(!retainedTitle||$('#related-box').dataset.relatedReady!=='true')) fillRelated(rid);
     if ($('#show-social')) return fillSocial(tab, rid);
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;

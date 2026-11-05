@@ -184,26 +184,16 @@ h2 { font-family: var(--display); font-size: 18px; margin: 28px 0 12px; }
 .toast.bad { border-left-color: var(--bad); }
 @keyframes in { from { transform: translateY(10px); opacity: 0; } }
 
-/* ---------- page + title entrance animations (App.nav / animateCards) ---------- */
-#main { transition: opacity .18s ease; }
-#main.view-leaving { opacity: .45; pointer-events: none; }
-#main.view-in > * { animation: viewIn .38s cubic-bezier(.22,1,.36,1) both; }
-@keyframes viewIn { from { opacity: 0; transform: translateY(8px); } }
-/* Title pages: backdrop fades up, poster slides in from the left, then the text lines follow */
-.view-in .hero-bg { animation: bgIn .7s ease both; }
+/* ---------- short page/panel entrances; input never waits for choreography ---------- */
+#main { transition: opacity .12s ease; }
+#main.view-leaving { opacity: .72; pointer-events: none; }
+#main.view-in > * { animation: viewIn .22s ease-out; }
 @keyframes bgIn { from { opacity: 0; } }
-.view-in .hero-poster { animation: posterIn .55s cubic-bezier(.22,1,.36,1) .06s both; }
-@keyframes posterIn { from { opacity: 0; transform: translateX(-22px); } }
-.view-in .hero-text > * { animation: cardIn .5s cubic-bezier(.22,1,.36,1) both; }
-.view-in .hero-text > :nth-child(2) { animation-delay: 60ms; }
-.view-in .hero-text > :nth-child(3) { animation-delay: 110ms; }
-.view-in .hero-text > :nth-child(4) { animation-delay: 160ms; }
-.view-in .hero-text > :nth-child(n+5) { animation-delay: 210ms; }
-#main.view-in > .detail-body, #main.view-in > .show-layout { animation: viewIn .5s cubic-bezier(.22,1,.36,1) .18s both; }
-/* Cards: soft slide in from the left; --cd is set per card so they sweep left → right */
-.card-in { animation: cardIn .5s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--cd, 0ms); }
-@keyframes cardIn { from { opacity: 0; transform: translateX(-18px); } }
-/* Only AniDeck's own Reduce motion setting turns these off (.reduce-motion on <body>), not Windows' "Animation effects". */
+@keyframes viewIn { from { opacity: .65; } to { opacity: 1; } }
+.title-panel-enter { animation: titlePanelIn .18s cubic-bezier(.2,.7,.3,1); }
+@keyframes titlePanelIn { from { opacity: .7; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.card-in { animation: cardIn .26s cubic-bezier(.2,.7,.3,1) both; animation-delay: var(--cd, 0ms); }
+@keyframes cardIn { from { opacity: .65; transform: translateY(4px); } }
 .reduce-motion #main { transition: none; }
 /* Any remaining "loading" spot is a soft shimmering block, never a spinner (see skeleton() in app.js) */
 .loading { min-height: 120px; border-radius: 14px; background: linear-gradient(90deg, var(--panel) 0%, var(--panel-2) 45%, var(--panel) 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
@@ -1325,15 +1315,15 @@ button.tvp-row:hover { background: rgba(255,255,255,.05); }
 .th-reply-form { margin: 4px 0 6px 12px; max-width: 720px; }
 
 /* ---------- loading placeholders (skeleton() in app.js) ---------- */
-.skel { background: linear-gradient(90deg, #1c1b23 0%, #26242f 45%, #1c1b23 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 8px; }
+.skel { overflow:hidden; isolation:isolate; background: linear-gradient(90deg, #1c1b23 0%, #26242f 45%, #1c1b23 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 8px; }
 .sk-line { height: 13px; border-radius: 6px; width: 100%; }
 .sk-title { height: 30px; width: 220px; border-radius: 8px; }
 .sk-head { display: grid; gap: 10px; margin-bottom: 22px; }
 .sk-row { display: flex; gap: 10px; align-items: center; }
 .sk-stack { display: grid; gap: 10px; align-content: start; min-width: 0; }
-.sk-card { display: grid; gap: 8px; align-content: start; }
+.sk-card { min-width:0; display: grid; gap: 8px; align-content: start; }
 .sk-poster { aspect-ratio: 2/3; border-radius: var(--radius); }
-.sk-rail { display: grid; grid-auto-flow: column; grid-auto-columns: var(--poster-w); gap: 16px; overflow: hidden; }
+.sk-rail { contain:paint; display: grid; grid-auto-flow: column; grid-auto-columns: var(--poster-w); gap: 16px; overflow: hidden; }
 .sk-banner { height: clamp(340px, 46vh, 560px); border-radius: 0; }
 .sk-hero { display: flex; gap: 32px; align-items: flex-end; max-width: 1320px; margin: 0 auto; padding: 120px 24px 28px; }
 .sk-hero-poster { width: clamp(170px, 12vw, 260px); aspect-ratio: 2/3; border-radius: var(--radius); flex: none; }
@@ -1352,7 +1342,7 @@ button.tvp-row:hover { background: rgba(255,255,255,.05); }
 .reduce-motion .skel, .reduce-motion .loading { animation: none !important; }
 
 /* Episode thumbnail still loading (pages for shows not in your library): shimmer in the 16:9 box */
-.thumb.skel { background: linear-gradient(90deg, #1c1b23 0%, #26242f 45%, #1c1b23 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.thumb.skel { overflow:hidden; isolation:isolate; background: linear-gradient(90deg, #1c1b23 0%, #26242f 45%, #1c1b23 90%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 
 /* "Spoilers ahead" before an unwatched episode's discussion: centred over the page (not the whole window,
    so it sits right of the sidebar). margin-left = the sidebar's width shifts a centred card by half of it. */
@@ -4118,3 +4108,10 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
 
 /* Stable Home update slots preserve the existing shelf layout. */
 .home-slot{display:contents}
+
+/* Stop local entrances on input, and honor both app and OS motion preferences. */
+#main.manual-scroll .title-panel-enter{animation:none!important}
+@media(prefers-reduced-motion:reduce){
+ #main{transition:none!important}
+ #main.view-in>*,#main .card-in,#main .card-in *,#main .title-panel-enter,.skel,.loading,.hero-carousel.loading-art::before{animation:none!important}
+}
