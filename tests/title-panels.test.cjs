@@ -28,3 +28,12 @@ test('retained show/anime panels bind new social content without reloading resol
   await method({id:'al:1',tab:'discussion'},1,{retainedTitle:true});assert.deepEqual(calls,{art:0,logo:0,story:0,related:0,social:1});assert.equal(story.expanded,true);
  }
 });
+test('late episode availability keeps its navigation mounted and reuses existing title artwork',async()=>{
+ const text=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),a=text.indexOf('async function paintRemoteEpisodes('),b=text.indexOf('function checkRemoteEpisodes(',a);
+ for(const retained of [true,false]){
+  const replaced=[],panel={querySelector:()=>({})},root={querySelector:()=>panel};let options,commits=0;
+  const document={querySelector:selector=>selector==='#main'?root:{replaceWith:()=>replaced.push(selector)},createElement:()=>({content:{querySelector:()=>({})}})};
+  const paint=vm.runInNewContext(text.slice(a,b)+';paintRemoteEpisodes',{document,App:{renderId:1,stale:()=>false,remoteEpisodeSnapshot:{id:'al:1',values:[]}},remotePlaybackProvider:()=> 'anikoto',TitlePanels:{commit:state=>{assert.equal(state.panel,panel);commits++;return retained;}},Views:{anime:async()=>'',animeAfter:(_p,_id,value)=>{options=value;}},console});
+  await paint();assert.equal(commits,1);assert.equal(replaced.includes('.detail-main'),!retained);assert.ok(replaced.includes('.hero-actions'));assert.equal(options.retainedTitle,true);
+ }
+});
