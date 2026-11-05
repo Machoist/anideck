@@ -25,6 +25,13 @@ const img=document.querySelector('.hero-logo.ready');if(!img?.naturalWidth)throw
 return {stage,hydrationMs,metadataReads,canvasReads,rendered:true,caption:document.querySelector('.logo-english').textContent,naturalWidth:img.naturalWidth};
 }.toString()+')('+JSON.stringify(stage)+')');
 if(stage==='warm'&&(result.metadataReads!==0||result.canvasReads!==0))throw Error('Warm launch repeated logo work');
+const row=source.split('\\n').find(line=>line.includes('id="clear-title-artwork"'))?.trim();if(!row)throw Error('Cache controls missing');
+await win.webContents.executeJavaScript('document.body.insertAdjacentHTML("beforeend",'+JSON.stringify('<section class="page"><div class="set-card">'+row+'</div></section>')+');');
+if(stage==='warm'){
+const bind=source.slice(source.indexOf("    const clearArtwork=$('#clear-title-artwork');"),source.indexOf('    bindSettingInputs();',source.indexOf("    const clearArtwork=$('#clear-title-artwork');")));
+await win.webContents.executeJavaScript('const $=s=>document.querySelector(s);let notice="";const toast=s=>notice=s;'+bind+';void 0;');
+result.clearVerified=await win.webContents.executeJavaScript('(async()=>{await document.querySelector("#clear-title-artwork").onclick();return TitleArtwork.rows.size===0&&titleLogoCache.size===0&&notice==="Saved title logos cleared"&&!document.querySelector("#clear-title-artwork").disabled;})()');if(!result.clearVerified)throw Error('Clear artwork control failed');}
+await new Promise(resolve=>setTimeout(resolve,500));
 fs.writeFileSync(path.join(out,stage+'.json'),JSON.stringify(result,null,2));fs.writeFileSync(path.join(out,stage+'.png'),(await win.webContents.capturePage()).toPNG());console.log(JSON.stringify(result));win.destroy();app.exit(0);
 }catch(error){console.error(error);app.exit(1);}});
 `);

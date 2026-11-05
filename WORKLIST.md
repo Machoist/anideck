@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 4 November — retained title logos, first performance increment
+
+Current test installer/portable: **preview-f11d526**, runtime source **f11d526**. **608 tests pass**. Package audit, full isolated native visuals and separate readiness check pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Found validated title logos were memory-only, repeating provider discovery and pixel trimming on every launch. Retain public exact-AniList-ID logo records in profile-local IndexedDB, separate from synchronous settings JSON. Bound retention to64 entries/4MiB,512KiB per URL, seven-day expiry; accept only generated PNG data or specific public artwork hosts, excluding private Jellyfin URLs, credentials and query tokens. Expired/broken records fall back to discovery. No new scroll interpolation or motion.
+- Hydrate concurrently with existing account initialization, with a200ms storage deadline and optional failure behavior; debounce serialized writes. Existing in-session artwork wins over late hydration. Preserve existing artwork size/quality selection and English captions. Settings > Appearance has Clear saved logos, scoped to this cache and in-session logo maps, with busy/error handling.
+- Five new behavior tests cover restart reuse, age/identity/input validation, bounded retention, storage failure/removal and hydration races. Full608-test suite passes with local-loopback access; the first restricted sandbox run failed unrelated HTTP integration checks, then the normal-permission run passed without changing tests.
+- Real packaged-source Electron probe starts two isolated processes sharing only its generated fixture store. Cold:1 metadata read/2 trim canvases; warm:0 metadata reads/0 trim canvases, same rendered logo/caption. Measured hydration23.3ms cold/6.1ms warm in this synthetic run, not overall app-start benchmarks. Actual packaged Appearance clear handler removed retained/in-memory logos. Native screenshot reviewed after the real fade transition settled. Logs: work/artwork-retention-focused.log, artwork-retention-all-tests.log, artwork-retention-native.log, artwork-retention-visual.log, artwork-retention-readiness.log. Fixture results/screenshots: outputs/artwork-retention-native.
+- Scope: this increment retains validated logos; it does not implement persistent poster/banner byte caching, fix all first-boot scroll stalls, or guarantee offline reuse of untrimmed external logo URLs. No installed app replacement, production-account mutation, backend deployment or release publication.
+- Next: measure cold/warm poster/banner loading and first-boot scrolling before adding momentum/parallax; then pause/control stability. Continue [experience/playback roadmap](docs/UX-PLAYBACK-ROADMAP.md). Private Jellyfin remains pending; TV/Gio/physical Mac deferred.
+
 ## 4 November — requested experience/playback backlog
 
 - Added [experience and playback roadmap](docs/UX-PLAYBACK-ROADMAP.md) with acceptance criteria and implementation starting points for artwork quality/cache retention, cold-start scrolling and drag momentum, optional parallax/snappy momentum, page/tab transitions, gutter-contained shimmer, pause/auto-hide stability, subtitle font import/dialog branding, separate filler indicator/hide preferences and opt-in Discord Rich Presence.
