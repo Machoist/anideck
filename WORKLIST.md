@@ -20,7 +20,7 @@ Current as of 6 November 2026. Read this for status and next work; [historical c
 
 Choose one observable task. Do not automatically start all rows or multiple agents.
 
-User-authorized external assignments in separate existing worktrees: Claude native profile-selection acceptance reviewed/integrated (harness/report only); Grok trusted Electron wheel/cold-load measurements still assigned (`AGENT-NEXT.md`, new harness/report only). Preserve earlier dirty files and require coordinator review before integration. Coordinator owns the next unpublished preview installer; the current installer still predates these source fixes.
+User-authorized external assignments reviewed: Claude native profile-selection acceptance and [Grok trusted wheel measurements](docs/audits/SCROLL-INPUT-TRACE.md) integrated as harnesses/reports. Coordinator rerun passed 17 trusted-input checks; controlled Home/title/rail input moved correctly with title deferral, no renderer stall reproduced, middle-button autoscroll unverified. No further motion/cache change justified. Preserve earlier dirty worktrees. Coordinator is preparing the combined unpublished preview; current installer below remains older until package verification finishes.
 
 ## Acceptance requiring user or external setup
 
