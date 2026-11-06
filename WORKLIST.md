@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 5 November — filler choices belong to each title
+
+Current test installer/portable: **preview-a39a07f**, runtime source **a39a07f**. **678 tests pass**. Package audit, complete native visual suite, separate fresh-profile/readiness and packaged filler DOM checks pass. Installer/portable app.asar equality and ZIP integrity verified.
+
+- Per user correction, removed global Playback filler settings. Each remote title's Episodes section now has a compact Episode guide above its grid with Show filler labels and Hide filler toggle buttons. Selected state uses accessible aria-pressed and title-page styling; controls remain available when both are off or source annotations are unavailable.
+- Store options in settings.episodeFiller keyed by title ID. Labels default on, hiding off; legacy global flags do not apply. Toggle updates existing rows without page reload; switching titles does not leak choices, returning restores saved options. Turning Hide filler off restores all available episodes. Save failures roll back that title's choice and show an inline error; other title preferences survive.
+- Seven filler tests now include per-title persistence/restart isolation and failed-save rollback. Actual packaged Chromium DOM coverage confirms both controls, labels toggle, hide/show restoration, title switching/return, all-hidden recovery, unavailable source visibility and stale navigation at wide/narrow sizes. Screenshots reviewed at outputs/filler-title-native; equivalent packaged runtime tests pass at outputs/filler-title-packaged-native.
+- Public filler source acceptance remains pending from the prior connection timeouts; this UI correction does not claim live Jikan data. Numbering, totals, progress and Play Next remain unchanged; no player-drawer filtering or private Jellyfin enrichment. Installed profiles/accounts untouched. No backend/release publication. Continue live source acceptance, then Discord Rich Presence opt-in; physical TV/Gio/Mac/private Jellyfin remain deferred.
+
 ## 5 November — optional filler indicators and reversible filtering
 
 Current test installer/portable: **preview-bb3bf94**, runtime source **bb3bf94**. **676 tests pass**. Package audit, full native visual suite, separate fresh-profile/readiness and packaged filler DOM checks pass. Installer and portable app.asar equality plus ZIP integrity verified.
