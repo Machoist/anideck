@@ -19,8 +19,8 @@ test('failed preference storage restores only that title without discarding othe
  await assert.rejects(helper.savePreference('10',{indicators:true,hide:true}),/disk failure/);
  assert.deepEqual({...helper.preference('10')},{indicators:true,hide:false});assert.deepEqual({...helper.preference('11')},{indicators:false,hide:true});
 });
-test('exact catalog MAL mapping works when artwork mapping and optional Kitsu services are unavailable',async()=>{
- const {helper,calls}=fixture({AniZip:{get:async()=>{throw Error('Artwork service must not be needed');}},Kitsu:{externalIds:async()=>{throw Error('offline');}}});
+test('exact catalog MAL mapping works when artwork mapping and optional Kitsu services are unavailable',{timeout:1000},async()=>{
+ const {helper,calls}=fixture({AniZip:{get:()=>new Promise(()=>{})},Kitsu:{externalIds:()=>new Promise(()=>{})}});
  const result=await helper.read({kitsuId:12,alId:21,malId:21},[26]);assert.equal(result.get(26).classification,'filler');assert.match(calls[0],/tenrai\.org\/v1\/anime\/21\/episodes/);
 });
 test('a failed annotation service does not cool down its healthy fallback',async()=>{
