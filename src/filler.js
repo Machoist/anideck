@@ -60,8 +60,9 @@ const FillerEpisodes = {
     if(!rows.length)return;
     let preference=this.preference(id),annotations=new Map(),loading=false,loaded=false,saving=false;
     const controls=document.createElement('div');controls.className='filler-tools';
-    controls.innerHTML='<div class="filler-summary"><b>Episode guide</b><span role="status"></span></div><div class="filler-options" role="group" aria-label="Filler options for this title"><button type="button" data-filler="indicators" aria-pressed="false">Show filler labels</button><button type="button" data-filler="hide" aria-pressed="false">Hide filler</button></div>';
-    list.before(controls);
+    controls.innerHTML='<div class="filler-options" role="group" aria-label="Filler options for this title"><button type="button" data-filler="indicators" aria-pressed="false" title="Show filler and recap labels for this title when annotations are available"><i aria-hidden="true"></i>Filler Markers</button><button type="button" data-filler="hide" aria-pressed="false" title="Hide marked filler episodes for this title"><i aria-hidden="true"></i>Hide Filler</button></div><span class="filler-status" role="status"></span>';
+    const sort=panel.querySelector('.ep-sort');
+    if(sort)sort.after(controls);else list.before(controls);
     const current=()=>!App.stale(rid)&&list.isConnected&&controls.isConnected;
     const apply=()=>{
       if(!current())return;
@@ -94,7 +95,7 @@ const FillerEpisodes = {
       if(!current()||saving)return;
       const previous={...preference};preference={...preference,[button.dataset.filler]:!preference[button.dataset.filler]};apply();
       saving=true;controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=true);
-      try{await this.savePreference(id,preference);}catch{if(current()){preference=previous;apply();controls.querySelector('[role="status"]').textContent='Could not save this title’s options. Try again.';}return;}
+      try{await this.savePreference(id,preference);controls.classList.remove('save-error');}catch{if(current()){preference=previous;apply();controls.classList.add('save-error');controls.querySelector('[role="status"]').textContent='Could not save this title’s options. Try again.';}return;}
       finally{saving=false;if(current())controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=false);}
       if(current())await load();
     });
