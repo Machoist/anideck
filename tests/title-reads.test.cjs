@@ -12,3 +12,37 @@ test('slow episode availability uses newly resolved progress instead of restorin
  const App={remoteEpisodeRequest:{key:'same'},remoteEpisodeSnapshot:original,stale:()=>false},check=vm.runInNewContext(text.slice(a,b)+';checkRemoteEpisodes',{App,document:{querySelector:()=>({})},RemoteEpisodes:{peek:()=>null,key:r=>r.key,load:()=>pending.promise},paintRemoteEpisodes:(_rid,snapshot)=>painted=snapshot,console});
  const job=check(1);App.remoteEpisodeSnapshot=latest;pending.resolve();await job;assert.equal(painted,latest);assert.equal(painted.values[2].entry.progress,7);
 });
+
+function scrollingFixture(){
+ let now=1000,nextTimer=0,commits=0,renders=0,after=0,prepare=null,progress=null;
+ const timers=new Map(),heading={dataset:{}},text={children:[heading],querySelector:()=>heading,append(){}};
+ const nav={},root={contains:()=>false,querySelector:selector=>selector==='.detail-hero .hero-text'?text:selector==='.detail-main'?{querySelector:()=>nav}:null};
+ const App={view:'anime',params:{id:'1'},settings:{titleLang:'en'},renderId:1,scrollUntil:1200,stale:rid=>rid!==App.renderId},Tracker={name:'local',loggedIn:()=>true,svc:{userId:'fixture'}};
+ const Views={anime:async params=>{renders++;progress=params.snapshot[2].entry.progress;if(prepare)await prepare.promise;return '<fixture>';},animeAfter:()=>{after++;}};
+ const context={App,Tracker,Views,Date:{now:()=>now},setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer;},clearTimeout:id=>timers.delete(id),queueMicrotask,
+  document:{activeElement:null,getElementById:()=>root,createElement:()=>({content:{querySelector:selector=>selector==='.detail-hero .hero-text'?text:null}})},TitlePanels:{commit:()=>{commits++;}},showTint(){}};
+ const helper=vm.runInNewContext(source+';TitleReads',context),batch={id:'1',rid:1,scope:helper.scope(),values:[{id:'1'},false,{entry:{progress:1}},null],painted:true,dirty:true};helper.active=batch;
+ return {helper,batch,App,Tracker,timers,get commits(){return commits;},get renders(){return renders;},get after(){return after;},get progress(){return progress;},setNow:value=>now=value,holdRender:()=>prepare=deferred(),async retry(){const jobs=[...timers.values()];timers.clear();jobs.forEach(fn=>fn());await new Promise(setImmediate);}};
+}
+
+test('title metadata keeps its mounted panel throughout scrolling and applies the latest values once after settling',async()=>{
+ const f=scrollingFixture();await Promise.all([f.helper.paint(f.batch),f.helper.paint(f.batch)]);
+ assert.equal(f.renders,0);assert.equal(f.commits,0);assert.equal(f.batch.dirty,true);assert.equal(f.timers.size,1);
+ f.setNow(1150);f.App.scrollUntil=1350;await f.retry();assert.equal(f.commits,0);assert.equal(f.timers.size,1);
+ f.batch.values[2]={entry:{progress:7}};f.setNow(1400);await f.retry();
+ assert.equal(f.commits,1);assert.equal(f.renders,1);assert.equal(f.after,1);assert.equal(f.progress,7);assert.equal(f.batch.dirty,false);assert.equal(f.timers.size,0);
+ await f.helper.paint(f.batch);assert.equal(f.commits,1);
+});
+
+test('a deferred title patch stops after navigation, title change or account change',async()=>{
+ for(const change of [f=>f.App.renderId++,f=>f.App.view='home',f=>f.App.params.id='2',f=>f.Tracker.svc.userId='other']){
+  const f=scrollingFixture();await f.helper.paint(f.batch);change(f);f.setNow(1400);await f.retry();
+  assert.equal(f.renders,0);assert.equal(f.commits,0);assert.equal(f.timers.size,0);
+ }
+});
+
+test('scrolling that resumes during async title preparation postpones the DOM commit',async()=>{
+ const f=scrollingFixture();f.setNow(1400);const held=f.holdRender(),painting=f.helper.paint(f.batch);
+ f.App.scrollUntil=1700;held.resolve();await painting;assert.equal(f.commits,0);assert.equal(f.batch.dirty,true);assert.equal(f.timers.size,1);
+ f.setNow(1800);await f.retry();assert.equal(f.commits,1);assert.equal(f.after,1);
+});

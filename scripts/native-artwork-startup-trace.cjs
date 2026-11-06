@@ -251,12 +251,13 @@ async function scenario(origin) {
     titleGesture = await gesture('title-scroll-during-late-paint', async () => {
       const started = since();
       document.getElementById('main').innerHTML = await Views.anime({id: '501'}, 2);
+      const heldList = document.querySelector('.ep-list');
       TitleReads.mounted(2);
       counts.animeAfter++;
       const firstAfter = Views.animeAfter(App.params, 2);
       for (let i = 0; i < 80 && paintLog.length < 1; i++) await delay(50);
       await firstAfter.catch(error => { titleGestureError = String(error && error.stack || error); });
-      return {mountAt: started, paints: paintLog.length, coversLatePaint: true, syntheticWheel: true, scrollTopAssigned: false};
+      return {mountAt: started, paints: paintLog.length, coversLatePaint: true, syntheticWheel: true, scrollTopAssigned: false, heldListRetained: heldList === document.querySelector('.ep-list'), scrollActiveAtRelease: Date.now() < (App.scrollUntil || 0)};
     });
   } finally {
     clearInterval(titlePumps);
@@ -264,6 +265,7 @@ async function scenario(origin) {
   for (let i = 0; i < 80 && (globalThis.__backdropCalls || []).some(row => !row.done); i++) await delay(50);
   for (let i = 0; i < 40 && firstStill == null; i++) await delay(50);
   await delay(400);
+  for (let i = 0; i < 40 && (TitleReads.active?.dirty || TitleReads.active?.painting); i++) await delay(50);
   const bg = document.querySelector('#main .detail-hero .hero-bg');
   const fixtureUrls = [origin + '/carousel.png', origin + '/backdrop-sharp.png', origin + '/backdrop-initial.png', origin + '/still-small.png', origin + '/still-large.png'];
   const pageOrigin = new URL(origin).origin;
@@ -530,8 +532,13 @@ function runParent() {
     check('title paint and backdrop and episode mapping ran', (cold?.paint || []).length > 0 && (cold?.backdrop?.calls || []).length > 0 && cold?.counts?.episodeMapping > 0 && cold?.counts?.homeAfter > 0 && cold?.counts?.animeAfter > 0, cold?.counts);
     const postponed = stage => !!stage?.homeRefresh && stage.homeRefresh.refreshWhileHeld === 0 && stage.homeRefresh.refreshAfterRelease > stage.homeRefresh.refreshDuringHold;
     check('home refresh stayed idle while scrollUntil was active', postponed(cold) && postponed(warm), [cold?.homeRefresh, warm?.homeRefresh]);
-    const listReplaced = stage => (stage?.paint || []).some(row => row.scrollActive === true && row.listSame === false && row.mainSame === true && row.navSame === true);
-    check('episode list replacement during active scroll remains the known baseline', listReplaced(cold) && listReplaced(warm), [cold?.paint, warm?.paint]);
+    const listDeferred = stage => {
+      const gesture = stage?.gestures?.find(row => row.name === 'title-scroll-during-late-paint');
+      const commits = (stage?.paint || []).filter(row => row.listSame === false);
+      return gesture?.detail?.heldListRetained === true && gesture.detail.scrollActiveAtRelease === true &&
+        commits.length === 1 && commits[0].scrollActive === false && commits[0].mainSame === true && commits[0].navSame === true;
+    };
+    check('episode list stays mounted while scrolling and patches once after settling', listDeferred(cold) && listDeferred(warm), [cold?.paint, warm?.paint]);
     const report = {
       invocation: process.argv.slice(0, 2).concat(['electron.exe', 'app-root', out]).join(' ') + ' (binary and app root passed explicitly)',
       binary: path.resolve(binary),
