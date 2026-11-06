@@ -1,5 +1,14 @@
 # AniDeck worklist
 
+## 6 November — installed-build mismatch confirmed through live network
+
+Current verified installer remains **preview-5c64081**; no new runtime edits or rebuild were needed. Runtime tests remain686 passed from the previous increment. New opt-in live test executes the packaged preload, actual main HTTP handler/response classifier, real src/api.js and actual Views.animeAfter hook in an isolated signed-out profile. No recorded annotation payload is supplied.
+
+- Read-only installed archive metadata reports **preview-b583bb5**, not the corrected5c64081 installer. Its old source still requires artwork mapping/Jikan. A separate isolated run against that installed archive reproduced zero markers and the settled unavailable status despite successful real AniList21/MAL21 and Kitsu12 catalog reads.
+- The same live check against5c64081 succeeds: real AniList/Kitsu responses,100 annotation rows from Tenrai via actual Electron HTTP/IPC, markers50,51,54,60 and Hide filler leaves49,61. This improves prior recorded-response-only verification. Six episode rows remain generated for the renderer probe; it does not claim real installed-window interaction/provider playback. User's installed app/profile/accounts were not changed. The user app was occluded during its screenshot capture; no unrelated UI actions were taken.
+- Added scripts/native-filler-network.cjs for repeatable opt-in live verification. It fails on catalog identity/network failures or missing markers/filtering. Evidence work/filler-installed-network.log (expected old-build failure), work/filler-live-network-final.log and outputs/filler-live-network/result.json. Verified the existing versioned installer's SHA256 matches the saved manifest.
+- Required next user step: close AniDeck fully, run AniDeck-preview-5c64081-Setup.exe, then verify preview-5c64081 in Settings > About. Do not claim the installed app has been updated automatically. No backend/release publication. Normal-profile acceptance and broader title/provider checks remain open; Discord opt-in remains next implementation. Physical TV/Gio/Mac/private Jellyfin deferred.
+
 ## 5 November — working filler source and distinct responsive controls
 
 Current test installer/portable: **preview-5c64081**, runtime source **5c64081** (implementation bf2d4c1/ca4bd17). **686 tests pass**. Package audit, complete native visual suite, separate fresh-profile/readiness and packaged filler checks pass. Installer/portable app.asar equality and ZIP integrity verified.
