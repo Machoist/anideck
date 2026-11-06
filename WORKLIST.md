@@ -20,6 +20,8 @@ Current as of 6 November 2026. Read this for status and next work; [historical c
 
 Choose one observable task. Do not automatically start all rows or multiple agents.
 
+User-authorized external assignments prepared in separate existing worktrees: Claude — native development-profile acceptance (`AGENT-NEXT.md`, new harness/report only); Grok — trusted Electron wheel/cold-load measurements (`AGENT-NEXT.md`, new harness/report only). Both must test explicitly selected coordinator source, preserve earlier dirty files, and stop for review without runtime changes or commits. Coordinator owns integration and the next unpublished preview installer; the current installer still predates these source fixes.
+
 ## Acceptance requiring user or external setup
 
 | Area | Established evidence | Remaining check |
