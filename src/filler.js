@@ -47,7 +47,12 @@ const FillerEpisodes = {
     let mapped,external=null;
     if(alId&&!/^[1-9][0-9]{0,8}$/.test(String(alId)))return result;
     try{
-      if(/^[1-9][0-9]*$/.test(String(kitsuId||'')))try{external=await Kitsu.externalIds(kitsuId);}catch{}
+      if(/^[1-9][0-9]*$/.test(String(kitsuId||'')))try{
+        // Canonical AniList details already establish MAL identity. Inspect cached
+        // cross-checks, but do not stall behind optional mapping/artwork services.
+        if(alId&&malId){if(typeof window!=='undefined'&&window.native?.get)external=(await window.native.get('kitsuExtIds'))?.[String(kitsuId)]||null;}
+        else external=await Kitsu.externalIds(kitsuId);
+      }catch{}
       if(alId){
         if(external?.anilist&&String(external.anilist)!==String(alId))return result;
         if(malId){if(external?.mal&&String(external.mal)!==String(malId))return result;mapped=malId;}
