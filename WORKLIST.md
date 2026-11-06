@@ -2,10 +2,11 @@
 
 ## 6 November — registered AniDeck Discord application
 
-User opened the AniDeck General Information page and requested setup. Verified name AniDeck and public Application ID1568285269717946439 through the visible browser page; no secrets accessed or permissions changed. Added ID to public packaged config and a previously absent ignored local config.json. Sharing stays off by default. Real Discord publication not performed.
+Current installer/portable: **preview-be15606**, runtime **be15606**. **710 tests pass**, including14 focused Discord checks. Final release/package audit, complete native visual suite, separate fresh-profile/readiness, installer/portable ASAR equality and ZIP integrity pass. User opened the AniDeck General Information page and requested setup. Verified name AniDeck and public Application ID1568285269717946439 through the visible browser page; no secrets accessed or permissions changed. Added ID to public packaged config and a previously absent ignored local config.json. Sharing stays off by default. Real Discord publication not performed.
 
 - Add a native smoke-profile guard returning no Discord application ID, so automated opt-in UI fixtures can never publish activity once the public configuration is registered. New regression checks smoke and normal lookup independently. Existing pending-setup UI fixture remains valid through this guard.
-- Next: final checks/build, then explicitly consented normal Discord playback/pause/privacy/clear acceptance. Registration itself is complete. Desktop profile/installer/uninstall-retention audit remains next independent implementation item; TV/Gio/Mac/private Jellyfin deferred.
+- Actual local Discord handshake using the registered public ID returned READY. No SET_ACTIVITY command was sent and no public activity was published. Result recorded at outputs/discord-registration-check.json. Final native checks use the smoke guard so UI fixtures cannot publish to the real account.
+- Next: opt-in normal Discord playback/pause/privacy/clear acceptance. Registration itself is complete. Desktop profile/installer/uninstall-retention audit remains next independent implementation item; TV/Gio/Mac/private Jellyfin deferred.
 
 
 ## 6 November — opt-in Discord Rich Presence

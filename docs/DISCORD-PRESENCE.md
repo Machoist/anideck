@@ -21,7 +21,7 @@ The native boundary independently checks the sender, saved opt-in and configured
 
 ## Verification
 
-`node --test tests/discord-presence.test.cjs` covers privacy, framing, partial reads, ping/pong, disconnect/restart, newest-state coalescing, clear/revoke, missing registration and IPC authorization. A real isolated local pipe server verifies actual byte transport without connecting to Discord or publishing activity. Native visual checks use the real packaged renderer/CSS and a renderer-only registration fixture. Native public configuration stays empty, so opt-in/preview interactions cannot connect to the real Discord client.
+`node --test tests/discord-presence.test.cjs` covers privacy, framing, partial reads, ping/pong, disconnect/restart, newest-state coalescing, clear/revoke, missing registration and IPC authorization. A real isolated local pipe server verifies actual byte transport without connecting to Discord or publishing activity. Native visual checks use the real packaged renderer/CSS and a renderer-only registration fixture. The native smoke-profile guard forces the application ID off, so opt-in/preview interactions cannot connect to the real Discord client even though public configuration is now registered.
 
 **Live acceptance remains pending consent.** With the application configured, explicitly agree to a real Discord activity test, open Discord desktop, enable sharing, play a public anime, verify title/episode, pause, seek, change privacy, close playback, opt out, and restart Discord. Check a Jellyfin title stays private. Physical macOS acceptance remains separate. Do not claim simulated acceptance proves publication on Discord.
 
