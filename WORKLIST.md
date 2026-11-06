@@ -24,6 +24,8 @@ Latest source follow-up: titles without confirmed filler quietly retain ordinary
 
 User chose the development workflow for frequent testing. `Start-AniDeck-Development.cmd` launches this checkout directly (or `npm start`); exit/reopen after source edits. Matching Electron 33.4.11 restored locally in ignored node_modules from the existing verified cache. Development profile remains separate and starts signed out; installed app/accounts untouched. Released-app in-app updating is a later task, not enabled or published by this setup.
 
+Local access correction: created and verified the user's Desktop **AniDeck Development.lnk**, targeting the existing runtime with an absolute project argument and working directory. Prefer that shortcut; downloading the project-relative `.cmd` alone cannot carry its dependencies. Launcher now explains a misplaced copy. No runtime changes or app retesting needed for this shortcut/documentation correction.
+
 Choose one observable task. Do not automatically start all rows or multiple agents.
 
 User-authorized external assignments reviewed/integrated: Claude native profile-selection acceptance and Grok trusted wheel measurements. No further motion/cache change justified by generated fixtures. Preserve their earlier dirty worktrees. Coordinator completed combined unpublished preview-d6d600e; user acceptance is next. Windows packaging used a separate helper cache to avoid a macOS symlink extraction privilege failure; source/package configuration was unchanged.
