@@ -42,7 +42,7 @@ class DiscordPresenceClient{
   const timeout=this.delay(fail,2000);timeout?.unref?.();socket.once('connect',()=>{if(revision===this.revision)this.write(0,{v:1,client_id:this.clientId});});socket.on('error',fail);socket.on('close',fail);
   socket.on('data',chunk=>{if(revision!==this.revision)return;buffer=Buffer.concat([buffer,chunk]);if(buffer.length>65544)return fail();
    while(buffer.length>=8){const op=buffer.readUInt32LE(0),length=buffer.readUInt32LE(4);if(length>65536)return fail();if(buffer.length<length+8)return;let data;try{data=JSON.parse(buffer.subarray(8,length+8).toString());}catch{return fail();}buffer=buffer.subarray(length+8);
-    if(op===3){this.write(4,data);continue;}if(op===2||data.evt==='ERROR'){this.state='unavailable';return fail();}
+    if(op===3){this.write(4,data);continue;}if(!data||typeof data!=='object')return fail();if(op===2||data.evt==='ERROR'){this.state='unavailable';return fail();}
     if(op===1&&data.evt==='READY'){ready=true;this.cancel(timeout);this.connecting=false;this.state='connected';this.last=null;this.lastAt=0;this.flush();}
    }
   });
