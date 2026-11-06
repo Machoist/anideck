@@ -2,7 +2,7 @@
 
 ## 6 November — filler-only badges, exact mapped episode artwork and console safety
 
-696 automated tests pass. Source native live check passes; final packaging follows.
+Current installer/portable: **preview-f63e176**, runtime **f63e176**. **696 tests pass**. Final package audit, full native visual suite, separate fresh-profile/readiness, packaged live artwork/filler network checks and wide/narrow filler UI checks pass. Installer/portable app.asar equality and ZIP integrity verified.
 
 - User wants only confirmed filler labels: preserve internal researched taxonomy for correct filtering, but show no Anime canon, Mixed canon or Recap badges. Confirmed filler retains the single subtle source-linked label.
 - Public source inspection reproduces screenshot: Kitsu One Piece 51–53 supplies only145×80 previews;54 onward has null thumbnails. Exact AniList21/ani.zip mapping supplies400×300 TVDB stills for51–57. Thumbnail enrichment previously depended on optional AniList details succeeding. New exact-Kitsu-to-AniList episodeMapping resolves public stills independently of tracker/detail availability, rejects conflicting Kitsu mappings and never guesses title/season offsets. Existing still remains while a larger alternate is measured; avoid downgrading warm loaded art. Failed Kitsu episode requests now reject/evict instead of permanently caching empty successful pages; bounded metadata retry covers either source failure.
