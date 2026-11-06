@@ -13,8 +13,8 @@ Current as of 6 November 2026. Read this for status and next work; [historical c
 
 | Priority | State | Task and acceptance |
 | --- | --- | --- |
-| 1 | **Ready** | Audit development/test/release profile directories and installer/shortcut ownership. Preserve compatibility app ID and legacy profile migration. Produce evidence using disposable profiles; never overwrite the installed user's data. |
-| 2 | Ready after audit | Design **Keep my data / Remove my data** uninstall choice, retention default. First establish exact owned paths and a reviewable design; test deletion only in explicitly disposable locations. |
+| 1 | **Scoped implementation prepared for Claude** | [Reviewed installer/profile audit](docs/audits/INSTALLER-PROFILE-AUDIT.md) complete (source/template evidence only). Next: per-checkout isolated development profiles, preserving packaged/legacy/smoke behavior, with focused regressions. No data deletion or migration. Coordinator review required before integration. |
+| 2 | Design pending | Design **Keep my data / Remove my data** uninstall choice, retention default. First establish exact owned paths and a reviewable design; test deletion only in explicitly disposable locations. |
 | 3 | Ready for measured investigation | Profile first-boot/warm artwork and scrolling, middle-mouse and row drag; identify network/decode/main-thread costs before adding momentum/parallax. Evaluate remaining cache retention/eviction/offline requirements. See [experience roadmap](docs/UX-PLAYBACK-ROADMAP.md). |
 | 4 | Ready when reproducing reports | Broaden filler/source-mapping, missing-synopsis and episode-thumbnail coverage beyond accepted examples. Keep unavailable metadata honest; no guessed seasons, fabricated episodes or universal-HD claims. |
 
