@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 6 November — filler-only badges, exact mapped episode artwork and console safety
+
+696 automated tests pass. Source native live check passes; final packaging follows.
+
+- User wants only confirmed filler labels: preserve internal researched taxonomy for correct filtering, but show no Anime canon, Mixed canon or Recap badges. Confirmed filler retains the single subtle source-linked label.
+- Public source inspection reproduces screenshot: Kitsu One Piece 51–53 supplies only145×80 previews;54 onward has null thumbnails. Exact AniList21/ani.zip mapping supplies400×300 TVDB stills for51–57. Thumbnail enrichment previously depended on optional AniList details succeeding. New exact-Kitsu-to-AniList episodeMapping resolves public stills independently of tracker/detail availability, rejects conflicting Kitsu mappings and never guesses title/season offsets. Existing still remains while a larger alternate is measured; avoid downgrading warm loaded art. Failed Kitsu episode requests now reject/evict instead of permanently caching empty successful pages; bounded metadata retry covers either source failure.
+- EPIPE screenshot exposes a gap in existing error-event guard: Electron console can throw synchronously while writing to a detached launcher pipe. Guard console methods for EPIPE only and retain unrelated errors; no global uncaught-exception suppression.
+- Four new regressions verify exact mapping without AniList details, conflicting mapping rejection, failed page recovery, image size upgrade/no downgrade and synchronous console EPIPE containment. Opt-in native check uses real public sources, actual API/preload/main HTTP and Views.animeAfter, forces App.showAl=null and verifies every visible episode51–57 loads a400px still; screenshots reviewed. Hidden filler correctly defers lazy image loads, so thumbnail acceptance explicitly runs with hiding off and scrolls rows into view. Generated DOM is explicit; accounts/installed profile untouched. Broader source image availability still varies; no claim of invented HD stills.
+- Next remains normal-profile acceptance, then Discord Rich Presence. Physical TV/Gio/Mac/private Jellyfin deferred.
+
+
 ## 6 November — researched filler classifications replace broad binary flags
 
 Current test installer/portable: **preview-7c9b3eb**, runtime source **7c9b3eb**. **692 tests pass**. Package audit, full packaged native visual suite, separate startup/readiness, packaged live-network filler and wide/narrow controller checks pass. Installer/portable app.asar equality and ZIP integrity verified. The prior live transport checks proved delivery of MAL flags, not that those flags meant pure filler. That distinction was wrong: One Piece 50–51 are Anime Canon, 61 is Mixed Canon/Filler; they must not be hidden as pure filler. This section supersedes the classification claims in the two previous filler entries.

@@ -2274,9 +2274,16 @@ function preconnectImageHosts() {
 function setEpisodeThumb(row,sources){
  const thumb=row.querySelector('.thumb'),img=thumb?.querySelector('img');if(!img||!row.isConnected)return;
  const episodeOnly=thumb.dataset.episodeOnly==='1',fallback=episodeOnly?'':thumb.dataset.fallback;if(episodeOnly)thumb.style.backgroundImage='';if(fallback&&!thumb.classList.contains?.('thumb-pending')){thumb.style.backgroundImage='url('+JSON.stringify(fallback)+')';thumb.style.backgroundSize='cover';thumb.style.backgroundPosition='center';}
- const candidates=[...new Set([...sources,episodeOnly?'':thumb.dataset.poster].filter(u=>u&&(!episodeOnly||(u!==thumb.dataset.fallback&&u!==thumb.dataset.poster))))],key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
+ const candidates=[...new Set([...sources,episodeOnly?'':thumb.dataset.poster].filter(u=>u&&(!episodeOnly||(u!==thumb.dataset.fallback&&u!==thumb.dataset.poster))))],current=img.getAttribute('src');if(img.naturalWidth&&candidates.includes(current)){candidates.splice(candidates.indexOf(current),1);candidates.unshift(current);}const key=JSON.stringify(candidates);if(img._thumbKey===key)return;img._thumbKey=key;img._thumbFailed??=new Set();
  const next=()=>{if(!row.isConnected||img._thumbKey!==key)return;const url=candidates.find(u=>!img._thumbFailed.has(u));if(!url){img.style.visibility='hidden';if(episodeOnly){thumb.classList.remove('thumb-pending');thumb.classList.add('thumb-unavailable');}return;}img.hidden=false;img.style.visibility='';
- const ready=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');thumb.classList.remove('thumb-pending');thumb.classList.remove('thumb-unavailable');const artKey=thumb.dataset.episodeArt;if(artKey&&url!==fallback&&url!==thumb.dataset.poster){setEpisodeThumb.cache??=new Map();setEpisodeThumb.cache.set(artKey,url);if(setEpisodeThumb.cache.size>300)setEpisodeThumb.cache.delete(setEpisodeThumb.cache.keys().next().value);}}};img.onload=ready;img.onerror=()=>{if(setEpisodeThumb.cache?.get(thumb.dataset.episodeArt)===url)setEpisodeThumb.cache.delete(thumb.dataset.episodeArt);img._thumbFailed.add(url);img.classList.remove('ready');next();};
+ const ready=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');thumb.classList.remove('thumb-pending');thumb.classList.remove('thumb-unavailable');const artKey=thumb.dataset.episodeArt;if(artKey&&url!==fallback&&url!==thumb.dataset.poster){setEpisodeThumb.cache??=new Map();setEpisodeThumb.cache.set(artKey,url);if(setEpisodeThumb.cache.size>300)setEpisodeThumb.cache.delete(setEpisodeThumb.cache.keys().next().value);}
+ if(episodeOnly&&typeof Image!=='undefined'&&img.naturalWidth){
+  const target=Math.min(1280,Math.max(400,(thumb.clientWidth||400)*(window.devicePixelRatio||1)));
+  if(img.naturalWidth<target)for(const other of candidates){if(other===url||img._thumbFailed.has(other))continue;
+   const probe=new Image();probe.onload=()=>{if(row.isConnected&&img._thumbKey===key&&probe.naturalWidth>img.naturalWidth*1.15){img.onload=()=>{if(row.isConnected&&img._thumbKey===key){img.classList.add('ready');setEpisodeThumb.cache?.set(thumb.dataset.episodeArt,other);}};img.src=other;}};probe.src=other;
+  }
+ }
+ }};img.onload=ready;img.onerror=()=>{const failed=img.getAttribute('src')||url;if(setEpisodeThumb.cache?.get(thumb.dataset.episodeArt)===failed)setEpisodeThumb.cache.delete(thumb.dataset.episodeArt);img._thumbFailed.add(failed);img.classList.remove('ready');next();};
  if(img.getAttribute('src')!==url){img.classList.remove('ready');img.src=url;}if(img.complete&&img.naturalWidth)ready();};next();thumb.classList.remove('skel');
 }
 function retryEpisodeMetadata(rows,rid,retry){
@@ -4393,7 +4400,7 @@ const Views = {
       // Each detail from the best source that has it: ani.zip (TheTVDB), then Kitsu, then AniList's streaming episodes.
       if (z) e = { ...(e || {}), title: z.title || e?.title, synopsis: z.overview || e?.synopsis, airdate: z.airDate || e?.airdate, length: z.runtime || e?.length, thumb: z.image || e?.thumb };
       if (st?.title && !e?.title) row.querySelector('.ep-title').textContent = st.title;
-      const sources=[z?.image,byNum.get(n)?.thumb,st?.thumb].filter(Boolean);if(sources.length||settled===2)setEpisodeThumb(row,sources);
+      const sources=[z?.image,byNum.get(n)?.thumb,st?.thumb,setEpisodeThumb.cache?.get(id+'|'+n)].filter(Boolean);if(sources.length||settled===2)setEpisodeThumb(row,sources);
       if (!e) continue;
       if (e.title && !/^episode \d+$/i.test(e.title)) row.querySelector('.ep-title').textContent = e.title;
       row.querySelector('.ep-meta').textContent = [e.length ? `${e.length} min` : '', e.airdate || ''].filter(Boolean).join(' · ');
@@ -4403,9 +4410,9 @@ const Views = {
     apply();
     await Promise.allSettled([
       Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;}).finally(()=>{settled++;apply();}),
-      AniZip.get(App.showAl?.id).then(value=>{zip=value;}).finally(()=>{settled++;apply();})
+      AniZip.episodeMapping(id,App.showAl?.id).then(value=>{zip=value;}).finally(()=>{settled++;apply();})
     ]);
-    if(!zip&&!App.stale(rid)){const alId=App.showAl?.id;if(alId)retryEpisodeMetadata(rows,rid,async()=>{zip=await AniZip.get(alId);apply();});}
+    if((!zip||!eps.length)&&!App.stale(rid))retryEpisodeMetadata(rows,rid,async()=>{await Promise.allSettled([!zip?AniZip.episodeMapping(id,App.showAl?.id).then(value=>{zip=value;}):null,!eps.length?Kitsu.episodes(id,Math.max(...rows.map(r=>Number(r.dataset.num)))-from,from).then(value=>{eps=value;}):null]);apply();});
   },
 
   async schedule() {

@@ -12,3 +12,13 @@ test('backdrop selection rejects portraits and upgrades undersized landscapes',a
  const ctx={Map,Set,Image,App:{stale:()=>false},window:{devicePixelRatio:2,requestIdleCallback:true},requestIdleCallback:fn=>fn(),requestAnimationFrame:fn=>fn(),document:{querySelector:()=>bg,createElement:()=>({classList:{add(){}}})},AniZip:{get:async()=>null},Trakt:{fanartFor:async()=>[]},setTimeout:(fn,ms)=>{const t=setTimeout(fn,ms);t.unref();return t},clearTimeout};
  const upgrade=vm.runInNewContext(source.slice(start,end)+'\nupgradeBackdrop',ctx);await upgrade(1);assert.deepEqual(added,['large']);
 });
+
+test('episode artwork exact mapping works when optional AniList details are absent; conflicting Kitsu identity rejects',async()=>{
+ const services=vm.runInNewContext(fs.readFileSync(path.join(root,'src/api.js'),'utf8')+';({AniZip,Kitsu})',{window:{},URLSearchParams,console,Map,Set});
+ services.Kitsu.externalIds=async()=>({anilist:'21'});let requested;services.AniZip.get=async id=>{requested=id;return {kitsu:'12',episodes:{54:{image:'exact-still'}}};};
+ assert.equal((await services.AniZip.episodeMapping('12',null)).episodes[54].image,'exact-still');assert.equal(requested,'21');assert.equal(await services.AniZip.episodeMapping('13',null),null);
+});
+test('failed Kitsu episode pages are evicted and can recover instead of caching empty success',async()=>{
+ const services=api();let calls=0;services.Kitsu.call=async()=>{calls++;if(calls===1)throw Error('offline');return {data:[{attributes:{number:54,thumbnail:{original:'recovered'}}}]};};
+ await assert.rejects(services.Kitsu.episodes('12',20,50),/offline/);assert.equal((await services.Kitsu.episodes('12',20,50))[0].thumb,'recovered');assert.equal(calls,2);
+});

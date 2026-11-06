@@ -102,7 +102,7 @@ const FillerEpisodes = {
         const hide=preference.hide&&kind==='filler';row.hidden=hide;if(hide)hidden++;
         row.classList.toggle('filler-marked',preference.indicators&&kind==='filler');
         row.querySelector('.filler-poster-tag')?.remove();
-        if(preference.indicators&&['filler','recap','mixed','anime-canon'].includes(kind)){
+        if(preference.indicators&&kind==='filler'){
           marked++;let badge=row.querySelector('.episode-classification');
           if(!badge){badge=document.createElement('a');badge.className='episode-classification';badge.dataset.act='link';row.querySelector('.ep-num')?.append(badge);}
           badge.dataset.kind=kind;badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent=({'anime-canon':'Anime canon',mixed:'Mixed canon',filler:'Filler',recap:'Recap'})[kind];badge.title=info.source+' classification · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);

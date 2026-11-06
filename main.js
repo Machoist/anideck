@@ -1,4 +1,5 @@
 require('./src/logging-pipe.cjs').guardLoggingPipes(process.stdout,process.stderr);
+require('./src/logging-pipe.cjs').guardConsole(console);
 // AniDeck - main process
 // Owns the window, saved settings, encrypted logins, and all network calls
 // (so the app never runs into CORS problems with Kitsu, Jellyfin or Discord).

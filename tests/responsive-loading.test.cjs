@@ -26,3 +26,11 @@ test('episode metadata retries only once per mounted list and stops on navigatio
  const code=source.slice(source.indexOf('function retryEpisodeMetadata('),source.indexOf('async function fillMissingThumbs(')),timers=[],App={stale:()=>false},retry=vm.runInNewContext(code+';retryEpisodeMetadata',{App,setTimeout:fn=>timers.push(fn)});let calls=0;const owner={isConnected:true};retry([owner],1,()=>calls++);retry([owner],1,()=>calls++);assert.equal(timers.length,1);await timers[0]();assert.equal(calls,1);
  for(const reason of ['page','detached']){const row={isConnected:true};retry([row],1,()=>calls++);if(reason==='page')App.stale=()=>true;else{App.stale=()=>false;row.isConnected=false;}await timers.at(-1)();assert.equal(calls,1);}
 });
+
+test('small loaded episode still upgrades to a larger alternate without clearing the visible image',()=>{
+ const code=source.slice(source.indexOf('function setEpisodeThumb('),source.indexOf('function retryEpisodeMetadata('));let src='',visibleWidth=145;const probes=[];class Image{set src(v){this.url=v;probes.push(this);}};
+ const img={style:{},naturalWidth:145,classList:{add(){},remove(){}},getAttribute:()=>src,set src(v){src=v},get src(){return src}};
+ const thumb={style:{},clientWidth:444,dataset:{episodeOnly:'1',episodeArt:'12|51'},classList:{contains:()=>false,remove(){},add(){}},querySelector:()=>img},row={isConnected:true,querySelector:()=>thumb};
+ const set=vm.runInNewContext(code+';setEpisodeThumb',{Image,window:{devicePixelRatio:1}});set(row,['small','large']);assert.equal(src,'small');img.onload();assert.equal(src,'small');assert.equal(probes.length,1);probes[0].naturalWidth=800;probes[0].onload();assert.equal(src,'large');img.naturalWidth=800;img.onload();assert.equal(set.cache.get('12|51'),'large');
+ set(row,['small','large']);assert.equal(src,'large');
+});

@@ -8,4 +8,12 @@ function guardLoggingPipes(...streams){
   stream.on('error',error=>{if(error?.code!=='EPIPE')throw error;});
  }
 }
-module.exports={guardLoggingPipes};
+const consoles=new WeakSet();
+function guardConsole(target){
+ if(!target||consoles.has(target))return;consoles.add(target);
+ for(const name of ['log','info','warn','error','debug']){
+  if(typeof target[name]!=='function')continue;const original=target[name].bind(target);
+  target[name]=(...args)=>{try{return original(...args);}catch(error){if(error?.code!=='EPIPE')throw error;}};
+ }
+}
+module.exports={guardLoggingPipes,guardConsole};

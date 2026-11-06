@@ -473,7 +473,7 @@ const Kitsu = {
     const all = await Promise.all(Array.from({ length: pages }, (_, p) => this.call(`/edge/anime/${id}/episodes${qs({
       sort: 'number', 'page[limit]': 20, 'page[offset]': from + p * 20,
       'fields[episodes]': 'number,canonicalTitle,titles,synopsis,description,airdate,length,thumbnail',
-    })}`).then((r) => r.data || []).catch(() => [])));
+    })}`).then((r) => r.data || [])));
     return all.flat().map((d) => {
       const a = d.attributes || {};
       return { number: a.number, title: a.titles?.en_us || a.titles?.en || a.canonicalTitle || '', synopsis: a.description || a.synopsis || '',
@@ -1121,6 +1121,17 @@ const AniZip = {
       return [...new Set(urls.filter(url=>{try{const u=new URL(url);return u.hostname==='artworks.thetvdb.com'&&new RegExp('/(?:v4/)?series/'+key+'/clearlogo/[^/]+\\.(?:png|webp)$','i').test(u.pathname);}catch{return false;}}))].slice(0,8);
     }).catch(()=>{this.clearlogoCache.delete(key);return [];});
     this.clearlogoCache.set(key,{at:Date.now(),p});return p;
+  },
+  async episodeMapping(kitsuId,alId){
+    // Artwork is public catalog data; never depend on the active tracker or a
+    // rate-limited AniList details read to find the exact episode stills.
+    let mapped=alId;
+    if(!mapped&&String(kitsuId).startsWith('al:'))mapped=String(kitsuId).slice(3);
+    if(!mapped&&/^[1-9][0-9]*$/.test(String(kitsuId)))try{mapped=(await Kitsu.externalIds(kitsuId))?.anilist;}catch{return null;}
+    if(!/^[1-9][0-9]*$/.test(String(mapped||'')))return null;
+    const result=await this.get(mapped);
+    if(result?.kitsu&&/^[1-9][0-9]*$/.test(String(kitsuId))&&String(result.kitsu)!==String(kitsuId))return null;
+    return result;
   },
   get(alId) {
     if (!alId) return Promise.resolve(null);
