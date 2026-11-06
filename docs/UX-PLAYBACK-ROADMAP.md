@@ -37,10 +37,10 @@ Acceptance: fixtures for mapping ambiguity and missing data plus real title chec
 
 ### 4. Discord Rich Presence
 
-- [ ] Implement desktop Discord RPC with an explicit user-controlled opt-in; existing Discord notification webhooks are a different feature.
+- [x] Implement desktop Discord RPC with an explicit user-controlled opt-in; existing Discord notification webhooks are a different feature.
 - [ ] Show accurate title/episode and playing/paused state, with suitable artwork where supported. Clear presence on stop, sign-out, app exit, opt-out and connection loss; handle Discord absent/restarted without playback errors.
 - [ ] Keep private Jellyfin library activity out of presence by default; never send keys, provider URLs/tokens or private server addresses. Choose useful privacy controls for title and episode visibility.
-- [ ] Record Discord application registration/configuration needed for real acceptance; use a mock transport for unattended tests and explicit consent for a real public activity check.
+- [x] Record Discord application registration/configuration needed for real acceptance; use a mock transport for unattended tests and explicit consent for a real public activity check.
 
 ### 5. Desktop packaging and updates
 

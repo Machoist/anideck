@@ -4115,3 +4115,8 @@ button.pf2-stack:hover { background:rgba(var(--accent-rgb),.06); }
  #main{transition:none!important}
  #main.view-in>*,#main .card-in,#main .card-in *,#main .title-panel-enter,.skel,.loading,.hero-carousel.loading-art::before{animation:none!important}
 }
+
+/* Playback sharing stays in Connections, with an explicit off-by-default choice. */
+.discord-intro{display:flex;gap:18px;align-items:center;padding:8px 0 24px}.discord-symbol{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;color:var(--accent);background:rgba(var(--accent-rgb),.12);flex-shrink:0}.discord-symbol svg{width:24px;height:24px}.discord-intro h4{font-size:23px;margin:7px 0}.discord-intro p{max-width:460px;margin:0;color:var(--muted);line-height:1.6}.discord-preview{display:grid;gap:8px;max-width:390px;margin-top:24px;padding:20px 24px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;background:linear-gradient(125deg,rgba(var(--accent-rgb),.1),transparent)}.discord-preview>b{font-size:17px}.discord-preview>small{color:var(--muted)}.discord-presence .set-row{gap:18px}.discord-presence #discord-status{margin:18px 0 0;line-height:1.6}
+
+.discord-presence .set-row{flex-wrap:wrap}.discord-presence .switch:has(input:disabled){opacity:.45;cursor:not-allowed}

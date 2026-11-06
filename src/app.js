@@ -5161,6 +5161,7 @@ const Views = {
         <div class="set-row"><div><div>Left / right seek</div></div><select data-set="seekStep">${opt([[5, '5s'], [10, '10s'], [15, '15s'], [30, '30s']], s.seekStep)}</select></div>
         <div class="set-row"><div><div>Auto-skip intros & recaps</div><div class="desc">Otherwise a “Skip intro” button shows up.</div></div>${sw('autoSkip')}</div></div>
 
+      ${typeof DiscordPresence!=='undefined'?DiscordPresence.markup():''}
       <div class="set-card"><h3>Subtitles</h3>
         <div class="set-row"><div>Preferred subtitles</div><select data-set="subLang">${opt([['off', 'Off'], ...langs.filter((l) => l[0] !== 'jpn')], s.subLang)}</select></div>
         <div class="set-row"><div><div>Size</div></div><select data-set="subSize">${opt([['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Extra large']], s.subSize || 'md')}</select></div>
@@ -5198,7 +5199,7 @@ const Views = {
     const groups = [
       ['Your shelf', ['Appearance', 'Home screen', 'Tracking']],
       ['Watching', ['Playback', 'Subtitles', 'Keyboard']],
-      ['Connections', ['Account', 'Libraries', 'TV', 'Requests']],
+      ['Connections', ['Account', 'Libraries', 'TV', 'Discord', 'Requests']],
       ['App', ['Notifications','About']],
     ];
     $('#set-menu').innerHTML = groups.map(([label, titles]) => `<div class="set-group"><span class="set-group-label">${esc(label)}</span>${titles.map((title) => { const i = cards.findIndex((c) => c.querySelector('h3').textContent === title); return i < 0 ? '' : `<button class="set-tab" data-i="${i}">${esc(title)}</button>`; }).join('')}</div>`).join('');
@@ -5210,6 +5211,7 @@ const Views = {
     bindSettingInputs();
     applySubStyle($('#sub-preview'));
     if(typeof SubtitleFont!=='undefined')SubtitleFont.bind();
+    if(typeof DiscordPresence!=='undefined')DiscordPresence.bind();
     $('#shuffle-pick').onclick = () => pickShuffleSource();
     window.native.get('localServer').then((v) => { if ($('#lan')) $('#lan').value = v || ''; });
     if ($('#lan-save')) $('#lan-save').onclick = async () => {

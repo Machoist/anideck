@@ -2,6 +2,7 @@
   "jellyfinUrl": "",
   "requestWebhook": "",
   "requestOwnerName": "Library owner",
+  "discordClientId": "",
   "koFiUrl": "https://ko-fi.com/machorp",
   "cloudUrl": "https://anideck-cloud.anideck-cloud.workers.dev"
 }

@@ -74,6 +74,7 @@ function writeSecret(key, value) {
 }
 
 // ---------- window ----------
+const discordPresence=new (require('./src/discord-presence-native.cjs').DiscordPresenceClient)();
 let mainWin = null; // the app window (hidden helper windows for streams are separate)
 function createWindow() {
   const bounds = getStore().windowBounds || { width: 1360, height: 860 };
@@ -96,6 +97,9 @@ function createWindow() {
     },
   });
   mainWin = win;
+  win.on('closed',()=>discordPresence.disconnect());
+  win.webContents.on('render-process-gone',()=>discordPresence.disconnect());
+  win.webContents.on('did-start-navigation',(_event,_url,_inPlace,isMainFrame)=>{if(isMainFrame)discordPresence.disconnect();});
   if(smokeTest){win.webContents.on('paint',()=>{});win.webContents.setFrameRate(30);}
   win.once('ready-to-show', () => { if(smokeTest)return;if (getStore().windowMaximized) win.maximize(); win.show(); win.webContents.send('window:shown'); });
 
@@ -607,6 +611,23 @@ function createWindow() {
         fs.writeFileSync(path.join(visualDir,'AniDeck-profile-editor-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
         const savedEditor=await win.webContents.executeJavaScript(`(async()=>{const old={load:Cloud.loadMe,call:Cloud.call,session:Cloud.withSession,refresh:App.refresh};let payload;try{Cloud.call=async(path,options)=>{if(path!=='/v1/me/profile')throw Error('Unexpected profile path');payload=options.json;return {ok:true};};Cloud.withSession=fn=>fn();Cloud.loadMe=async()=>window.__profileIdentity;App.refresh=()=>{};document.querySelector('#ani-timezone').value='UTC';await document.querySelector('#ani-edit-form').onsubmit({preventDefault(){}});return {formatted:payload?.bio==='**Fantasy** fan',format:payload?.bioFormat==='markdown',timezone:payload?.timezone==='UTC',banner:payload?.banner?.startsWith('data:image/webp')};}finally{Cloud.loadMe=old.load;Cloud.call=old.call;Cloud.withSession=old.session;App.refresh=old.refresh;}})()`);
         if(Object.values(savedEditor).some(v=>v!==true))throw Error('Profile editor save binding failed: '+JSON.stringify(savedEditor));
+        const discordUI=await win.webContents.executeJavaScript(`(async()=>{
+          const old={config:App.config.discordClientId,enabled:App.settings.discordPresence,mode:App.settings.discordVisibility};globalThis.discordVisualBackup=old;
+          App.config.discordClientId='';App.settings.discordPresence=false;App.params.section='Discord';document.querySelector('#main').innerHTML=await Views.settings();Views.settingsAfter();
+          const pending=document.querySelector('#discord-enabled').disabled&&document.querySelector('#discord-status').textContent.includes('pending');
+          // Renderer-only registration fixture; native public config remains empty,
+          // so these clicks can never connect to the user's real Discord client.
+          App.config.discordClientId='123456789012345678';document.querySelector('#main').innerHTML=await Views.settings();Views.settingsAfter();
+          const checkbox=document.querySelector('#discord-enabled');checkbox.checked=true;await checkbox.onchange();document.querySelector('#discord-visibility').value='activity';await document.querySelector('#discord-visibility').onchange();
+          const saved=await window.native.get('settings'),privacy=document.querySelector('#discord-preview-details').textContent==='Watching anime'&&document.querySelector('#discord-preview-state').textContent==='Playing';
+          const nativeSetup=(await window.native.discordPresence('configure')).state==='setup';checkbox.checked=false;await checkbox.onchange();
+          return {pending,persisted:saved.discordPresence===true&&saved.discordVisibility==='activity',privacy,nativeSetup,optedOut:!(await window.native.get('settings')).discordPresence};
+        })()`);if(Object.values(discordUI).some(v=>v!==true))throw Error('Discord preferences failed: '+JSON.stringify(discordUI));
+        console.log('AniDeck Discord privacy controls:',JSON.stringify(discordUI));
+        await new Promise(resolve=>setTimeout(resolve,150));fs.writeFileSync(path.join(visualDir,'AniDeck-discord-preferences.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        const discordMinimum=win.getMinimumSize();win.setMinimumSize(480,600);win.setSize(640,720);await new Promise(resolve=>setTimeout(resolve,150));
+        const discordFits=await win.webContents.executeJavaScript(`(()=>{const card=document.querySelector('.discord-presence'),select=document.querySelector('#discord-visibility');return card.getBoundingClientRect().right<=innerWidth&&select.getBoundingClientRect().right<=innerWidth;})()`);if(!discordFits)throw Error('Discord preferences overflow on narrow window');fs.writeFileSync(path.join(visualDir,'AniDeck-discord-narrow.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+        win.setMinimumSize(...discordMinimum);win.setSize(1360,860);await win.webContents.executeJavaScript(`(async()=>{App.config.discordClientId=discordVisualBackup.config;App.settings.discordPresence=discordVisualBackup.enabled;App.settings.discordVisibility=discordVisualBackup.mode;await App.saveSettings();await window.native.discordPresence('configure');delete globalThis.discordVisualBackup;})()`);
         await win.webContents.executeJavaScript("(async()=>{document.querySelector('#main').innerHTML=await Views.settings();Views.settingsAfter();const tab=[...document.querySelectorAll('#set-menu button')].find(b=>b.textContent==='Notifications');if(!tab)throw Error('Notifications tab missing');tab.click();document.querySelector('#main').scrollTop=0;document.querySelector('#toasts').innerHTML='';})()");
         await new Promise(resolve=>setTimeout(resolve,250));
         fs.writeFileSync(path.join(visualDir,'AniDeck-notifications-preview.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
@@ -729,10 +750,19 @@ ipcMain.handle('store:get', (_e, key) => getStore()[key]);
 ipcMain.handle('store:set', (_e, key, value) => {
   if (value === undefined || value === null) delete getStore()[key]; else getStore()[key] = value;
   saveStore();
+  if(key==='settings')discordPresence.configure(value||{},readJson(CONFIG_FILE,{}).discordClientId||'');
   return true;
 });
+ipcMain.handle('discord:presence', (event,action,payload)=>{
+ if(event.sender!==mainWin?.webContents||mainWin.isDestroyed())return {configured:false,enabled:false,state:'off'};
+ const status=discordPresence.configure(getStore().settings||{},readJson(CONFIG_FILE,{}).discordClientId||'');
+ if(action==='update')return discordPresence.update(payload);
+ if(action==='clear')discordPresence.clear();
+ return action==='configure'?status:discordPresence.status();
+});
+app.on('before-quit',()=>discordPresence.disconnect());
 ipcMain.handle('secret:get', (_e, key) => readSecrets()[key] ?? null);
-ipcMain.handle('secret:set', (_e, key, value) => { writeSecret(key, value); return true; });
+ipcMain.handle('secret:set', (_e, key, value) => { if(!value)discordPresence.revoke();writeSecret(key, value); return true; });
 
 // ---------- Cloudflare fallback ----------
 // If a site answers with Cloudflare's "Just a moment..." check, redo the request

@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 6 November — opt-in Discord Rich Presence
+
+Implementation prepared; public Discord Application ID is not registered yet (user confirmed). Do not claim live Discord publication. No bot/client secret, webhook or account token is needed. Setup instructions: docs/DISCORD-PRESENCE.md. Empty public discordClientId keeps the Settings > Discord sharing switch disabled with clear setup-pending copy.
+
+- Add local desktop IPC client with bounded framing/partial reads, PING/PONG, quiet disconnect/retry, five-second newest-state coalescing and immediate clearing. Sharing defaults off. Native boundary independently validates main-window sender, saved opt-in, public application ID, remote-only public anime scope, whitelisted fields/artwork hosts and privacy mode. Private Jellyfin and TV receiver activity excluded.
+- Accurate title/episode and playing/paused state; paused timers stop. Stop/end/error/opt-out/sign-out/window navigation/crash/exit clear activity. Sign-out revokes the current playback session so it cannot immediately republish. Changing to less detail clears old content before publishing the reduced form.
+- Settings > Discord has a profile-style activity preview, Title & episode / Title only / Activity only choices, persisted opt-in and status text. Registration is project configuration, not an end-user bot/token task. Separate existing Requests webhooks are unchanged.
+- Automated tests include real isolated local IPC transport (custom test pipe only; never Discord), framing fragmentation, missing registration/off-by-default, privacy/scope exclusions, restart/error handling, clear/revoke, newest-state coalescing, sender authorization and renderer payload. Final native visual/build checks follow; installed user profile untouched. Real Discord acceptance requires registered ID and explicit public-activity test consent. Physical Mac remains deferred.
+- Next: register AniDeck at Discord Developer Portal and supply its public Application ID; then opt-in live acceptance. Desktop profile/installer/uninstall retention audit is the next independently actionable implementation area. TV/Gio/Mac/private Jellyfin remain deferred.
+
+
 ## 6 November — filler-only badges, exact mapped episode artwork and console safety
 
 Current installer/portable: **preview-f63e176**, runtime **f63e176**. **696 tests pass**. Final package audit, full native visual suite, separate fresh-profile/readiness, packaged live artwork/filler network checks and wide/narrow filler UI checks pass. Installer/portable app.asar equality and ZIP integrity verified.

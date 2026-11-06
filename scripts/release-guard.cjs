@@ -14,10 +14,11 @@ function verifyRuntimeFolder(folder,prefix='src'){
 function verify(root){
  verifyRuntimeFolder(path.join(root,'src'));
  const config=JSON.parse(fs.readFileSync(path.join(root,'config.release.json'),'utf8'));
- const allowed=new Set(['jellyfinUrl','requestWebhook','requestOwnerName','koFiUrl','cloudUrl']);
+ const allowed=new Set(['jellyfinUrl','requestWebhook','requestOwnerName','koFiUrl','cloudUrl','discordClientId']);
  for(const key of Object.keys(config))if(!allowed.has(key))throw Error('Unexpected release configuration field: '+key);
  if(config.jellyfinUrl||config.requestWebhook||config.requestOwnerName!=='Library owner')throw Error('Release configuration contains a personal library setting');
  if(config.koFiUrl!=='https://ko-fi.com/machorp'||config.cloudUrl!=='https://anideck-cloud.anideck-cloud.workers.dev')throw Error('Unexpected public service URL');
+ if(config.discordClientId!==undefined&&config.discordClientId!==''&&!/^[0-9]{17,20}$/.test(String(config.discordClientId)))throw Error('Discord configuration must contain only a public application ID');
  const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
  const expected=['main.js','preload.js','package.json','src/**/*','build/icon.png'];
  if(JSON.stringify([...pkg.build.files].sort())!==JSON.stringify(expected.sort()))throw Error('Review the release file allowlist before building');

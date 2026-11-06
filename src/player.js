@@ -29,6 +29,7 @@ const Player = {
     if (this.bound) return; this.bound = true;
     this.el = $p('player'); this.video = $p('video');
     const v = this.video;
+    if(typeof DiscordPresence!=='undefined')for(const event of ['play','pause','playing','seeked','ended','error','waiting'])v.addEventListener(event,()=>DiscordPresence.sync(true));
 
     // Subtitles: any text track that gets switched on (ours from Jellyfin, or hls.js's) is drawn by drawSubs()
     // instead of the browser's grey cue box.
@@ -187,6 +188,7 @@ const Player = {
     this.forceConvert = false;
     this.segments = [];this.segmentDuration=null;this.lastAutoSkip=null;
     this.playSessionId = crypto.randomUUID().replace(/-/g, '');
+    if(typeof DiscordPresence!=='undefined')DiscordPresence.begin();
     $p('p-spinner').hidden = false;this.controlsStopped=false;this.wake();
     this.updateTitle(episode);
     $p('p-quality-btn').hidden = this.server !== 'jellyfin' || !Jellyfin.connected();
@@ -825,6 +827,7 @@ const Player = {
   },
 
   tick() {
+    if(typeof DiscordPresence!=='undefined')DiscordPresence.sync();
     const v = this.video, d = this.casting?.duration || this.dur(), t = this.casting?.time ?? v.currentTime;
     this.el.classList.toggle('casting',!!this.casting);
     $p('p-tv-remote').hidden=!this.casting;
@@ -1033,6 +1036,7 @@ const Player = {
   report(kind) { if (this.item) Jellyfin.report(kind, this.reportPayload()); },
 
   teardown() {
+    if(typeof DiscordPresence!=='undefined')DiscordPresence.stop();
     this.resetControls();
     if (typeof Cast !== 'undefined') Cast.onTeardown();
     this.loadSeq = (this.loadSeq || 0) + 1;
