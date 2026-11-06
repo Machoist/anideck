@@ -2,6 +2,12 @@
 const FillerEpisodes = {
   cache:new Map(), pending:new Map(), queue:Promise.resolve(), nextAt:0, retryAt:0,
   number(value){return Number.isInteger(value)&&value>0&&value<=3000;},
+  preference(id){const saved=App.settings.episodeFiller?.[String(id)];return {indicators:saved?.indicators!==false,hide:saved?.hide===true};},
+  async savePreference(id,value){
+    const key=String(id),previous=App.settings.episodeFiller?.[key],next={indicators:!!value.indicators,hide:!!value.hide};
+    App.settings.episodeFiller={...(App.settings.episodeFiller||{}),[key]:next};
+    try{await App.saveSettings();}catch(error){if(App.settings.episodeFiller[key]===next){if(previous)App.settings.episodeFiller[key]=previous;else delete App.settings.episodeFiller[key];}throw error;}
+  },
   parse(payload){
     if(!Array.isArray(payload?.data)||payload.data.length>100)throw Error('Invalid episode annotations');
     const result=new Map();
@@ -51,33 +57,47 @@ const FillerEpisodes = {
     const list=document.querySelector('.detail-main .ep-list');if(!list)return;
     if(list.dataset.fillerMounted)return;list.dataset.fillerMounted='true';
     const rows=[...list.querySelectorAll('.ep[data-num]')],panel=list.parentElement;
-    if(!rows.length||(!App.settings.showFillerIndicators&&!App.settings.hideFiller))return;
+    if(!rows.length)return;
+    let preference=this.preference(id),annotations=new Map(),loading=false,loaded=false,saving=false;
     const controls=document.createElement('div');controls.className='filler-tools';
-    controls.innerHTML='<span role="status">Checking episode annotations…</span><button type="button" class="btn ghost sm" hidden></button>';
+    controls.innerHTML='<div class="filler-summary"><b>Episode guide</b><span role="status"></span></div><div class="filler-options" role="group" aria-label="Filler options for this title"><button type="button" data-filler="indicators" aria-pressed="false">Show filler labels</button><button type="button" data-filler="hide" aria-pressed="false">Hide filler</button></div>';
     list.before(controls);
-    const annotations=await this.read({kitsuId:/^\d+$/.test(String(id))?id:null,alId:al?.id,malId:al?.malId,total,kitsuTotal},rows.map(r=>Number(r.dataset.num)));
-    if(App.stale(rid)||!list.isConnected||!controls.isConnected)return;
-    let reveal=false;
+    const current=()=>!App.stale(rid)&&list.isConnected&&controls.isConnected;
     const apply=()=>{
+      if(!current())return;
       let hidden=0,marked=0,connected=0;
       for(const row of rows){
         if(!row.isConnected)continue;connected++;
         const info=annotations.get(Number(row.dataset.num)),kind=info?.classification;
-        const hide=!!App.settings.hideFiller&&!reveal&&kind==='filler';row.hidden=hide;if(hide)hidden++;
-        if(App.settings.showFillerIndicators&&['filler','recap','mixed','canon'].includes(kind)){
+        const hide=preference.hide&&kind==='filler';row.hidden=hide;if(hide)hidden++;
+        if(preference.indicators&&['filler','recap','mixed','canon'].includes(kind)){
           marked++;let badge=row.querySelector('.episode-classification');
           if(!badge){badge=document.createElement('a');badge.className='episode-classification';badge.dataset.act='link';row.querySelector('.ep-num')?.append(badge);}
           badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent=kind[0].toUpperCase()+kind.slice(1);badge.title=info.source+' annotation · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);
-        }
+        }else row.querySelector('.episode-classification')?.remove();
       }
-      const status=controls.querySelector('span'),button=controls.querySelector('button');
-      status.textContent=hidden?hidden+' filler episode'+(hidden===1?'':'s')+' hidden in this range':annotations.size?(marked?'Episode annotations · Jikan / MyAnimeList':'No marked filler in this range'):'Episode annotations unavailable · All episodes remain visible';
-      button.hidden=!App.settings.hideFiller||![...annotations.values()].some(x=>x.classification==='filler');button.textContent=reveal?'Hide filler':'Show all episodes';
-      button.onclick=()=>{reveal=!reveal;apply();};
+      const status=controls.querySelector('[role="status"]');
+      status.textContent=loading?'Checking annotations…':!preference.indicators&&!preference.hide?'Options saved for this title':hidden?hidden+' filler episode'+(hidden===1?'':'s')+' hidden · Turn off Hide filler to show all':annotations.size?(marked?'Annotations · Jikan / MyAnimeList':'No marked filler in this range'):'Annotations unavailable · All episodes remain visible';
+      controls.querySelectorAll('[data-filler]').forEach(button=>button.setAttribute('aria-pressed',String(preference[button.dataset.filler])));
       let empty=panel.querySelector('.filler-empty');
-      if(connected&&hidden===connected){if(!empty){empty=document.createElement('p');empty.className='filler-empty';empty.textContent='All episodes in this range are marked filler. Choose “Show all episodes” to view them.';list.after(empty);}}
+      if(connected&&hidden===connected){if(!empty){empty=document.createElement('p');empty.className='filler-empty';empty.textContent='All episodes in this range are marked filler. Turn off “Hide filler” above to show all episodes.';list.after(empty);}}
       else empty?.remove();
     };
-    apply();
+    const load=async()=>{
+      if(loading||loaded||(!preference.indicators&&!preference.hide))return;
+      loading=true;apply();
+      try{annotations=await this.read({kitsuId:/^\d+$/.test(String(id))?id:null,alId:al?.id,malId:al?.malId,total,kitsuTotal},rows.map(r=>Number(r.dataset.num)));}
+      catch{annotations=new Map();}
+      finally{loading=false;loaded=true;apply();}
+    };
+    controls.querySelectorAll('[data-filler]').forEach(button=>button.onclick=async()=>{
+      if(!current()||saving)return;
+      const previous={...preference};preference={...preference,[button.dataset.filler]:!preference[button.dataset.filler]};apply();
+      saving=true;controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=true);
+      try{await this.savePreference(id,preference);}catch{if(current()){preference=previous;apply();controls.querySelector('[role="status"]').textContent='Could not save this title’s options. Try again.';}return;}
+      finally{saving=false;if(current())controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=false);}
+      if(current())await load();
+    });
+    apply();await load();
   }
 };

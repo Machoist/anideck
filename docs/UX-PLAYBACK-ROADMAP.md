@@ -26,9 +26,9 @@ Acceptance: native UI checks plus behavioral timing coverage; imported font pers
 
 ### 3. Filler indicators and filtering
 
-Implemented 5 November: optional Jikan/MAL annotations in remote title episode lists, exact mapped identities, bounded background reads, shared outage backoff and separate preferences. See [source/mapping audit](FILLER-METADATA-AUDIT.md). Live Jikan API access timed out from this connection; generated-data/native DOM acceptance is separate from live source acceptance.
+Implemented 5 November: optional Jikan/MAL annotations in remote title episode lists, exact mapped identities, bounded background reads, shared outage backoff and separate per-title preferences. See [source/mapping audit](FILLER-METADATA-AUDIT.md). Live Jikan API access timed out from this connection; generated-data/native DOM acceptance is separate from live source acceptance.
 
-- [x] Separate **Show filler indicators** (on) and **Hide filler episodes** (off) settings in Playback. Show all restores hidden rows in the current range.
+- [x] **Show filler labels** (on) and **Hide filler** (off) controls above each title’s episode grid. Choices persist independently per title; turning Hide filler off restores hidden rows. No global Playback settings.
 - [x] Preserve original numbers, tracker totals/progress, actual provider availability and automatic next-episode behavior. Only explicitly marked pure filler is hidden; recap and unknown remain visible.
 - [x] Exact mapped MAL identities; reject conflicting AniList/Kitsu mapping and mismatched combined-entry totals. No franchise-title/absolute-offset guessing; unsupported splits remain unknown.
 - [ ] Confirm live public source availability across real titles/providers. Jikan only supplies explicit filler/recap flags; canon/mixed classification and verified aggregate segment mapping remain future work.
