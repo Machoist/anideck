@@ -36,7 +36,9 @@ if(!await js('!!document.querySelector(".filler-empty")'))throw Error('All hidde
 await js('document.querySelector("[data-filler=hide]").click();void 0;');
 if(await js('!!document.querySelector(".filler-empty")||document.querySelector(".ep").hidden'))throw Error('All hidden recovery failed');
 await js('seed([101]);FillerEpisodes.read=async()=>new Map();FillerEpisodes.mount({id:10,al:{id:30},total:220,kitsuTotal:220},1)');
-if(!await js('document.querySelector(".filler-tools").textContent.includes("unavailable")&&!document.querySelector(".ep").hidden'))throw Error('Offline behavior failed');
+if(!await js('document.querySelector(".filler-status").hidden&&document.querySelector(".filler-status").textContent===""&&document.querySelector(".filler-retry").hidden&&!document.querySelector(".ep").hidden&&!document.querySelector(".episode-classification")&&![...document.querySelectorAll(".filler-value")].some(x=>x.textContent==="Waiting")'))throw Error('Unknown filler should stay quiet and preserve episodes');
+await js('seed([101]);FillerEpisodes.read=async()=>{const rows=new Map();rows.guideReady=true;return rows;};FillerEpisodes.mount({id:10,al:{id:30}},1)');
+if(!await js('document.querySelector(".filler-status").hidden&&!document.querySelector(".ep").hidden&&!document.querySelector(".episode-classification")'))throw Error('No filler should look like normal episodes');
 await js('seed([26]);globalThis.release=null;FillerEpisodes.read=()=>new Promise(r=>release=r);globalThis.pending=FillerEpisodes.mount({id:10,al:{id:30}},1);App.renderId=2;release(new Map([[26,{classification:"filler"}]]));pending');
 if(await js('document.querySelector(".ep").hidden'))throw Error('Stale page changed');
 fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({first,badgeLayout,showAll:true,allHiddenRecovery:true,offlineVisible:true,staleGuard:true},null,2));console.log('Native filler check passed');win.destroy();app.exit(0);

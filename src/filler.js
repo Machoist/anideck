@@ -111,10 +111,11 @@ const FillerEpisodes = {
       const status=controls.querySelector('[role="status"]');
       const enabled=preference.indicators||preference.hide;
       const verified=annotations.guideReady===true;
-      status.textContent=loading?'Checking filler guide…':!enabled?'Saved for this title':verified?(hidden?hidden+' filler episodes hidden':filler?filler+' confirmed filler episode'+(filler===1?'':'s')+' in this range':'No confirmed filler in this range'):'Filler guide unavailable · Episodes kept visible';
-      controls.classList.toggle('data-unavailable',enabled&&loaded&&!verified);controls.classList.toggle('data-loading',loading);
-      controls.querySelector('.filler-retry').hidden=!enabled||loading||!loaded||verified;
-      controls.querySelectorAll('[data-filler]').forEach(button=>{const on=preference[button.dataset.filler];button.setAttribute('aria-pressed',String(on));button.querySelector('.filler-value').textContent=!on?'Off':loading?'Loading':!verified&&enabled?'Waiting':button.dataset.filler==='hide'?hidden+' hidden':'On';});
+      status.textContent=!loading&&enabled&&verified&&filler?(hidden?hidden+' filler episodes hidden':filler+' confirmed filler episode'+(filler===1?'':'s')+' in this range'):'';
+      status.hidden=!status.textContent;
+      controls.classList.toggle('data-loading',loading);
+      controls.querySelector('.filler-retry').hidden=true;
+      controls.querySelectorAll('[data-filler]').forEach(button=>{const on=preference[button.dataset.filler];button.setAttribute('aria-pressed',String(on));button.querySelector('.filler-value').textContent=!on?'Off':loading?'Loading':button.dataset.filler==='hide'&&hidden?hidden+' hidden':'On';});
       let empty=panel.querySelector('.filler-empty');
       if(connected&&hidden===connected){if(!empty){empty=document.createElement('p');empty.className='filler-empty';empty.textContent='All episodes in this range are marked filler. Turn off “Hide filler” above to show all episodes.';list.after(empty);}}
       else empty?.remove();
@@ -131,7 +132,7 @@ const FillerEpisodes = {
       if(!current()||saving)return;
       const previous={...preference};preference={...preference,[button.dataset.filler]:!preference[button.dataset.filler]};button.classList.remove('just-changed');void button.offsetWidth;button.classList.add('just-changed');apply();
       saving=true;controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=true);
-      try{await this.savePreference(id,preference);controls.classList.remove('save-error');}catch{if(current()){preference=previous;apply();controls.classList.add('save-error');controls.querySelector('[role="status"]').textContent='Could not save this title’s options. Try again.';}return;}
+      try{await this.savePreference(id,preference);controls.classList.remove('save-error');}catch{if(current()){preference=previous;apply();controls.classList.add('save-error');const status=controls.querySelector('[role="status"]');status.hidden=false;status.textContent='Could not save this title’s options. Try again.';}return;}
       finally{saving=false;if(current())controls.querySelectorAll('[data-filler]').forEach(b=>b.disabled=false);}
       if(current())await load();
     });

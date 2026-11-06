@@ -20,6 +20,10 @@ Current as of 6 November 2026. Read this for status and next work; [historical c
 
 Filler visual follow-up delivered in preview-e9b843a: verified pure filler has a source-linked amber badge over the thumbnail's top-left, separate from watched/actions. Classification/hiding unchanged. Full 727 tests plus extracted-package Chromium wide/narrow containment, watched separation, toggles/hiding and stale/offline checks passed. Claude's next design-only assignment is prepared; the user must start it in the external session.
 
+Latest source follow-up: titles without confirmed filler quietly retain ordinary episode cards; no unavailable-guide warning, Waiting state or visible retry prompt. Unknown classification never becomes a no-filler claim or hides episodes. Save failures still appear. Native filler UI check and full 727 tests passed. This follows preview-e9b843a; no newer installer built.
+
+User chose the development workflow for frequent testing. `Start-AniDeck-Development.cmd` launches this checkout directly (or `npm start`); exit/reopen after source edits. Matching Electron 33.4.11 restored locally in ignored node_modules from the existing verified cache. Development profile remains separate and starts signed out; installed app/accounts untouched. Released-app in-app updating is a later task, not enabled or published by this setup.
+
 Choose one observable task. Do not automatically start all rows or multiple agents.
 
 User-authorized external assignments reviewed/integrated: Claude native profile-selection acceptance and Grok trusted wheel measurements. No further motion/cache change justified by generated fixtures. Preserve their earlier dirty worktrees. Coordinator completed combined unpublished preview-d6d600e; user acceptance is next. Windows packaging used a separate helper cache to avoid a macOS symlink extraction privilege failure; source/package configuration was unchanged.

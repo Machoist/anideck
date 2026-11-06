@@ -16,6 +16,8 @@ npm run dist:win
 
 ### Source runs use their own profile
 
+On Windows, double-click `Start-AniDeck-Development.cmd` in the project folder after dependencies are installed. It opens this checkout directly, without running an installer. After source files change, exit the development app and open that launcher again. `npm start` does the same from a terminal. Settings > About identifies it as Development; use the project launcher rather than the installed AniDeck shortcut for this testing workflow. A source change does not update the installed app or another checkout.
+
 `npm start` (any unpackaged run) never opens the installed app's profile. Each checkout gets its own folder under `%APPDATA%\AniDeck Development\` on Windows or `~/Library/Application Support/AniDeck Development/` on macOS. Settings, the on-device list, sign-ins and browser sessions all live there. The folder name is the first 16 hex characters of a SHA-256 hash of the checkout's resolved path, so it does not reveal where the checkout lives. On Windows the path is compared case-insensitively, and junctions resolve to their target first. Relaunching the same checkout reuses its profile. Separate worktrees or clones never share stores or sessions.
 
 A new checkout therefore starts signed out with empty settings. Sign in again inside it, and preferably use a test account. Source runs cannot opt into the installed profile, and nothing copies, moves or deletes an existing profile. Installed release and preview builds keep using `%APPDATA%\AniDeck`, or the earlier `%APPDATA%\AniShelf` folder when it exists. Packaged smoke checks (`--anideck-smoke-test` on a test build) still use a temporary isolated profile. Delete an old development folder by hand when you no longer need it.
