@@ -107,7 +107,7 @@ Local installers, caches, logs, and scratch previews are excluded from the repos
 
 [Report a bug or suggest an improvement](https://github.com/Machoist/anideck/issues). Include your app version, the steps to reproduce, and what you expected. Remove private keys, tokens, and server addresses from screenshots and reports.
 
-For local setup and contribution checks, start with the [development guide](docs/DEVELOPMENT.md). The [worklist](WORKLIST.md) records completed work and remaining verification. The package is marked `UNLICENSED`; this repository does not currently grant a reuse license.
+For local setup and contribution checks, start with the [development guide](docs/DEVELOPMENT.md). The [active worklist](WORKLIST.md) lists current status and next tasks; [historical checkpoints](docs/history/WORKLIST-through-2026-11-06.md) preserve completed work and verification history. The package is marked `UNLICENSED`; this repository does not currently grant a reuse license.
 
 If you would like to support development, [support AniDeck on Ko-fi](https://ko-fi.com/machorp).
 

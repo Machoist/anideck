@@ -1,6 +1,8 @@
 # Filler metadata audit — 5 November 2026
 
-Initial audit and implementation specification, followed by the 5 November implementation note below.
+Historical research/specification, followed by a dated implementation note. Source decisions and next steps below may be superseded; do not treat them as the active task queue.
+
+**Current contract (6 November):** `src/filler-guide.js` verifies researched guide identity and numbered title/air-date evidence before `src/filler.js` labels/hides pure filler. Binary MAL filler flags alone do not authorize hiding. Anime-canon/mixed/recap/unknown remain visible; only pure filler gets a label. See [product rules](agents/PRODUCT-RULES.md) and [active worklist](../WORKLIST.md) for current behavior and coverage. Original findings follow unchanged.
 
 ## Existing boundaries
 

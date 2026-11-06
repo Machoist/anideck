@@ -26,21 +26,25 @@ Acceptance: native UI checks plus behavioral timing coverage; imported font pers
 
 ### 3. Filler indicators and filtering
 
-Implemented 5 November: optional Jikan/MAL annotations in remote title episode lists, exact mapped identities, bounded background reads, shared outage backoff and separate per-title preferences. See [source/mapping audit](FILLER-METADATA-AUDIT.md). Live Tenrai One Piece episode payload accepted and replayed through the native parser/filter; Jikan remains an independently cooled fallback after connection timeouts.
+Implemented, updated 6 November: optional researched AnimeFillerList classifications cross-checked against exact-MAL episode evidence from Tenrai/Jikan. Binary filler flags alone are insufficient: they include anime-original episodes that should not be skipped. The [initial source audit](FILLER-METADATA-AUDIT.md) is historical research, not the current adapter contract.
 
-- [x] Icon controls for **Filler labels** (on) and **Hide filler** (off), with explicit loading/result feedback beside sorting above each title’s episode grid. Choices persist independently per title; turning Hide filler off restores hidden rows. No global Playback settings.
-- [x] Preserve original numbers, tracker totals/progress, actual provider availability and automatic next-episode behavior. Only explicitly marked pure filler is hidden; recap and unknown remain visible.
-- [x] Exact mapped MAL identities; reject conflicting AniList/Kitsu mapping and mismatched combined-entry totals. No franchise-title/absolute-offset guessing; unsupported splits remain unknown.
-- [ ] Broaden live title/provider acceptance beyond the accepted One Piece payload. Jikan only supplies explicit filler/recap flags; canon/mixed classification and verified aggregate segment mapping remain future work.
+- [x] Per-title **Filler labels** (on) and **Hide filler** (off), with loading/result feedback near episode sorting. Only verified pure filler gets a subtle source-linked label; turning hiding off restores the rows.
+- [x] Preserve original numbering, tracker totals/progress, provider availability and automatic next-episode behavior. Anime-canon, mixed, recap and unknown stay visible.
+- [x] Exact catalog identities plus full guide title and at least three matching numbered episode-title/air-date anchors; each classified row also matches its catalog air date. No guessed franchise/season offsets; unsupported splits remain unknown.
+- [ ] Broaden real title/provider coverage beyond verified One Piece examples. Actual source/IPC/renderer checks pass; they are not universal classification or installed-user acceptance.
 
 Acceptance: fixtures for mapping ambiguity and missing data plus real title checks across available providers. Filtering must behave independently of AniList/Kitsu/local connection.
 
 ### 4. Discord Rich Presence
 
 - [x] Implement desktop Discord RPC with an explicit user-controlled opt-in; existing Discord notification webhooks are a different feature.
-- [ ] Show accurate title/episode and playing/paused state, with suitable artwork where supported. Clear presence on stop, sign-out, app exit, opt-out and connection loss; handle Discord absent/restarted without playback errors.
-- [ ] Keep private Jellyfin library activity out of presence by default; never send keys, provider URLs/tokens or private server addresses. Choose useful privacy controls for title and episode visibility.
+- [x] Show accurate title/episode and playing/paused state, with suitable artwork where supported. Clear presence on stop, sign-out, app exit, opt-out and connection loss; handle Discord absent/restarted without playback errors.
+- [x] Keep private Jellyfin library activity out of presence by default; never send keys, provider URLs/tokens or private server addresses. Choose useful privacy controls for title and episode visibility.
 - [x] Record Discord application registration/configuration needed for real acceptance; use a mock transport for unattended tests and explicit consent for a real public activity check.
+
+Public application registration and a real handshake are complete. Implementation/isolated checks are complete; [Discord setup and acceptance](DISCORD-PRESENCE.md) records the boundary.
+
+- [ ] User-opted-in real Discord activity, pause/seek, privacy/clear and restart acceptance. A READY handshake does not establish public activity delivery. Smoke fixtures cannot publish activity.
 
 ### 5. Desktop packaging and updates
 

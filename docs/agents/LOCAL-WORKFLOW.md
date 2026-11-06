@@ -1,11 +1,11 @@
-# Local agent workflow (32K starting configuration)
+# Focused retrieval and handoff workflow
 
-This is an on-demand procedure, not extra always-loaded context. A model alias or instruction file does not train the model, add retrieval tools or guarantee correct changes. The existing 32K Qwen configuration is the starting point; no Ollama/OpenCode configuration is changed by these documents. Evaluate results before increasing task scope.
+This is an on-demand procedure, not extra always-loaded context. A model alias or instruction file does not train the model, add retrieval tools or guarantee correct changes. These practices apply to Claude Code, OpenCode/Grok and smaller-context local models. No provider, model or tool configuration is changed by these documents. Evaluate results before increasing task scope.
 
 ## Retrieve only what the task needs
 
 1. Define one observable outcome and its acceptance checks. Split a large feature into independently verifiable steps; expand scope when tracing the cause requires it, not by an arbitrary file limit.
-2. Check Git status and the worklist. Use `docs/agents/REPOSITORY-MAP.md` to choose starting files, then confirm them in source.
+2. Check Git status and the short active WORKLIST.md; do not read its historical archive on startup. Use `docs/agents/REPOSITORY-MAP.md` to choose starting files, then confirm them in source.
 3. Discover filenames before reading content. Example: `rg --files src tests server/src -g '*request*' -g '*social*'`.
 4. Search symbols in explicit files/directories, for example `rg -n -m 12 'accept|request' src/message-requests.js server/src/message-requests.js`. Replace generic patterns with exact discovered symbols as soon as possible. `-m` limits matches per file, not total output.
 5. Read the enclosing function and enough surrounding code to understand inputs, state, callers and cleanup. Use bounded line ranges; widen deliberately. Do not stop at an isolated match when permissions or async lifecycle cross files.
@@ -41,9 +41,13 @@ Never store credentials or private user data in handoffs. A model must report un
 
 The useful baseline is small changes, root-cause fixes, behavior tests and verifiable steps. The upstream skill also specifies companion tools and push behavior. Do not claim complexity/duplication/mutation gates ran if the tools are missing. Introduce expensive gates selectively after verifying compatibility. Existing project scope, permission, collaboration and release rules still apply; do not perform unrelated refactors, worktree cleanup or automatic pushes merely because an upstream template suggests them.
 
-## Initial evaluation
+## Bringing another agent into the project
 
-First do a read-only trace of Social message-request acceptance with current file/function references and relevant tests. Then attempt one bounded bug fix in an isolated branch/worktree with coordinated ownership. Assess correct retrieval, minimal diff, actual verification, truthful reporting and a usable handoff. Review failures before granting broader tasks. Do not treat successful navigation as proof of implementation ability.
+Start it in the correct checkout and have it read AGENTS.md, the active worklist, Git status and recent commits. Ask for a short state/task summary before its first unfamiliar change. Instruction files guide behavior; they do not grant missing tools, install indexes, transfer another agent's chat, or guarantee correctness.
+
+One writer per checkout; read-only review may share it. For simultaneous edits, assign each writer a distinct task, Git worktree/branch and file ownership. Record owner, path, base revision, scope and acceptance in the handoff. New worktrees start from committed source and do not inherit dirty files. Coordinate overlap; never switch or clean another writer's checkout. Agent sessions, not a stale document, establish who is actively working.
+
+Our earlier Qwen evaluation is completed history, not a required Social exercise for every new session. Use one current bounded task and evaluate retrieval, minimal coherent diff, actual verification and truthful reporting. See the historical worklist only if that evaluation matters.
 
 ## Observed retrieval and reporting pitfalls
 
