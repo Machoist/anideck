@@ -26,12 +26,12 @@ Acceptance: native UI checks plus behavioral timing coverage; imported font pers
 
 ### 3. Filler indicators and filtering
 
-Implemented 5 November: optional Jikan/MAL annotations in remote title episode lists, exact mapped identities, bounded background reads, shared outage backoff and separate per-title preferences. See [source/mapping audit](FILLER-METADATA-AUDIT.md). Live Jikan API access timed out from this connection; generated-data/native DOM acceptance is separate from live source acceptance.
+Implemented 5 November: optional Jikan/MAL annotations in remote title episode lists, exact mapped identities, bounded background reads, shared outage backoff and separate per-title preferences. See [source/mapping audit](FILLER-METADATA-AUDIT.md). Live Tenrai One Piece episode payload accepted and replayed through the native parser/filter; Jikan remains an independently cooled fallback after connection timeouts.
 
-- [x] Compact **Filler Markers** (on) and **Hide Filler** (off) dot toggles beside sorting above each title’s episode grid. Choices persist independently per title; turning Hide filler off restores hidden rows. No global Playback settings.
+- [x] Icon controls for **Filler labels** (on) and **Hide filler** (off), with explicit loading/result feedback beside sorting above each title’s episode grid. Choices persist independently per title; turning Hide filler off restores hidden rows. No global Playback settings.
 - [x] Preserve original numbers, tracker totals/progress, actual provider availability and automatic next-episode behavior. Only explicitly marked pure filler is hidden; recap and unknown remain visible.
 - [x] Exact mapped MAL identities; reject conflicting AniList/Kitsu mapping and mismatched combined-entry totals. No franchise-title/absolute-offset guessing; unsupported splits remain unknown.
-- [ ] Confirm live public source availability across real titles/providers. Jikan only supplies explicit filler/recap flags; canon/mixed classification and verified aggregate segment mapping remain future work.
+- [ ] Broaden live title/provider acceptance beyond the accepted One Piece payload. Jikan only supplies explicit filler/recap flags; canon/mixed classification and verified aggregate segment mapping remain future work.
 
 Acceptance: fixtures for mapping ambiguity and missing data plus real title checks across available providers. Filtering must behave independently of AniList/Kitsu/local connection.
 

@@ -1,9 +1,10 @@
 // Isolated real Chromium DOM test. Generated episode flags; no installed account reads/writes.
 const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
-const [binary,appRoot,output]=process.argv.slice(2);if(!output)throw Error('Usage: node scripts/native-filler.cjs electron app-root output');
+const [binary,appRoot,output,livePayload]=process.argv.slice(2);if(!output)throw Error('Usage: node scripts/native-filler.cjs electron app-root output');
+const recorded=livePayload?JSON.parse(fs.readFileSync(path.resolve(livePayload),'utf8')):null;
 const root=path.resolve(appRoot),out=path.resolve(output),dir=fs.mkdtempSync(path.join(path.resolve('..'),'anideck-filler-'));fs.mkdirSync(out,{recursive:true});
 fs.writeFileSync(path.join(dir,'probe.cjs'),`
-const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path');app.setPath('userData',path.join(__dirname,'device'));app.setPath('sessionData',path.join(__dirname,'device'));const root=${JSON.stringify(root)},out=${JSON.stringify(out)};
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path');app.setPath('userData',path.join(__dirname,'device'));app.setPath('sessionData',path.join(__dirname,'device'));const root=${JSON.stringify(root)},out=${JSON.stringify(out)},recorded=${JSON.stringify(recorded)};
 app.whenReady().then(async()=>{try{
 const win=new BrowserWindow({show:false,width:1100,height:800,webPreferences:{offscreen:true,backgroundThrottling:false,contextIsolation:true,nodeIntegration:false}});win.webContents.on('paint',()=>{});
 await win.loadURL('data:text/html,<html><body style="padding:32px"><main id="main"><section class="detail-main"><h1>Episodes</h1><div class="ep-list"></div></section></main></body></html>');
@@ -30,6 +31,16 @@ await js('App.settings.episodeFiller[10].hide=true;seed([26]);FillerEpisodes.mou
 if(!await js('!!document.querySelector(".filler-empty")'))throw Error('All hidden recovery missing');
 await js('document.querySelector("[data-filler=hide]").click();void 0;');
 if(await js('!!document.querySelector(".filler-empty")||document.querySelector(".ep").hidden'))throw Error('All hidden recovery failed');
+if(recorded){
+ await js('globalThis.recorded='+JSON.stringify(recorded)+';http=async url=>{if(!url.startsWith("https://api.tenrai.org/v1/anime/21/episodes?page=1"))throw Error("Unexpected source");return recorded;};AniZip.get=async()=>{throw Error("Artwork service unavailable")};Kitsu.externalIds=async()=>{throw Error("Optional mapping service unavailable")};seed([49,50,51,54,60,61]);document.querySelector("h1").textContent="One Piece · recorded public episode data";FillerEpisodes.mount({id:12,al:{id:21,malId:21,status:"releasing"},total:1200,kitsuTotal:1199},1)');
+ const labels=await js('[...document.querySelectorAll(".ep.filler-marked")].map(x=>Number(x.dataset.num))');if(JSON.stringify(labels)!=='[50,51,54,60]')throw Error('Real One Piece flags not applied: '+JSON.stringify(labels));
+ win.setContentSize(1100,800);await new Promise(r=>setTimeout(r,200));fs.writeFileSync(path.join(out,'one-piece-marked.png'),(await win.webContents.capturePage()).toPNG());
+ await js('document.querySelector("[data-filler=hide]").onclick()');
+ const visible=await js('[...document.querySelectorAll(".ep:not([hidden])")].map(x=>Number(x.dataset.num))');if(JSON.stringify(visible)!=='[49,61]')throw Error('Real One Piece filler not hidden: '+JSON.stringify(visible));
+ if(!await js('document.querySelector("[data-filler=hide] .filler-value").textContent==="4 hidden"'))throw Error('Hidden count feedback missing');
+ await new Promise(r=>setTimeout(r,250));fs.writeFileSync(path.join(out,'one-piece-hidden.png'),(await win.webContents.capturePage()).toPNG());
+ fs.writeFileSync(path.join(out,'one-piece-result.json'),JSON.stringify({source:'https://api.tenrai.org/v1/anime/21/episodes?page=1',recordedPublicResponse:true,marked:labels,visible,artworkServiceUnavailable:true},null,2));
+}
 await js('seed([101]);FillerEpisodes.page=async()=>null;FillerEpisodes.mount({id:10,al:{id:30},total:220,kitsuTotal:220},1)');
 if(!await js('document.querySelector(".filler-tools").textContent.includes("unavailable")&&!document.querySelector(".ep").hidden'))throw Error('Offline behavior failed');
 await js('seed([26]);globalThis.release=null;FillerEpisodes.read=()=>new Promise(r=>release=r);globalThis.pending=FillerEpisodes.mount({id:10,al:{id:30}},1);App.renderId=2;release(new Map([[26,{classification:"filler"}]]));pending');
