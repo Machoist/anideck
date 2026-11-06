@@ -754,7 +754,7 @@ ipcMain.handle('store:set', (_e, key, value) => {
   return true;
 });
 ipcMain.handle('discord:presence', (event,action,payload)=>{
- if(event.sender!==mainWin?.webContents||mainWin.isDestroyed())return {configured:false,enabled:false,state:'off'};
+ if(!mainWin||mainWin.isDestroyed()||event.sender!==mainWin.webContents)return {configured:false,enabled:false,state:'off'};
  const status=discordPresence.configure(getStore().settings||{},readJson(CONFIG_FILE,{}).discordClientId||'');
  if(action==='update')return discordPresence.update(payload);
  if(action==='clear')discordPresence.clear();
