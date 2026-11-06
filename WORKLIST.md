@@ -1,5 +1,16 @@
 # AniDeck worklist
 
+## 6 November — researched filler classifications replace broad binary flags
+
+Runtime correction prepared; 692 automated tests pass. The prior live transport checks proved delivery of MAL flags, not that those flags meant pure filler. That distinction was wrong: One Piece 50–51 are Anime Canon, 61 is Mixed Canon/Filler; they must not be hidden as pure filler. This section supersedes the classification claims in the two previous filler entries.
+
+- Add a shared AnimeFillerList adapter with four researched classifications. A complete title/alias must match the guide heading; at least three same-number episode titles AND original air dates must match the exact-MAL episode catalog. Each displayed researched episode must also match its catalog air date. No title-specific IDs/ranges, guessed season offsets, borrowed franchise guide, or bundled scraped dataset. Unverified data stays visible. Binary MAL filler flags alone cannot authorize hiding.
+- Preserve Anime Canon and Mixed Canon/Filler when Hide filler is on. Remove the duplicate gold poster tag/outline; use one subdued, source-linked classification label. Per-title preferences, original numbering, progress and playback remain independent.
+- New parser/identity regression checks plus existing filler tests cover four types, insufficient/misaligned evidence, conflicting rows, alias 404 recovery, deduplication and unverified binary flags. Isolated real Chromium UI checks cover labels, pure-filler-only hiding, per-title persistence, show-all/all-hidden recovery, offline visibility and stale navigation; wide/narrow screenshots reviewed.
+- Live public-network check executes actual preload, main HTTP handler, catalog API and Views.animeAfter in an isolated signed-out profile. One Piece 54–60/98–99 hide; 49/50/51/61 stay visible. Separate reads verify 196/200/201/206 filler and 207 canon across page boundaries. No recorded source payload, account writes, installed-profile changes or playback claim. Evidence outputs/filler-researched-source/result.json. Packaging/final artifact verification follows.
+- Coverage limitation: guides lacking verified identity/numbering stay unavailable and cannot hide episodes. Broader title/source acceptance remains open. Continue Discord Rich Presence after normal-profile acceptance; physical TV/Gio/Mac/private Jellyfin remain deferred.
+
+
 ## 6 November — installed-build mismatch confirmed through live network
 
 Current verified installer remains **preview-5c64081**; no new runtime edits or rebuild were needed. Runtime tests remain686 passed from the previous increment. New opt-in live test executes the packaged preload, actual main HTTP handler/response classifier, real src/api.js and actual Views.animeAfter hook in an isolated signed-out profile. No recorded annotation payload is supplied.

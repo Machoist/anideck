@@ -4374,7 +4374,7 @@ const Views = {
     if ($('#show-social')) return metadataOnly?undefined:fillSocial(tab, rid);
     const rows = [...document.querySelectorAll('.ep-list .ep[data-num]')];
     if (!rows.length) return;
-    if(typeof FillerEpisodes!=='undefined')FillerEpisodes.mount({id,al:App.showAl,kitsuTotal:App.remoteEpisodeSnapshot?.values?.[0]?.episodes,total:App.showCtx?.match?.episodes,status:App.remoteEpisodeSnapshot?.values?.[0]?.status},rid).catch(()=>{});
+    if(typeof FillerEpisodes!=='undefined')FillerEpisodes.mount({id,al:App.showAl,kitsuTotal:App.remoteEpisodeSnapshot?.values?.[0]?.episodes,total:App.showCtx?.match?.episodes,status:App.remoteEpisodeSnapshot?.values?.[0]?.status,title:App.showCtx?.match?.title,aliases:App.showCtx?.match?.titleAliases},rid).catch(()=>{});
     const from = Math.min(...rows.map((r) => Number(r.dataset.num))) - 1;
     let eps=[],zip=null,settled=0;
     const apply=()=>{if(App.stale(rid))return;

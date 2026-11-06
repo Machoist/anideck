@@ -11,13 +11,14 @@ const FillerEpisodes = {
   },
   parse(payload,mal){
     if(!Array.isArray(payload?.data)||payload.data.length>100)throw Error('Invalid episode annotations');
-    const result=new Map();
+    const result=new Map();result.evidence=new Map();
     for(const row of payload.data){
       const n=row?.mal_id;if(!this.number(n))continue;
       if(mal&&row.url){const match=String(row.url).match(/^https:\/\/myanimelist\.net\/anime\/([1-9][0-9]*)\/.*?episode\/([1-9][0-9]*)(?:[/?#]|$)/);if(!match||String(match[1])!==String(mal)||Number(match[2])!==n)throw Error('Episode annotation identity mismatch');}
       // False/null flags do not establish researched canon or mixed canon.
       const kind=row.filler===true&&row.recap!==true?'filler':row.recap===true&&row.filler!==true?'recap':'unknown';
       result.set(n,result.has(n)&&result.get(n)!==kind?'unknown':kind);
+      if(typeof row.title==='string'&&/^\d{4}-\d{2}-\d{2}/.test(row.aired||''))result.evidence.set(n,{title:row.title,date:row.aired.slice(0,10)});
     }
     return result;
   },
@@ -39,7 +40,7 @@ const FillerEpisodes = {
     this.queue=job;this.pending.set(key,job);
     try{return await job;}finally{this.pending.delete(key);}
   },
-  async read({kitsuId,alId,malId,total,kitsuTotal,status},numbers){
+  async read({kitsuId,alId,malId,total,kitsuTotal,status,title,aliases},numbers){
     const result=new Map();
     // Combined/split catalogs need explicit segment mapping before annotations can transfer.
     const ongoing=['current','releasing','airing','currently airing'].includes(String(status||'').toLowerCase().replaceAll('_',' '));
@@ -66,10 +67,21 @@ const FillerEpisodes = {
     }catch{return result;}
     if(!/^[1-9][0-9]{0,8}$/.test(String(mapped||'')))return result;
     const pages=[...new Set(numbers.filter(n=>this.number(n)).map(n=>Math.ceil(n/100)))].slice(0,2);
-    for(const page of pages){const rows=await this.page(String(mapped),page);if(rows)for(const n of numbers)if(Math.ceil(n/100)===page&&rows.has(n))result.set(n,{identity:{malId:String(mapped)},number:n,classification:rows.get(n),source:rows.source||'MyAnimeList',sourceUrl:'https://myanimelist.net/anime/'+mapped+'/episode/'+n,checkedAt:this.cache.get(mapped+':'+page)?.checkedAt});}
+    for(const page of pages){
+      const rows=await this.page(String(mapped),page);if(!rows)continue;
+      const guide=typeof FillerGuide!=='undefined'?await FillerGuide.resolve([title,...(aliases||[])],rows.evidence):null;
+      if(guide)result.guideReady=true;
+      for(const n of numbers)if(Math.ceil(n/100)===page&&rows.has(n)){
+        const researched=guide?.episodes.get(n),sample=rows.evidence?.get(n),verified=researched&&sample?.date===researched.date;
+        // MAL's binary filler=true includes anime-canon episodes. It is only a
+        // candidate flag; hiding requires the independently verified guide.
+        const classification=verified?researched.classification:rows.get(n)==='recap'?'recap':'unknown';
+        result.set(n,{identity:{malId:String(mapped)},number:n,classification,source:verified?'AnimeFillerList':rows.source||'MyAnimeList',sourceUrl:verified?guide.url+'#eps-'+n:'https://myanimelist.net/anime/'+mapped+'/episode/'+n,checkedAt:this.cache.get(mapped+':'+page)?.checkedAt});
+      }
+    }
     return result;
   },
-  async mount({id,al,kitsuTotal,total,status},rid){
+  async mount({id,al,kitsuTotal,total,status,title,aliases},rid){
     const list=document.querySelector('.detail-main .ep-list');if(!list)return;
     if(list.dataset.fillerMounted)return;list.dataset.fillerMounted='true';
     const rows=[...list.querySelectorAll('.ep[data-num]')],panel=list.parentElement;
@@ -89,20 +101,20 @@ const FillerEpisodes = {
         if(kind==='filler')filler++;
         const hide=preference.hide&&kind==='filler';row.hidden=hide;if(hide)hidden++;
         row.classList.toggle('filler-marked',preference.indicators&&kind==='filler');
-        let posterTag=row.querySelector('.filler-poster-tag');
-        if(preference.indicators&&kind==='filler'){if(!posterTag&&row.querySelector('.thumb')){posterTag=document.createElement('span');posterTag.className='filler-poster-tag';posterTag.textContent='Filler';row.querySelector('.thumb').append(posterTag);}}else posterTag?.remove();
-        if(preference.indicators&&['filler','recap','mixed','canon'].includes(kind)){
+        row.querySelector('.filler-poster-tag')?.remove();
+        if(preference.indicators&&['filler','recap','mixed','anime-canon'].includes(kind)){
           marked++;let badge=row.querySelector('.episode-classification');
           if(!badge){badge=document.createElement('a');badge.className='episode-classification';badge.dataset.act='link';row.querySelector('.ep-num')?.append(badge);}
-          badge.dataset.kind=kind;badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent=kind[0].toUpperCase()+kind.slice(1);badge.title=info.source+' annotation · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);
+          badge.dataset.kind=kind;badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent=({'anime-canon':'Anime canon',mixed:'Mixed canon',filler:'Filler',recap:'Recap'})[kind];badge.title=info.source+' classification · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);
         }else row.querySelector('.episode-classification')?.remove();
       }
       const status=controls.querySelector('[role="status"]');
       const enabled=preference.indicators||preference.hide;
-      status.textContent=loading?'Loading filler data…':!enabled?'Saved for this title':annotations.size?(hidden?hidden+' filler episodes hidden':filler?filler+' filler episode'+(filler===1?'':'s')+' in this range':'No marked filler in this range'):'Filler data unavailable · Episodes kept visible';
-      controls.classList.toggle('data-unavailable',enabled&&loaded&&!annotations.size);controls.classList.toggle('data-loading',loading);
-      controls.querySelector('.filler-retry').hidden=!enabled||loading||!loaded||annotations.size>0;
-      controls.querySelectorAll('[data-filler]').forEach(button=>{const on=preference[button.dataset.filler];button.setAttribute('aria-pressed',String(on));button.querySelector('.filler-value').textContent=!on?'Off':loading?'Loading':!annotations.size&&enabled?'Waiting':button.dataset.filler==='hide'?hidden+' hidden':'On';});
+      const verified=annotations.guideReady===true;
+      status.textContent=loading?'Checking filler guide…':!enabled?'Saved for this title':verified?(hidden?hidden+' filler episodes hidden':filler?filler+' confirmed filler episode'+(filler===1?'':'s')+' in this range':'No confirmed filler in this range'):'Filler guide unavailable · Episodes kept visible';
+      controls.classList.toggle('data-unavailable',enabled&&loaded&&!verified);controls.classList.toggle('data-loading',loading);
+      controls.querySelector('.filler-retry').hidden=!enabled||loading||!loaded||verified;
+      controls.querySelectorAll('[data-filler]').forEach(button=>{const on=preference[button.dataset.filler];button.setAttribute('aria-pressed',String(on));button.querySelector('.filler-value').textContent=!on?'Off':loading?'Loading':!verified&&enabled?'Waiting':button.dataset.filler==='hide'?hidden+' hidden':'On';});
       let empty=panel.querySelector('.filler-empty');
       if(connected&&hidden===connected){if(!empty){empty=document.createElement('p');empty.className='filler-empty';empty.textContent='All episodes in this range are marked filler. Turn off “Hide filler” above to show all episodes.';list.after(empty);}}
       else empty?.remove();
@@ -110,7 +122,7 @@ const FillerEpisodes = {
     const load=async()=>{
       if(loading||loaded||(!preference.indicators&&!preference.hide))return;
       loading=true;apply();
-      try{annotations=await this.read({kitsuId:/^\d+$/.test(String(id))?id:null,alId:al?.id,malId:al?.malId,total,kitsuTotal,status:al?.status||status},rows.map(r=>Number(r.dataset.num)));}
+      try{annotations=await this.read({kitsuId:/^\d+$/.test(String(id))?id:null,alId:al?.id,malId:al?.malId,total,kitsuTotal,status:al?.status||status,title:title||al?.title,aliases:[...(aliases||[]),...(al?.titles||[])]},rows.map(r=>Number(r.dataset.num)));}
       catch{annotations=new Map();}
       finally{loading=false;loaded=true;apply();}
     };
