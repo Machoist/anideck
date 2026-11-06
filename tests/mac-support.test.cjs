@@ -22,6 +22,6 @@ test('ad-hoc signing refuses release builds and preserves Electron per-file enti
 
 test('smoke startup isolates its profile instead of reading existing sign-ins',()=>{
  const source=fs.readFileSync(path.join(root,'main.js'),'utf8'),start=source.indexOf('const legacyProfile ='),end=source.indexOf('const CONFIG_FILE',start),calls=[];
- const ctx={smokeTest:true,path:path.posix,os:{tmpdir:()=>'/tmp'},fs:{mkdtempSync:prefix=>prefix+'isolated',existsSync:()=>{throw Error('Must not inspect legacy profile');}},app:{getPath:()=>'/user-data',setPath:(...args)=>calls.push(args)}};
+ const ctx={smokeTest:true,path:path.posix,os:{tmpdir:()=>'/tmp'},fs:{mkdtempSync:prefix=>prefix+'isolated',existsSync:()=>{throw Error('Must not inspect legacy profile');}},app:{isPackaged:true,getPath:()=>'/user-data',setPath:(...args)=>calls.push(args)}};
  vm.runInNewContext(source.slice(start,end),ctx);assert.deepEqual(calls,[['userData','/tmp/anideck-smoke-isolated'],['sessionData','/tmp/anideck-smoke-isolated']]);
 });

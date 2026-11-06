@@ -16,15 +16,28 @@ if (process.platform === 'win32') app.setAppUserModelId('com.machoist.anishelf')
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 
 // Rebranding must not orphan existing settings, encrypted tokens or browser sessions.
 // The original installation used %APPDATA%/AniShelf; new installations use AniDeck.
 const smokeTest = !!require('./package.json').testBuild && process.argv.includes('--anideck-smoke-test');
 const legacyProfile = path.join(app.getPath('appData'), 'AniShelf');
+// Source runs never touch the installed profile. Each checkout gets its own folder, named by a
+// hash of its resolved path (case-folded on Windows) so the folder name does not reveal the path.
+function developmentProfile(checkout) {
+  const real = fs.realpathSync.native(checkout);
+  const key = process.platform === 'win32' ? path.win32.resolve(real).toLowerCase() : path.posix.resolve(real);
+  return path.join(app.getPath('appData'), 'AniDeck Development', crypto.createHash('sha256').update(key).digest('hex').slice(0, 16));
+}
 if (smokeTest) {
   const isolatedProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'anideck-smoke-'));
   app.setPath('userData', isolatedProfile);
   app.setPath('sessionData', isolatedProfile);
+} else if (!app.isPackaged) {
+  const sourceProfile = developmentProfile(__dirname);
+  fs.mkdirSync(sourceProfile, { recursive: true });
+  app.setPath('userData', sourceProfile);
+  app.setPath('sessionData', sourceProfile);
 } else if (fs.existsSync(legacyProfile)) {
   app.setPath('userData', legacyProfile);
   app.setPath('sessionData', legacyProfile);
