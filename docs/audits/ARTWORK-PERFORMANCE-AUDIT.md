@@ -1,6 +1,6 @@
 # Artwork loading and scrolling audit
 
-Source review plus one measured two-launch trace. Application code was not changed. Wall-clock and frame samples below are observations from this fixture. They are not user-machine thresholds.
+Source review, a baseline two-launch trace, and a post-fix trace after the backdrop change. Wall-clock and frame samples are offscreen fixture observations. They are not decode counts or real-user speed.
 
 ## Scope and base
 
@@ -41,9 +41,11 @@ Remote episode rows start with no still. `data-episode-only="1"` blocks the bann
 
 There is no pointer-drag scroller for Home rows. Rows are native `overflow-x: auto` (`src/styles.css` 95–96, 317–318). Arrows call `scrollBy` (`src/app.js` 2016–2031). The week strip is the exception: its wheel listener is non-passive and assigns `scrollLeft` until the row reaches an edge (`src/app.js` 3132–3139). Settings row reorder and deck card drag are separate gestures.
 
-`upgradeBackdrop` (`src/app.js` 2389–2453) has no in-flight lock. The first `animeAfter` waits for idle (400ms, or `requestIdleCallback` up to 1500ms) before measuring. `fade` appends `.hero-bg-img` when `style.backgroundImage` does not already contain the URL. It does not look at existing `.hero-bg-img` nodes, and it does not assign `style.backgroundImage`. `.on` is added when that image loads.
+`upgradeBackdrop` (`src/app.js` 2390–2474) now keeps one in-flight upgrade per live hero, config string, and render id (`bgFlight`). `fade` skips a URL that already has a `.hero-bg-img`, including before `.on`, and leaves the inline `background-image` in place. A stale render, a disconnected hero, or a changed `data-bgs` value does not receive that image. A failed display load removes its node and drops that `bgChoice` entry. Candidate order and the `.on` opacity transition are unchanged. The baseline section measured the previous function, which appended a second node for the same sharper URL.
 
-## Measured trace
+## Baseline trace
+
+This section is the pre-fix run. Its cold hero finished with two `.hero-bg-img` nodes. The child `network` arrays were empty because two `onCompleted` listeners replaced each other. Do not read those empty arrays as isolation evidence.
 
 Cited result only: `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-output-3/` (`trace.json`, `cold.json`, `warm.json`), written 6 November 2026 at 11:59. Both child stages exited 0. All 11 assertions passed.
 
@@ -142,7 +144,7 @@ The episode list node was replaced during the active scroll on both launches. Na
 
 ### Gestures and Home refresh
 
-Every gesture below was exercised. Long tasks were 0 and `longTaskError` was empty. Largest frame gaps are samples from this offscreen window and this fixture. They are not pass/fail thresholds.
+Every gesture below was exercised on an offscreen window with synthetic events. The home sample assigns `scrollTop` after a synthetic wheel. The title sample dispatches synthetic wheels and does not assign `scrollTop`. Long tasks were 0 and `longTaskError` was empty. Largest frame gaps are samples from this fixture. They are not pass/fail thresholds and they are not user-motion latency.
 
 | Gesture | Cold wall / samples / largest gap | Warm wall / samples / largest gap | What moved |
 | --- | --- | --- | --- |
@@ -164,13 +166,44 @@ Home refresh, both stages: `refreshWhileHeld` 0, `refreshBeforeRelease` 0, `refr
 
 Decode count per bitmap, a normal-profile cold start, and public-host cache headers remain unmeasured. Earlier scratch output directories are not this result.
 
+## Post-fix trace
+
+Command, from this checkout, after the backdrop change:
+
+```text
+node scripts/native-artwork-startup-trace.cjs C:\Users\Macho\AppData\Local\Temp\anideck-electron-v33.4.11\electron.exe . C:\Users\Macho\AppData\Local\Temp\anideck-artwork-trace-output-postfix
+```
+
+Exit 0. Both stages status 0. All 17 assertions passed. Evidence: `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-output-postfix/trace.json`. Profile retained: `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-ZDSetM/user-data`. Origin `http://127.0.0.1:57355`. Parent pid 3880, Node `v24.22.1`. Cold pid 26072, warm pid 22656. Same Electron 33.4.11 / Chrome 130.0.6723.191 / Node 20.18.3 binary as the baseline. One `onCompleted` listener records fixture and unexpected URLs by parsed origin. `onBeforeRequest` cancels any other HTTP(S) origin before `loadURL`. No blocked, foreign, or error rows were recorded.
+
+| | Cold | Warm |
+| --- | --- | --- |
+| First carousel / first still | 22ms / 1864ms | 26ms / 1849ms |
+| Backdrop calls | 2, overlap true, both `nodesAtEnd` 1 | 1, overlap false, `nodesAtEnd` 1 |
+| Fades | one, t=2967, `/backdrop-sharp.png`, 1 node | one, t=2046, same URL, 1 node |
+| Final `.hero-bg-img` | 1, `.on`, 3000×1100 | 1, `.on`, 3000×1100 |
+| Inline background | `/backdrop-initial.png` | `/backdrop-initial.png` |
+| Server bytes | 103058 across 5 responses, sharp once (46006) | 129, `/fixture.html` only |
+| Sharp resource duration | 906ms, `transferSize` 46306 | 6.8ms, `transferSize` 0, `fromCache` true |
+| Dimension rows | 0 | 0 |
+| Late paint | genre `Generated`, `listSame` false, `mainSame` true, `navSame` true, hero nodes 0 at the paint instant | genre `Generated`, `listSame` false, `mainSame` true, `navSame` true, hero nodes 1 before and after |
+| Home refresh | `refreshWhileHeld` 0, one refresh at t=1307 with `scrollActive` false | same shape, t=1310 |
+
+The cold pair of calls still overlaps across the 900ms server delay. They now share one fade. Warm images completed from the HTTP disk cache (`fromCache` true, `encodedBodySize` equal to the file, no image request at the server). `ArtworkImages` remained empty. That is separate from the dimension store.
+
+Synthetic offscreen samples, 0 long tasks: cold home wheel 188ms / 8 samples / gap 68.7ms with `scrollTop` assigned to 240; rail 267ms / gap 18.2ms; week wheel 183ms / gap 18.2ms, `defaultPrevented`, `scrollLeft` 140; title marker 689ms / gap 39.2ms, synthetic wheels, `scrollTopAssigned` false. Warm gaps were 60.3, 17.5, 17.7, and 39.3ms. These are not user-motion latency.
+
+The episode list is still replaced during the active title scroll on both stages. That baseline was not changed.
+
+Focused regressions after the edit: `node --test --test-timeout=15000 tests/backdrop-lifecycle.test.cjs tests/artwork-quality.test.cjs tests/artwork-measurements.test.cjs tests/title-panels.test.cjs` exited 0, 24 passed. Before the edit, the new backdrop file exited 1: the overlap and repeat cases appended two sharp nodes, a detached hero and a changed config still received the old image, and a failed display image stayed in the hero. Distinct heroes already upgraded independently. `node --check` on `src/app.js`, the new test, and the harness exited 0.
+
 ## Confirmed findings
 
-- Cold `upgradeBackdrop` overlapped. Two calls were in flight together, and `fade` appended two `.hero-bg-img` nodes for `/backdrop-sharp.png` while the CSS background was still `/backdrop-initial.png`. The HTTP transfer happened once.
-- Warm finished with one `.hero-bg-img`. The `.on` skip is enough after the first image has loaded. It does not cover the cold window, where the second call started with zero hero nodes.
-- `TitleReads.paint` replaced `.ep-list` on both launches while `scrollUntil` was active. `.detail-main` and `.title-sections` stayed. `HomeRefresh` stayed idle during its held scroll and ran once after release.
-- Warm image bytes came from Chromium’s HTTP disk cache on the shared `userData` directory: `transferSize` 0, `encodedBodySize` equal to the file, and no image request at the server. `ArtworkImages` stored nothing for these URLs.
-- `imageConstructors` 2 does not describe the four cold image responses or the two cold backdrop nodes.
+- Before the fix, cold `upgradeBackdrop` appended two `.hero-bg-img` nodes for one `/backdrop-sharp.png` response while the CSS background stayed `/backdrop-initial.png`.
+- After the fix, the same cold overlap records two calls and one fade. Both stages finish with one `.on` node and the original inline background. Warm still finishes with one call when the cached image is already `.on` before the late paint.
+- `TitleReads.paint` still replaces `.ep-list` while `scrollUntil` is active. `.detail-main` and `.title-sections` stay. `HomeRefresh` still waits until the held scroll ends. The scroll gate is not part of this change.
+- Warm image bytes come from Chromium’s HTTP disk cache. The post-fix log shows `fromCache` true and `transferSize` 0, while the server sends only the no-store document. `ArtworkImages` stores nothing for these loopback URLs.
+- `imageConstructors` 2 remains a separate counter from HTTP responses and from the single backdrop node.
 
 These source facts remain, and this trace did not measure them as user-visible cost:
 
@@ -199,32 +232,27 @@ These tests lock the source behavior above. They do not measure cold or warm wal
 - `tests/title-panels.test.cjs`: same-title tab commits keep navigation; retained `animeAfter` does not call `upgradeBackdrop` or `showLogo` once hero art and the logo are already present.
 - `tests/home-refresh.test.cjs`: slot signature ignores hydrated queue artwork, and a changed page, render id, or owner drops a late Home write.
 - `tests/smooth-wheel.test.cjs`: wheel, scroll, and middle-button listeners stay passive and only set `scrollUntil`.
+- `tests/backdrop-lifecycle.test.cjs`: overlap, repeat calls, independent heroes, stale and detached heroes, a changed config, and retry after a failed measure or display load. Run for this change. It failed on the previous function and passed after it.
 - `tests/queue-artwork.test.cjs` and `tests/spotlight-art.test.cjs`: score floor and in-memory spotlight scope. Not re-read line by line beyond their names and the callers above.
 - `npm test` was not run.
 
-## Recommended next fix
+## Remaining limitation
 
-Do not change loaders, caches, or scroll code in this step. The smallest next change, grounded in the cold result, is a single-flight guard on `upgradeBackdrop`: a second call for a URL that already has a `.hero-bg-img`, or that is already measuring, must not append another node. `fade` today only compares the URL with `style.backgroundImage`. Cold evidence: `overlap` true, two fades of `/backdrop-sharp.png` at the same timestamp, `finalNodes` length 2, initial background still `/backdrop-initial.png`, and one server body for that URL.
-
-The episode-list replacement is a separate confirmed defect. `TitleReads.paint` replaced `.ep-list` while `scrollUntil` was active on both launches, while `HomeRefresh` already postpones. That scroll gate is the following change if the coordinator wants both. It is not part of the single-flight change above. Neither change was implemented.
-
-Leave bitmap retention, row-drag momentum, and parallax out of that change. The exercised gestures recorded no long task. Frame gaps stay observations.
+The backdrop duplicate is fixed in this checkout. The episode-list replacement during `scrollUntil` remains, on both the baseline and post-fix traces. A scroll gate on `TitleReads.paint` is the separate next change if the coordinator wants it. It was not implemented. Bitmap retention, row-drag momentum, and parallax stay out of scope. Frame gaps stay synthetic observations. Decode counts and real-user speed were not measured.
 
 ## Handoff
 
 - Branch / base: `agent/grok-artwork-audit` at `7809185210201ebc480817ec2ba179304459a6a1`
-- Writable files used: `scripts/native-artwork-startup-trace.cjs`, `docs/audits/ARTWORK-PERFORMANCE-AUDIT.md`
-- Left untouched: application source, tests, configuration, `WORKLIST.md`, `AGENTS.md`
-- Profile retained: `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-4iPhZH/user-data`
-- Evidence: `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-output-3/trace.json`
-- Checks: `node --check scripts/native-artwork-startup-trace.cjs` exit 0; the two-launch trace above, both stages status 0, 11 assertions passed. `npm test` was not run.
+- Files changed for this task: `src/app.js` (`upgradeBackdrop` and `bgFlight` only), `tests/backdrop-lifecycle.test.cjs`, `scripts/native-artwork-startup-trace.cjs`, `docs/audits/ARTWORK-PERFORMANCE-AUDIT.md`
+- Left untouched: `TitleReads`, scroll and momentum code, caches, other tests, configuration, `WORKLIST.md`, `AGENTS.md`
+- Profiles retained: baseline `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-4iPhZH/user-data`; post-fix `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-ZDSetM/user-data`
+- Evidence: baseline `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-output-3/trace.json`; post-fix `C:/Users/Macho/AppData/Local/Temp/anideck-artwork-trace-output-postfix/trace.json`
+- Checks: `node --check` exit 0 on `src/app.js`, `tests/backdrop-lifecycle.test.cjs`, and `scripts/native-artwork-startup-trace.cjs`. Backdrop tests failed on the previous source (two sharp nodes, plus writes after detach, config change, and a failed image). After the edit, the focused command above passed 24 tests. The post-fix trace exited 0 with 17 assertions passed. `npm test` was not run.
 - Commit / push: none
-- Next action for the coordinator: review this measurement before any single-flight or scroll-gate edit
+- Next action for the coordinator: review the backdrop change. The episode-list scroll replacement is still open and was not edited.
 
-## Coordinator review — 6 November 2026
+## Integrated coordinator verification — 6 November 2026
 
-Independent rerun from the Grok checkout completed both child stages with status 0 and distinct PIDs (31716 / 26824). Cold produced two backdrop images with overlapping calls; warm produced one. Both late paints replaced the episode list while the scroll marker was active. Parent loopback counts reproduced 5 requests / 103058 bytes cold, 1 request / 129 bytes warm.
+Reviewed and integrated the scoped backdrop change, lifecycle tests and corrected diagnostic. Independent native rerun against main source passed all 17 assertions: cold overlapping calls produced one fade and one final image; warm produced one final image. Network instrumentation recorded five completed fixture requests in each child, including HTTP-cache completions, with no external HTTP attempts. This checks generated lifecycle behavior, not real-user scrolling latency.
 
-The diagnostic is not yet accepted as a maintained harness: its second Electron onCompleted listener replaces its first, leaving fixture network arrays empty. The foreign-network assertion is insufficient without request blocking and nonempty instrumentation checks. Its dispatched wheel events plus explicit scrollTop changes exercise synthetic lifecycle markers, not actual input/compositor smoothness. Frame samples do not prove user scrolling performance. The server-byte and DOM-identity observations above remain usable.
-
-Next scoped assignment to Grok: correct diagnostic instrumentation/isolation, fix duplicate backdrop work/nodes, add focused lifecycle regressions and rerun the generated two-launch scenario. Title scroll deferral remains a separate follow-up. No runtime fix has been integrated at this checkpoint.
+Coordinator syntax checks, 24 focused checks and the complete 724-test suite passed. Full-suite fixtures required unrestricted loopback/temp-file access. Evidence remains in the enclosing workspace outputs/backdrop-integrated-review/trace.json and outputs/backdrop-lifecycle-full-tests.log. No installer was rebuilt. The episode list still changed during the active scroll marker; title patch deferral is the next separate task.

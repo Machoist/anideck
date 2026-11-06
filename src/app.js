@@ -2310,6 +2310,7 @@ async function fillMissingThumbs(rid) {
 // measures each, and fades in the first one that's sharp enough for the hero at this window size and screen scaling.
 // AniList banners are only ~1900×400, so on most screens a taller image wins. If none is sharp enough, the sharpest does.
 const bgChoice = new Map(); // sources key -> picked url, so revisits don't re-measure
+const bgFlight = new WeakMap(); // in-flight upgrade for one live hero, config, and render
 // Original-resolution backdrops (often 4K) for a show in your library, best first: every backdrop Jellyfin has for it
 // (with real sizes) and every backdrop your server's image providers know (TMDB, fanart.tv, TheTVDB). Textless art
 // first, then the biggest. Kept for a week. Shows outside your library use their AniList banner instead.
@@ -2389,24 +2390,39 @@ function kitsuCover({ kitsuId = null, alId = null, any = false } = {}) { // any:
 async function upgradeBackdrop(rid) {
   const bg = document.querySelector('#main .detail-hero .hero-bg[data-bgs]');
   if (!bg) return;
-  const cfg = JSON.parse(bg.dataset.bgs || '{}');
   const key = bg.dataset.bgs;
+  const current = bgFlight.get(bg);
+  if (current && current.key === key && current.rid === rid) return current.promise;
+  const record = {key, rid, promise: null};
+  const run = upgradeBackdropNow(bg, key, rid).finally(() => { if (bgFlight.get(bg) === record) bgFlight.delete(bg); });
+  record.promise = run;
+  bgFlight.set(bg, record);
+  return run;
+}
+async function upgradeBackdropNow(bg, key, rid) {
+  const cfg = JSON.parse(key || '{}');
+  const live = () => !App.stale(rid) && bg.isConnected !== false && bg.dataset.bgs === key;
   const fade = (url) => {
-    if (!url || App.stale(rid) || bg.style.backgroundImage.includes(url)) return;
+    if (!url || !live() || bg.style.backgroundImage.includes(url)) return;
+    const nodes = bg.querySelectorAll?.('.hero-bg-img');
+    if (nodes) for (const node of nodes) if (node.getAttribute?.('src') === url || node.src === url) return;
     const img = document.createElement('img');
-    img.className = 'hero-bg-img'; img.alt = ''; img.src = url;
-    img.onload = () => requestAnimationFrame(() => img.classList.add('on'));
+    img.className = 'hero-bg-img'; img.alt = '';
+    img.onload = () => requestAnimationFrame(() => { if (!live()) { img.remove?.(); return; } img.classList.add('on'); });
+    img.onerror = () => { if (bgChoice.get(key) === url) bgChoice.delete(key); img.remove?.(); };
+    img.src = url;
     bg.appendChild(img);
   };
   if (bgChoice.has(key)) {
     const u = bgChoice.get(key), using = cfg.pill ? (u === cfg.kitsu ? 'kitsu' : u === cfg.alBanner ? 'anilist' : '') : '';
+    if (!live()) return;
     const hero = bg.closest?.('.detail-hero');
     if (hero && using && !hero.querySelector('.banner-src')) hero.insertAdjacentHTML('beforeend', bannerPill(cfg.alId, using));
     return fade(u);
   }
   // Let the poster and episode thumbnails load first; this is a nice-to-have.
   await new Promise((res) => (window.requestIdleCallback ? requestIdleCallback(res, { timeout: 1500 }) : setTimeout(res, 400)));
-  if (App.stale(rid)) return;
+  if (!live()) return;
   const measure = (u) => typeof ArtworkImages!=='undefined'?ArtworkImages.measure(u,6000):new Promise((res) => {
     const i = new Image(), t = setTimeout(() => res(null), 6000);
     i.onload = () => { clearTimeout(t); res({ u, w: i.naturalWidth, h: i.naturalHeight }); };
@@ -2423,7 +2439,7 @@ async function upgradeBackdrop(rid) {
       if (!u || tried.has(u)) continue;
       tried.add(u);
       const d = await measure(u);
-      if (App.stale(rid)) return true;
+      if (!live()) return true;
       if (!d || d.w / d.h < 1.3) continue;
       if (cfg.kitsu && u === cfg.kitsu && cfg.first?.[0] === cfg.kitsu && !kitsuCoverOk(d)) continue; // a poor Kitsu cover: AniList's banner instead
       if (score(d) >= 1) { pick = d; return true; }
@@ -2435,11 +2451,12 @@ async function upgradeBackdrop(rid) {
   let forced = null;
   if (cfg.force) {
     const d = await measure(cfg.force);
-    if (App.stale(rid)) return;
+    if (!live()) return;
     if (d && d.w >= 960 && d.w / d.h >= 1.3 && (cfg.force !== cfg.kitsu || kitsuCoverOk(d))) forced = d;
   }
   if (forced) pick = forced;
   let done = !!forced || await tryAll((typeof HDArt === 'undefined' ? [] : await HDArt.backdrops({ seriesId: cfg.lib || null, alId: cfg.alId || null })).slice(0, 2));
+  if (!live()) return;
   if (!done) done = await tryAll(cfg.first || []);
   if (!done && cfg.alId) done = await tryAll([(await AniZip.get(cfg.alId))?.fanart]); // TheTVDB fanart via ani.zip
   if (!done && cfg.fanart?.[0]) {
@@ -2448,12 +2465,12 @@ async function upgradeBackdrop(rid) {
   }
   if (!done) done = await tryAll(cfg.mid || []); // Kitsu's cover: often fan-made, so late in the order
   if (!done) await tryAll(cfg.last || []);
-  if (App.stale(rid) || !pick) return;
+  if (!live() || !pick) return;
   bgChoice.set(key, pick.u);
   fade(pick.u);
   const using = cfg.pill ? (pick.u === cfg.kitsu ? 'kitsu' : pick.u === cfg.alBanner ? 'anilist' : '') : '';
   const hero = bg.closest?.('.detail-hero');
-  if (hero && using) { hero.querySelector('.banner-src')?.remove(); hero.insertAdjacentHTML('beforeend', bannerPill(cfg.alId, using)); }
+  if (hero && using && live()) { hero.querySelector('.banner-src')?.remove(); hero.insertAdjacentHTML('beforeend', bannerPill(cfg.alId, using)); }
 }
 
 // Sets your list's progress to exactly `progress` (Tracker.setProgress only ever moves forward).
