@@ -104,8 +104,8 @@ const FillerEpisodes = {
         row.querySelector('.filler-poster-tag')?.remove();
         if(preference.indicators&&kind==='filler'){
           marked++;let badge=row.querySelector('.episode-classification');
-          if(!badge){badge=document.createElement('a');badge.className='episode-classification';badge.dataset.act='link';row.querySelector('.ep-num')?.append(badge);}
-          badge.dataset.kind=kind;badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent=({'anime-canon':'Anime canon',mixed:'Mixed canon',filler:'Filler',recap:'Recap'})[kind];badge.title=info.source+' classification · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);
+          if(!badge){badge=document.createElement('a');badge.className='episode-classification';badge.dataset.act='link';row.append(badge);}
+          badge.dataset.kind=kind;badge.dataset.url=info.sourceUrl;badge.href=info.sourceUrl;badge.textContent='Filler';badge.title=info.source+' classification · Open source';badge.setAttribute('aria-label',badge.textContent+' episode · source: '+info.source);
         }else row.querySelector('.episode-classification')?.remove();
       }
       const status=controls.querySelector('[role="status"]');

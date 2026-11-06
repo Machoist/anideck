@@ -26,8 +26,11 @@ if(!await js('document.querySelector("[data-filler=indicators]").getAttribute("a
 await js('seed([26,27,28,29]);FillerEpisodes.mount({id:10,al:{id:30},total:220,kitsuTotal:220},1)');
 if(!await js('document.querySelector("[data-filler=indicators]").getAttribute("aria-pressed")==="false"&&document.querySelector("[data-filler=hide]").getAttribute("aria-pressed")==="false"'))throw Error('Title choices not retained');
 await js('document.querySelector("[data-filler=indicators]").onclick()');
+const badgeLayout=await js('(()=>{const row=document.querySelector(".ep"),badge=row.querySelector(".episode-classification"),thumb=row.querySelector(".thumb"),watched=row.querySelector(".ep-badge"),b=badge.getBoundingClientRect(),t=thumb.getBoundingClientRect(),w=watched.getBoundingClientRect();return {topLeft:b.left>=t.left&&b.left<t.left+20&&b.top>=t.top&&b.top<t.top+20,contained:b.right<=t.right&&b.bottom<=t.bottom,watchedSeparate:b.right<=w.left||b.left>=w.right||b.bottom<=w.top||b.top>=w.bottom,outsidePlayButton:!badge.closest("button"),sourceLink:badge.href==="https://example.org/26"};})()');
+if(Object.values(badgeLayout).some(value=>!value))throw Error('Filler badge layout '+JSON.stringify(badgeLayout));
 await new Promise(r=>setTimeout(r,350));fs.writeFileSync(path.join(out,'episodes-wide.png'),(await win.webContents.capturePage()).toPNG());win.setContentSize(480,800);
 await new Promise(r=>setTimeout(r,100));fs.writeFileSync(path.join(out,'episodes-narrow.png'),(await win.webContents.capturePage()).toPNG());
+if(!await js('(()=>{const b=document.querySelector(".episode-classification").getBoundingClientRect(),t=document.querySelector(".ep .thumb").getBoundingClientRect();return b.left>=t.left&&b.right<=t.right&&b.top>=t.top&&b.bottom<=t.bottom;})()'))throw Error('Narrow filler badge clipped');
 await js('App.settings.episodeFiller[10].hide=true;seed([26]);FillerEpisodes.mount({id:10,al:{id:30},total:220,kitsuTotal:220},1)');
 if(!await js('!!document.querySelector(".filler-empty")'))throw Error('All hidden recovery missing');
 await js('document.querySelector("[data-filler=hide]").click();void 0;');
@@ -36,7 +39,7 @@ await js('seed([101]);FillerEpisodes.read=async()=>new Map();FillerEpisodes.moun
 if(!await js('document.querySelector(".filler-tools").textContent.includes("unavailable")&&!document.querySelector(".ep").hidden'))throw Error('Offline behavior failed');
 await js('seed([26]);globalThis.release=null;FillerEpisodes.read=()=>new Promise(r=>release=r);globalThis.pending=FillerEpisodes.mount({id:10,al:{id:30}},1);App.renderId=2;release(new Map([[26,{classification:"filler"}]]));pending');
 if(await js('document.querySelector(".ep").hidden'))throw Error('Stale page changed');
-fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({first,showAll:true,allHiddenRecovery:true,offlineVisible:true,staleGuard:true},null,2));console.log('Native filler check passed');win.destroy();app.exit(0);
+fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({first,badgeLayout,showAll:true,allHiddenRecovery:true,offlineVisible:true,staleGuard:true},null,2));console.log('Native filler check passed');win.destroy();app.exit(0);
 }catch(error){console.error(error);app.exit(1);}});
 `);
 const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;const result=spawnSync(path.resolve(binary),[path.join(dir,'probe.cjs')],{env,windowsHide:true,encoding:'utf8',timeout:30000});process.stdout.write(result.stdout||'');if(result.status!==0||!result.stdout?.includes('Native filler check passed')){process.stderr.write(result.stderr||String(result.error));process.exit(1);}
