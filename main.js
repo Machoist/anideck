@@ -44,6 +44,9 @@ function writeJson(file, value) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2));
 }
 
+// Automated UI fixtures must never connect to the real Discord profile.
+function discordApplicationId(){return smokeTest?'':readJson(CONFIG_FILE,{}).discordClientId||'';}
+
 // ---------- plain settings store ----------
 let store = null;
 const getStore = () => (store ??= readJson(STORE_FILE(), {}));
@@ -750,12 +753,12 @@ ipcMain.handle('store:get', (_e, key) => getStore()[key]);
 ipcMain.handle('store:set', (_e, key, value) => {
   if (value === undefined || value === null) delete getStore()[key]; else getStore()[key] = value;
   saveStore();
-  if(key==='settings')discordPresence.configure(value||{},readJson(CONFIG_FILE,{}).discordClientId||'');
+  if(key==='settings')discordPresence.configure(value||{},discordApplicationId());
   return true;
 });
 ipcMain.handle('discord:presence', (event,action,payload)=>{
  if(!mainWin||mainWin.isDestroyed()||event.sender!==mainWin.webContents)return {configured:false,enabled:false,state:'off'};
- const status=discordPresence.configure(getStore().settings||{},readJson(CONFIG_FILE,{}).discordClientId||'');
+ const status=discordPresence.configure(getStore().settings||{},discordApplicationId());
  if(action==='update')return discordPresence.update(payload);
  if(action==='clear')discordPresence.clear();
  return action==='configure'?status:discordPresence.status();

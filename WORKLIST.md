@@ -1,5 +1,13 @@
 # AniDeck worklist
 
+## 6 November — registered AniDeck Discord application
+
+User opened the AniDeck General Information page and requested setup. Verified name AniDeck and public Application ID1568285269717946439 through the visible browser page; no secrets accessed or permissions changed. Added ID to public packaged config and a previously absent ignored local config.json. Sharing stays off by default. Real Discord publication not performed.
+
+- Add a native smoke-profile guard returning no Discord application ID, so automated opt-in UI fixtures can never publish activity once the public configuration is registered. New regression checks smoke and normal lookup independently. Existing pending-setup UI fixture remains valid through this guard.
+- Next: final checks/build, then explicitly consented normal Discord playback/pause/privacy/clear acceptance. Registration itself is complete. Desktop profile/installer/uninstall-retention audit remains next independent implementation item; TV/Gio/Mac/private Jellyfin deferred.
+
+
 ## 6 November — opt-in Discord Rich Presence
 
 Current installer/portable: **preview-1158ea0**, runtime **1158ea0**. **709 tests pass**, including13 focused Discord checks. Release/package audit, complete packaged native visuals, separate fresh-profile/public readiness and installer/portable ASAR equality plus ZIP integrity pass. Public Discord Application ID is not registered yet (user confirmed). Do not claim live Discord publication. No bot/client secret, webhook or account token is needed. Setup instructions: docs/DISCORD-PRESENCE.md. Empty public discordClientId keeps the Settings > Discord sharing switch disabled with clear setup-pending copy.

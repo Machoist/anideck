@@ -18,7 +18,7 @@ test('renderer never builds payload for closed/private/receiver players; real pl
 
 test('native IPC rejects helper-window callers and reads opt-in/configuration from native storage',()=>{
  const main=fs.readFileSync('main.js','utf8'),start=main.indexOf("ipcMain.handle('discord:presence'"),end=main.indexOf("app.on('before-quit',()=>discordPresence.disconnect())",start);let handler,configured,updates=0;const contents={};
- vm.runInNewContext(main.slice(start,end),{ipcMain:{handle:(_name,fn)=>handler=fn},mainWin:{webContents:contents,isDestroyed:()=>false},getStore:()=>({settings:{discordPresence:false}}),readJson:()=>({discordClientId:id}),CONFIG_FILE:'public-config',discordPresence:{configure:(s,c)=>{configured={s,c};return {state:'off'};},update:()=>updates++,status:()=>({state:'off'})}});
+ vm.runInNewContext(main.slice(start,end),{ipcMain:{handle:(_name,fn)=>handler=fn},mainWin:{webContents:contents,isDestroyed:()=>false},getStore:()=>({settings:{discordPresence:false}}),discordApplicationId:()=>id,readJson:()=>({discordClientId:id}),CONFIG_FILE:'public-config',discordPresence:{configure:(s,c)=>{configured={s,c};return {state:'off'};},update:()=>updates++,status:()=>({state:'off'})}});
  assert.equal(handler({sender:{}},'update',sample).state,'off');assert.equal(updates,0);handler({sender:contents},'configure');assert.equal(configured.s.discordPresence,false);assert.equal(configured.c,id);
 });
 
@@ -29,3 +29,5 @@ test('native presence call after window destruction does not touch destroyed Web
 test('null RPC payloads are rejected without crashing the native process',()=>{const f=fixture();f.client.configure({discordPresence:true},id);f.client.update(sample);const s=f.ready();assert.doesNotThrow(()=>s.emit('data',frame(1,null)));assert.equal(f.client.state,'unavailable');f.client.disconnect();});
 
 test('saved enabled preference renders a ready state rather than claiming sharing is off',()=>{const helper=vm.runInNewContext(fs.readFileSync('src/discord-presence.js','utf8')+';DiscordPresence',{App:{settings:{discordPresence:true},config:{discordClientId:id}},icon:()=>''});assert.match(helper.markup(),/Ready\. Activity appears/);assert.doesNotMatch(helper.markup(),/Playback sharing is off\./);});
+
+test('smoke profiles cannot publish presence even after the real application is registered',()=>{const source=fs.readFileSync('main.js','utf8'),start=source.indexOf('function discordApplicationId()'),end=source.indexOf('\n',start),code=source.slice(start,end)+';discordApplicationId()';for(const smokeTest of [true,false])assert.equal(vm.runInNewContext(code,{smokeTest,CONFIG_FILE:'public',readJson:()=>({discordClientId:id})}),smokeTest?'':id);});
