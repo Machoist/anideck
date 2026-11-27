@@ -57,11 +57,14 @@ class LocalLibrary {
     : _open = open ?? _openDefault;
   static final instance = LocalLibrary();
   static const schemaVersion = 2;
+
+  /// Database filename; every earlier app launch created it on Home.
+  static const fileName = 'anideck-library-v1.db';
   final Future<Database> Function() _open;
   Future<Database>? _database;
 
   static Future<Database> _openDefault() async => openDatabase(
-    path.join(await getDatabasesPath(), 'anideck-library-v1.db'),
+    path.join(await getDatabasesPath(), fileName),
     version: schemaVersion,
     onCreate: createSchema,
     onUpgrade: upgradeSchema,
