@@ -1,0 +1,86 @@
+# Checks the Android (Flutter) app in mobile/: static analysis, unit/widget
+# tests and an unpublished debug APK. Download the APK from the run's
+# "Artifacts" section. It is signed with a throwaway CI debug key, so it
+# cannot install as an update over a locally signed preview.
+#
+# Not run here: integration_test/ (needs an emulator; some tests reach live
+# providers or AniList) and any release signing, publishing or deployment.
+name: Android check
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in step with mobile/.metadata and mobile/README.md.
+  FLUTTER_VERSION: 3.50.1
+  FLUTTER_REVISION: ae9b586f34a8443573f82ef57c3bf914a908cbf7
+
+jobs:
+  android:
+    name: Analyze, test and build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      # AGP 9 needs JDK 17+; the local toolchain uses JDK 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Confirm pinned Flutter SDK revision
+        run: |
+          flutter --version
+          actual="$(flutter --version --machine | jq -r .frameworkRevision)"
+          if [ "$actual" != "$FLUTTER_REVISION" ]; then
+            echo "::error::Flutter revision $actual does not match pinned $FLUTTER_REVISION"
+            exit 1
+          fi
+
+      - name: Get locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Unit and widget tests
+        run: flutter test
+
+      # Debug builds enable diagnostics (Playback checks menu) unless disabled.
+      - name: Build debug APK (not published)
+        run: flutter build apk --debug --dart-define=ANIDECK_DIAGNOSTICS=false
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AniDeck-android-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
