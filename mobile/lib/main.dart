@@ -5,6 +5,7 @@ import 'preview_sample.dart';
 import 'provider_browser.dart';
 import 'library_page.dart';
 import 'mobile_home.dart';
+import 'onboarding.dart';
 export 'mobile_home.dart' show PreviewHome;
 
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
@@ -13,12 +14,16 @@ const mobileDiagnosticsEnabled =
     kDebugMode &&
     bool.fromEnvironment('ANIDECK_DIAGNOSTICS', defaultValue: true);
 
-void main() => runApp(const AniDeckMobile());
+void main() => runApp(const AniDeckMobile(onboarding: !kIsWeb));
 const accent = Color(0xffbba5ff);
 
 class AniDeckMobile extends StatelessWidget {
-  const AniDeckMobile({super.key, this.home});
+  const AniDeckMobile({super.key, this.home, this.onboarding = false});
   final Widget? home;
+
+  /// Shows first-launch onboarding before the default home (the app sets
+  /// this; tests that pump the default home leave it off).
+  final bool onboarding;
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'AniDeck Mobile Preview',
@@ -59,17 +64,15 @@ class AniDeckMobile extends StatelessWidget {
         ),
       ),
     ),
-    home:
-        home ??
-        PreviewHome(
-          onSamples: !mobileDiagnosticsEnabled
-              ? null
-              : (context) => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const PlaybackSamples(),
-                  ),
-                ),
-        ),
+    home: home ?? (onboarding ? OnboardingGate(home: _home()) : _home()),
+  );
+
+  Widget _home() => PreviewHome(
+    onSamples: !mobileDiagnosticsEnabled
+        ? null
+        : (context) => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const PlaybackSamples()),
+          ),
   );
 }
 
