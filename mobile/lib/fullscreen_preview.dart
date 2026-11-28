@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'player_chrome.dart';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:video_player/video_player.dart';
 
@@ -231,6 +233,15 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                     onTap: _toggleControls,
                   ),
                 ),
+                Center(
+                  child: _controlBar(
+                    PlayerTransport(
+                      playing: value.isPlaying,
+                      onToggle: widget.onToggle,
+                      onSeek: widget.onSeek,
+                    ),
+                  ),
+                ),
                 Align(
                   alignment: Alignment.topCenter,
                   child: _controlBar(
@@ -259,7 +270,19 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                                   widget.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: 'Playback settings',
+                                onPressed: () => showPlayerOptions(
+                                  context,
+                                  widget.controller,
+                                ),
+                                icon: const Icon(Icons.tune_rounded),
                               ),
                               Tooltip(
                                 message: _fill
@@ -328,26 +351,20 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                                 ),
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  IconButton(
-                                    tooltip: 'Back 10 seconds',
-                                    onPressed: () => widget.onSeek(-10),
-                                    icon: const Icon(Icons.replay_10_rounded),
-                                  ),
-                                  IconButton.filled(
-                                    tooltip: value.isPlaying ? 'Pause' : 'Play',
-                                    onPressed: widget.onToggle,
-                                    icon: Icon(
-                                      value.isPlaying
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
+                                  Text(
+                                    playerTime(value.position),
+                                    style: const TextStyle(
+                                      color: playerAccent,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  IconButton(
-                                    tooltip: 'Forward 10 seconds',
-                                    onPressed: () => widget.onSeek(10),
-                                    icon: const Icon(Icons.forward_10_rounded),
+                                  const Spacer(),
+                                  Text(
+                                    playerTime(value.duration),
+                                    style: const TextStyle(
+                                      color: Color(0xffd0cbd9),
+                                    ),
                                   ),
                                 ],
                               ),

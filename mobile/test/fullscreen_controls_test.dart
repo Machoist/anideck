@@ -155,10 +155,10 @@ void main() {
     expectControls(tester, shown: true);
 
     // Tapping the video while shown and playing hides immediately.
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     expectControls(tester, shown: false);
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     expectControls(tester, shown: true);
 
@@ -182,7 +182,7 @@ void main() {
     await tester.pump(const Duration(seconds: 10));
     expectControls(tester, shown: true);
     // Tapping the video while paused never hides the controls.
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     expectControls(tester, shown: true);
 
@@ -193,7 +193,7 @@ void main() {
     expectControls(tester, shown: false);
 
     // Pausing (here via keyboard reveal then the Pause control) shows them.
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Pause').last);
     await tester.pump();
@@ -275,7 +275,7 @@ void main() {
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await openFullscreen(tester);
     await tester.pump(const Duration(seconds: 10));
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     expectControls(tester, shown: true);
     await unmount(tester);
@@ -319,7 +319,7 @@ void main() {
     expect(tester.getRect(video), videoShown);
     expect(tester.getRect(caption), captionShown);
 
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('fullscreen-fit')));
     await tester.pumpAndSettle();
@@ -331,7 +331,7 @@ void main() {
     expectControls(tester, shown: false);
     expect(tester.getRect(video), filled, reason: 'Fill survives hiding');
 
-    await tester.tapAt(const Offset(422, 195));
+    await tester.tapAt(const Offset(422, 110));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Turn captions off'));
     await tester.pumpAndSettle();
