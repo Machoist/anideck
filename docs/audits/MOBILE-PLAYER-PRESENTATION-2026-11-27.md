@@ -1,0 +1,11 @@
+# Android player presentation — 27 November 2026
+
+Isolated checkout `work/anideck-mobile-review`, base `733bd1e`; local version0.1.12+13. No provider, authentication, signing configuration or dependency changes. Original mobile source and Claude worktrees preserved.
+
+The inline player now groups timeline, elapsed/total time, large transport controls, captions, settings and fullscreen into one rounded AniDeck panel. Fullscreen places transport centrally, keeps timeline/time at the bottom, and retains Fit/Fill and auto-hide. Shared playback settings sheet controls actual native playback speed (0.75–2x) without replacing the controller. No unavailable quality or server options invented. Removed permanent preview-style instructional footer; development sample attribution remains in development sample mode.
+
+Checks: **93 tests pass**, analysis **No issues found**, diagnostics-off debug APK exit0, diff check clean. New tests verify hour formatting and changing speed on the same controller while preserving position. Auto-hide tests now tap clear video instead of the location occupied by the redesigned central Pause control; all original visibility/interaction assertions retained. Initial test run exposed those outdated coordinates; speed fixture initially stalled and was corrected with runAsync initialization/disposal. Failure logs preserved in enclosing outputs.
+
+Actual normal APK installed in place on user emulator5554 without clearing data. Visual inspection: inline controls, settings sheet, portrait/landscape fullscreen. Played an unsaved episode from Home source card; observed video frames and English subtitles, controls hidden while playing, tap reveals, paused at0:39 in landscape. Did not save title or alter tracker/account data. No audible-audio or physical tablet acceptance claimed. Native integration test suite not rerun for this pass; auto-hide remains covered by widget regression tests and visible normal-app playback.
+
+Artifact: enclosing `outputs/mobile-player-android-20261127/AniDeck-Mobile-Preview-0.1.12-debug.apk`; SHA256 `1D305A7D2796C965B58645D101506E52F98780B04593E2506A6809770639AE05`. Build source inventory adjacent in BUILD-RECORD.json. No commit/push/PR merge or public release performed.

@@ -409,7 +409,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   );
                 },
               ),
-              _heading('Explore Anikoto'),
+              _heading('Discover anime'),
               FutureBuilder<List<ProviderTitle>>(
                 future: _feed,
                 builder: (context, snapshot) {

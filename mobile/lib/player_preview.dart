@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'preview_sample.dart';
 import 'fullscreen_preview.dart';
+import 'player_chrome.dart';
 import 'providers/anikoto_catalog.dart';
 import 'providers/embed_resolver.dart';
 import 'providers/provider_playback.dart';
@@ -263,10 +264,7 @@ class _PreviewPlayerState extends State<PreviewPlayer>
       }
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'Playback was interrupted. Try loading the preview again.',
-        );
+        setState(() => _error = 'Playback was interrupted. Try again.');
       }
     }
   }
@@ -284,7 +282,7 @@ class _PreviewPlayerState extends State<PreviewPlayer>
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Couldn’t seek in this preview. Try loading it again.',
+          () => _error = 'Couldn’t seek. Try loading the episode again.',
         );
       }
     }
@@ -320,7 +318,7 @@ class _PreviewPlayerState extends State<PreviewPlayer>
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.providerRequest?.title.name ?? 'Playback preview',
+          widget.providerRequest?.title.name ?? 'Sample playback',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -379,7 +377,7 @@ class _PreviewPlayerState extends State<PreviewPlayer>
                                   if (!value.isPlaying && !value.isBuffering)
                                     Center(
                                       child: IconButton.filled(
-                                        tooltip: 'Play preview',
+                                        tooltip: 'Play video',
                                         iconSize: 38,
                                         onPressed: _toggle,
                                         icon: const Icon(
@@ -393,7 +391,7 @@ class _PreviewPlayerState extends State<PreviewPlayer>
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Text(
                   widget.providerRequest == null
                       ? 'A moment to try it out.'
@@ -426,92 +424,109 @@ class _PreviewPlayerState extends State<PreviewPlayer>
                 if (_ready && _error == null)
                   ValueListenableBuilder<VideoPlayerValue>(
                     valueListenable: _controller!,
-                    builder: (context, value, _) => Column(
-                      children: [
-                        const SizedBox(height: 24),
-                        VideoProgressIndicator(
-                          _controller!,
-                          allowScrubbing: true,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          colors: const VideoProgressColors(
-                            playedColor: Color(0xffbba5ff),
-                            bufferedColor: Color(0xff514760),
-                            backgroundColor: Color(0xff292532),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(_time(value.position)),
-                            Text(_time(value.duration)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              tooltip: 'Back 10 seconds',
-                              onPressed: () => _seek(-10),
-                              icon: const Icon(Icons.replay_10_rounded),
-                            ),
-                            const SizedBox(width: 12),
-                            IconButton.filled(
-                              tooltip: value.isPlaying ? 'Pause' : 'Play',
-                              onPressed: _toggle,
-                              icon: Icon(
-                                value.isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                              ),
-                              iconSize: 32,
-                            ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              tooltip: 'Forward 10 seconds',
-                              onPressed: () => _seek(10),
-                              icon: const Icon(Icons.forward_10_rounded),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        FilterChip(
-                          label: Text(
-                            _captions ? 'Captions on' : 'Captions off',
-                          ),
-                          avatar: const Icon(
-                            Icons.closed_caption_outlined,
-                            size: 18,
-                          ),
-                          selected: _captions,
-                          onSelected: (on) => setState(() => _captions = on),
-                        ),
-                        if (_subtitleNote != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Text(
-                              _subtitleNote!,
-                              style: const TextStyle(color: Color(0xffffca8b)),
-                            ),
-                          ),
-                        TextButton.icon(
-                          onPressed: _openFullscreen,
-                          icon: const Icon(Icons.fullscreen_rounded),
-                          label: const Text('Fullscreen'),
-                        ),
-                        if (value.hasError)
-                          Column(
+                    builder: (context, value, _) => Container(
+                      margin: const EdgeInsets.only(top: 20),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff211f2a),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(color: const Color(0xff393342)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
                             children: [
-                              const Text(
-                                'Playback stopped. Try loading the preview again.',
+                              Text(
+                                playerTime(value.position),
+                                style: const TextStyle(
+                                  color: playerAccent,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                              TextButton(
-                                onPressed: _load,
-                                child: const Text('Reload preview'),
+                              const Spacer(),
+                              Text(
+                                playerTime(value.duration),
+                                style: const TextStyle(
+                                  color: Color(0xffb4afc2),
+                                ),
                               ),
                             ],
                           ),
-                      ],
+                          VideoProgressIndicator(
+                            _controller!,
+                            allowScrubbing: true,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            colors: const VideoProgressColors(
+                              playedColor: playerAccent,
+                              bufferedColor: Color(0xff655577),
+                              backgroundColor: Color(0xff37313f),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          PlayerTransport(
+                            playing: value.isPlaying,
+                            onToggle: _toggle,
+                            onSeek: _seek,
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(height: 1, color: Color(0xff393342)),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () =>
+                                    setState(() => _captions = !_captions),
+                                icon: Icon(
+                                  _captions
+                                      ? Icons.closed_caption_rounded
+                                      : Icons.closed_caption_off_outlined,
+                                  size: 19,
+                                ),
+                                label: Text(
+                                  _captions ? 'Captions on' : 'Captions off',
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Playback settings',
+                                onPressed: () =>
+                                    showPlayerOptions(context, _controller!),
+                                icon: const Icon(Icons.tune_rounded),
+                              ),
+                              TextButton.icon(
+                                onPressed: _openFullscreen,
+                                icon: const Icon(Icons.fullscreen_rounded),
+                                label: const Text('Fullscreen'),
+                              ),
+                            ],
+                          ),
+                          if (_subtitleNote != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(
+                                _subtitleNote!,
+                                style: const TextStyle(
+                                  color: Color(0xffffca8b),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          if (value.hasError)
+                            Column(
+                              children: [
+                                const Text(
+                                  'Playback stopped. Try loading the episode again.',
+                                ),
+                                TextButton(
+                                  onPressed: _load,
+                                  child: const Text('Retry playback'),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 const SizedBox(height: 28),
@@ -531,10 +546,6 @@ class _PreviewPlayerState extends State<PreviewPlayer>
                       ),
                     ),
                   ),
-                const Text(
-                  'Playback pauses when you leave the app. Tap Play when you return.',
-                  style: TextStyle(color: Color(0xffaaa2b8), height: 1.5),
-                ),
               ],
             ),
           ),
@@ -542,7 +553,4 @@ class _PreviewPlayerState extends State<PreviewPlayer>
       ),
     ),
   );
-
-  String _time(Duration value) =>
-      '${value.inMinutes}:${(value.inSeconds % 60).toString().padLeft(2, '0')}';
 }

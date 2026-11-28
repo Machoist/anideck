@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'player_chrome.dart';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:video_player/video_player.dart';
 
@@ -164,6 +166,78 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
     );
   }
 
+  /// Desktop order: elapsed time, timeline, total time.
+  Widget _seekRow(VideoPlayerValue value) => Row(
+    key: const ValueKey('fullscreen-seek-row'),
+    children: [
+      _Time(playerTime(value.position), emphasis: true),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: VideoProgressIndicator(
+            widget.controller,
+            allowScrubbing: true,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            colors: const VideoProgressColors(
+              playedColor: playerAccent,
+              bufferedColor: Color(0x66ffffff),
+              backgroundColor: Color(0x33ffffff),
+            ),
+          ),
+        ),
+      ),
+      _Time(playerTime(value.duration)),
+    ],
+  );
+
+  /// Every player option sits below the timeline, right-aligned like the
+  /// desktop player and ending with exit fullscreen; 48dp touch targets.
+  Widget _toolbar(VideoPlayerValue value) {
+    final speed = value.playbackSpeed;
+    return Row(
+      key: const ValueKey('fullscreen-toolbar'),
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        _ToolButton(
+          tooltip: _captions ? 'Turn captions off' : 'Turn captions on',
+          selected: _captions,
+          icon: _captions
+              ? Icons.closed_caption_rounded
+              : Icons.closed_caption_off_outlined,
+          onPressed: () {
+            setState(() => _captions = !_captions);
+            widget.onCaptionsChanged(_captions);
+          },
+        ),
+        speed == 1
+            ? _ToolButton(
+                tooltip: 'Playback settings',
+                icon: Icons.tune_rounded,
+                onPressed: () => showPlayerOptions(context, widget.controller),
+              )
+            : _ToolPill(
+                tooltip: 'Playback settings',
+                icon: Icons.tune_rounded,
+                label: speedLabel(speed),
+                highlighted: true,
+                onPressed: () => showPlayerOptions(context, widget.controller),
+              ),
+        _ToolPill(
+          key: const ValueKey('fullscreen-fit'),
+          tooltip: _fill ? 'Fit whole picture' : 'Fill screen (crops edges)',
+          icon: _fill ? Icons.crop_rounded : Icons.fit_screen_rounded,
+          label: _fill ? 'Fill' : 'Fit',
+          onPressed: () => setState(() => _fill = !_fill),
+        ),
+        _ToolButton(
+          tooltip: 'Exit fullscreen',
+          icon: Icons.fullscreen_exit_rounded,
+          onPressed: () => Navigator.pop(context, _captions),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Focus(
     focusNode: _keyFocus,
@@ -231,6 +305,15 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                     onTap: _toggleControls,
                   ),
                 ),
+                Center(
+                  child: _controlBar(
+                    PlayerTransport(
+                      playing: value.isPlaying,
+                      onToggle: widget.onToggle,
+                      onSeek: widget.onSeek,
+                    ),
+                  ),
+                ),
                 Align(
                   alignment: Alignment.topCenter,
                   child: _controlBar(
@@ -239,57 +322,31 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Color(0xcc000000), Color(0x00000000)],
+                          colors: [Color(0xb3000000), Color(0x00000000)],
                         ),
                       ),
                       child: SafeArea(
                         bottom: false,
+                        // Full-width scrim, only as tall as the title,
+                        // so it never covers the transport controls.
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 16),
+                          padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
                           child: Row(
                             children: [
-                              IconButton(
-                                tooltip: 'Exit fullscreen',
-                                onPressed: () =>
-                                    Navigator.pop(context, _captions),
-                                icon: const Icon(Icons.fullscreen_exit_rounded),
-                              ),
                               Expanded(
-                                child: Text(
-                                  widget.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Tooltip(
-                                message: _fill
-                                    ? 'Fit whole image'
-                                    : 'Fill screen (crops edges)',
-                                child: TextButton.icon(
-                                  key: const ValueKey('fullscreen-fit'),
-                                  onPressed: () =>
-                                      setState(() => _fill = !_fill),
-                                  icon: Icon(
-                                    _fill
-                                        ? Icons.crop_rounded
-                                        : Icons.fit_screen_rounded,
-                                    size: 20,
+                                child: Semantics(
+                                  header: true,
+                                  child: Text(
+                                    widget.title,
+                                    key: const ValueKey('fullscreen-title'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.2,
+                                    ),
                                   ),
-                                  label: Text(_fill ? 'Fill' : 'Fit'),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: _captions
-                                    ? 'Turn captions off'
-                                    : 'Turn captions on',
-                                onPressed: () {
-                                  setState(() => _captions = !_captions);
-                                  widget.onCaptionsChanged(_captions);
-                                },
-                                icon: Icon(
-                                  _captions
-                                      ? Icons.closed_caption
-                                      : Icons.closed_caption_off_outlined,
                                 ),
                               ),
                             ],
@@ -307,54 +364,27 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Color(0x00000000), Color(0xdd000000)],
+                          colors: [Color(0x00000000), Color(0xe6000000)],
                         ),
                       ),
                       child: SafeArea(
                         top: false,
+                        minimum: const EdgeInsets.only(bottom: 4),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          padding: const EdgeInsets.fromLTRB(16, 20, 12, 0),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              VideoProgressIndicator(
-                                widget.controller,
-                                allowScrubbing: true,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                colors: const VideoProgressColors(
-                                  playedColor: Color(0xffbba5ff),
-                                ),
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    tooltip: 'Back 10 seconds',
-                                    onPressed: () => widget.onSeek(-10),
-                                    icon: const Icon(Icons.replay_10_rounded),
-                                  ),
-                                  IconButton.filled(
-                                    tooltip: value.isPlaying ? 'Pause' : 'Play',
-                                    onPressed: widget.onToggle,
-                                    icon: Icon(
-                                      value.isPlaying
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Forward 10 seconds',
-                                    onPressed: () => widget.onSeek(10),
-                                    icon: const Icon(Icons.forward_10_rounded),
-                                  ),
-                                ],
-                              ),
+                              _seekRow(value),
                               if (value.hasError)
-                                const Text(
-                                  'Playback stopped. Exit fullscreen to reload.',
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Playback stopped. Exit fullscreen to reload.',
+                                    style: TextStyle(color: Color(0xffffca8b)),
+                                  ),
                                 ),
+                              _toolbar(value),
                             ],
                           ),
                         ),
@@ -367,6 +397,77 @@ class _FullscreenPreviewState extends State<FullscreenPreview> {
           },
         ),
       ),
+    ),
+  );
+}
+
+class _Time extends StatelessWidget {
+  const _Time(this.text, {this.emphasis = false});
+  final String text;
+  final bool emphasis;
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(
+      fontSize: 13,
+      color: emphasis ? Colors.white : const Color(0xffcfc8dc),
+      fontWeight: emphasis ? FontWeight.w700 : FontWeight.w500,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  );
+}
+
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.selected = false,
+  });
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool selected;
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    style: IconButton.styleFrom(
+      foregroundColor: selected ? playerAccent : Colors.white,
+      minimumSize: const Size(48, 48),
+    ),
+    iconSize: 24,
+    icon: Icon(icon),
+  );
+}
+
+/// Icon plus a short state label (Fit/Fill, active speed), 48dp tall.
+class _ToolPill extends StatelessWidget {
+  const _ToolPill({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.highlighted = false,
+  });
+  final String tooltip, label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool highlighted;
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: TextButton.icon(
+      style: TextButton.styleFrom(
+        foregroundColor: highlighted ? playerAccent : Colors.white,
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        shape: const StadiumBorder(),
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 22),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     ),
   );
 }
