@@ -134,6 +134,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Saved continuation'), findsOneWidget);
+      // User-facing section wording, not the provider's name.
+      final feedHeading = find.text('Discover anime', skipOffstage: false);
+      expect(feedHeading, findsOneWidget);
+      expect(find.text('Explore Anikoto', skipOffstage: false), findsNothing);
       await tester.tap(find.widgetWithText(NavigationDestination, 'Search'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(NavigationDestination, 'Home'));

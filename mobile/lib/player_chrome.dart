@@ -12,6 +12,10 @@ String playerTime(Duration value) {
       : '$minutes:$remainder';
 }
 
+/// "2×", "1.25×", "0.75×": no trailing ".0".
+String speedLabel(double speed) =>
+    '${speed == speed.roundToDouble() ? speed.toStringAsFixed(0) : speed}×';
+
 /// Shared controls; the owning player retains playback and resume ownership.
 class PlayerTransport extends StatelessWidget {
   const PlayerTransport({
@@ -77,8 +81,10 @@ Future<void> showPlayerOptions(
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
   ),
+  // Scrollable so short landscape phones never clip the sheet.
+  isScrollControlled: true,
   builder: (sheetContext) => SafeArea(
-    child: Padding(
+    child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
       child: ValueListenableBuilder<VideoPlayerValue>(
         valueListenable: controller,
@@ -90,12 +96,7 @@ Future<void> showPlayerOptions(
               'Playback settings',
               style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Make it your pace.',
-              style: TextStyle(color: Color(0xffb4afc2)),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             const Text(
               'Playback speed',
               style: TextStyle(fontWeight: FontWeight.w600),
@@ -107,7 +108,7 @@ Future<void> showPlayerOptions(
               children: [
                 for (final speed in [0.75, 1.0, 1.25, 1.5, 2.0])
                   ChoiceChip(
-                    label: Text(speed == 1 ? 'Normal' : '$speed×'),
+                    label: Text(speed == 1 ? 'Normal' : speedLabel(speed)),
                     selected: value.playbackSpeed == speed,
                     onSelected: (_) async {
                       try {
@@ -134,4 +135,3 @@ Future<void> showPlayerOptions(
     ),
   ),
 );
-
